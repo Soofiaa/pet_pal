@@ -103,7 +103,8 @@ class NotificationService {
       tz.TZDateTime.from(scheduledDateTime, tz.local),
       _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      // CAMBIO: Se elimina la propiedad 'uiLocalNotificationDateInterpretationPlatformSpecific'
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      // Se mantiene la coincidencia exacta de fecha y hora para recordar al usuario en el momento configurado.
       matchDateTimeComponents: DateTimeComponents.dateAndTime,
       payload: payload,
     );
