@@ -6,6 +6,10 @@ import 'package:intl/intl.dart'; // Para formatear fechas
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/note.dart';
 
+/// Genera un PDF con las notas de una mascota y, si existen, su primera foto.
+///
+/// Si la ruta de la foto no existe en el dispositivo, se omite la imagen para
+/// evitar errores durante la generación del documento.
 Future<Uint8List> generateNotesPdf(Pet pet, List<Note> notes) async {
   final pdf = pw.Document();
 
@@ -63,19 +67,24 @@ Future<Uint8List> generateNotesPdf(Pet pet, List<Note> notes) async {
                     note.content,
                     style: const pw.TextStyle(fontSize: 12),
                   ),
-                  // Se accede a photoPaths.isNotEmpty y photoPaths.first
                   if (note.photoPaths.isNotEmpty) ...[
                     pw.SizedBox(height: 10),
-                    pw.Center(
-                      child: pw.Image(
-                        pw.MemoryImage(
-                          File(note.photoPaths.first).readAsBytesSync(),
+                    if (File(note.photoPaths.first).existsSync())
+                      pw.Center(
+                        child: pw.Image(
+                          pw.MemoryImage(
+                            File(note.photoPaths.first).readAsBytesSync(),
+                          ),
+                          width: 200, // Ajusta el tamaño de la imagen en el PDF
+                          height: 200,
+                          fit: pw.BoxFit.contain,
                         ),
-                        width: 200, // Ajusta el tamaño de la imagen en el PDF
-                        height: 200,
-                        fit: pw.BoxFit.contain,
+                      )
+                    else
+                      pw.Text(
+                        'Imagen no disponible (ruta inválida).',
+                        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
                       ),
-                    ),
                   ],
                 ],
               ),
