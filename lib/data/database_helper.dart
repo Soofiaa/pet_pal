@@ -161,8 +161,176 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // ... (El código de migración existente se mantiene igual)
-    // El código de migración no necesita cambios si ya funciona.
+    // Crea tablas que no existan todavía (por si el usuario viene de versiones antiguas).
+    await _createTablesIfMissing(db);
+
+    // Garantiza que las tablas tengan todas las columnas actuales.
+    await _ensureColumns(db, petsTable, {
+      'name': 'TEXT',
+      'species': 'TEXT',
+      'breed': 'TEXT',
+      'dob': 'TEXT',
+      'color': 'TEXT',
+      'imageUrl': 'TEXT',
+    });
+    await _ensureColumns(db, notesTable, {
+      'petId': 'TEXT',
+      'title': 'TEXT',
+      'date': 'TEXT',
+      'content': 'TEXT',
+      'photoPaths': 'TEXT',
+    });
+    await _ensureColumns(db, vaccinationsTable, {
+      'petId': 'TEXT',
+      'vaccineName': 'TEXT',
+      'date': 'TEXT',
+      'nextDueDate': 'TEXT',
+      'stickerPhotoPath': 'TEXT',
+    });
+    await _ensureColumns(db, appointmentsTable, {
+      'petId': 'TEXT',
+      'dateTime': 'TEXT',
+      'title': 'TEXT',
+      'description': 'TEXT',
+      'location': 'TEXT',
+      'type': 'TEXT',
+      'isCompleted': 'INTEGER NOT NULL DEFAULT 0',
+    });
+    await _ensureColumns(db, weightRecordsTable, {
+      'petId': 'TEXT',
+      'weight': 'REAL',
+      'date': 'TEXT',
+    });
+    await _ensureColumns(db, foodAllergiesTable, {
+      'petId': 'TEXT',
+      'allergies': 'TEXT NOT NULL',
+      'dateRecorded': 'TEXT NOT NULL',
+    });
+    await _ensureColumns(db, dewormingsTable, {
+      'petId': 'TEXT',
+      'product': 'TEXT',
+      'date': 'TEXT',
+      'nextDate': 'TEXT',
+    });
+    await _ensureColumns(db, medicationsTable, {
+      'petId': 'TEXT',
+      'name': 'TEXT',
+      'dosage': 'TEXT',
+      'frequency': 'TEXT',
+      'notes': 'TEXT',
+      'startDate': 'TEXT',
+      'endDate': 'TEXT',
+    });
+  }
+
+  /// Crea todas las tablas principales si no existen.
+  Future<void> _createTablesIfMissing(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $petsTable(
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        species TEXT,
+        breed TEXT,
+        dob TEXT,
+        color TEXT,
+        imageUrl TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $notesTable(
+        id TEXT PRIMARY KEY,
+        petId TEXT,
+        title TEXT,
+        date TEXT,
+        content TEXT,
+        photoPaths TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $vaccinationsTable(
+        id TEXT PRIMARY KEY,
+        petId TEXT,
+        vaccineName TEXT,
+        date TEXT,
+        nextDueDate TEXT,
+        stickerPhotoPath TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $appointmentsTable(
+        id TEXT PRIMARY KEY,
+        petId TEXT,
+        dateTime TEXT,
+        title TEXT,
+        description TEXT,
+        location TEXT,
+        type TEXT,
+        isCompleted INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $weightRecordsTable(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        petId TEXT,
+        weight REAL,
+        date TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $foodAllergiesTable(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        petId TEXT,
+        allergies TEXT NOT NULL,
+        dateRecorded TEXT NOT NULL,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $dewormingsTable(
+        id TEXT PRIMARY KEY,
+        petId TEXT,
+        product TEXT,
+        date TEXT,
+        nextDate TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $medicationsTable(
+        id TEXT PRIMARY KEY,
+        petId TEXT,
+        name TEXT,
+        dosage TEXT,
+        frequency TEXT,
+        notes TEXT,
+        startDate TEXT,
+        endDate TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+  }
+
+  /// Asegura que las columnas esperadas estén presentes en la tabla.
+  Future<void> _ensureColumns(
+    Database db,
+    String tableName,
+    Map<String, String> columns,
+  ) async {
+    final existingColumns = await _getColumnNames(db, tableName);
+    for (final entry in columns.entries) {
+      if (!existingColumns.contains(entry.key)) {
+        await db.execute('ALTER TABLE $tableName ADD COLUMN ${entry.key} ${entry.value}');
+      }
+    }
+  }
+
+  Future<Set<String>> _getColumnNames(Database db, String tableName) async {
+    final result = await db.rawQuery('PRAGMA table_info($tableName)');
+    return result.map((row) => row['name'] as String).toSet();
   }
 
   // --- MÉTODOS AÑADIDOS PARA EL CALENDARIO ---
