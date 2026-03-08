@@ -26,6 +26,7 @@ class _AddEditDewormingScreenState extends State<AddEditDewormingScreen> {
   late TextEditingController _nextDateController;
 
   Deworming? _currentDeworming;
+  List<String> _productSuggestions = [];
 
   @override
   void initState() {
@@ -42,6 +43,8 @@ class _AddEditDewormingScreenState extends State<AddEditDewormingScreen> {
           ? DateFormat('dd/MM/yyyy').format(_currentDeworming!.nextDate!)
           : '',
     );
+
+    _loadProductSuggestions();
   }
 
   @override
@@ -50,6 +53,16 @@ class _AddEditDewormingScreenState extends State<AddEditDewormingScreen> {
     _dateController.dispose();
     _nextDateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProductSuggestions() async {
+    final names = await DatabaseHelper().getDewormingProductNames();
+
+    if (!mounted) return;
+
+    setState(() {
+      _productSuggestions = names;
+    });
   }
 
   Future<void> _saveDeworming() async {
@@ -110,18 +123,46 @@ class _AddEditDewormingScreenState extends State<AddEditDewormingScreen> {
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(
-                controller: _productController,
-                decoration: const InputDecoration(
-                  labelText: 'Producto/Medicina',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.vaccines),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, ingresa el nombre del producto.';
+              Autocomplete<String>(
+                initialValue: TextEditingValue(text: _productController.text),
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  final query = textEditingValue.text.trim().toLowerCase();
+
+                  if (query.isEmpty) {
+                    return _productSuggestions;
                   }
-                  return null;
+
+                  return _productSuggestions.where((option) {
+                    return option.toLowerCase().contains(query);
+                  });
+                },
+                onSelected: (String selection) {
+                  _productController.text = selection;
+                },
+                fieldViewBuilder: (
+                    context,
+                    textEditingController,
+                    focusNode,
+                    onFieldSubmitted,
+                    ) {
+                  return TextFormField(
+                    controller: textEditingController,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      labelText: 'Producto/Medicina',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.vaccines),
+                    ),
+                    onChanged: (value) {
+                      _productController.text = value;
+                    },
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Por favor, ingresa el nombre del producto.';
+                      }
+                      return null;
+                    },
+                  );
                 },
               ),
               const SizedBox(height: 16),

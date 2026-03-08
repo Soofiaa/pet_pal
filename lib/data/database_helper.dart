@@ -41,7 +41,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 12,
+      version: 14,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -57,7 +57,8 @@ class DatabaseHelper {
         breed TEXT,
         dob TEXT,
         color TEXT,
-        imageUrl TEXT
+        imageUrl TEXT,
+        microchipNumber TEXT
       )
     ''');
     debugPrint('Tabla de mascotas creada');
@@ -85,6 +86,7 @@ class DatabaseHelper {
         date TEXT,
         nextDueDate TEXT,
         stickerPhotoPath TEXT,
+        extraPhotoPath TEXT,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
@@ -160,10 +162,55 @@ class DatabaseHelper {
     debugPrint('Tabla de medicaciones creada');
   }
 
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // ... (El código de migración existente se mantiene igual)
-    // El código de migración no necesita cambios si ya funciona.
+  Future<List<String>> getVaccineNames() async {
+    final db = await database;
+
+    final result = await db.rawQuery('''
+    SELECT DISTINCT vaccineName
+    FROM $vaccinationsTable
+    WHERE vaccineName IS NOT NULL AND TRIM(vaccineName) <> ''
+    ORDER BY vaccineName COLLATE NOCASE
+  ''');
+
+    return result
+        .map((row) => row['vaccineName'] as String)
+        .toList();
   }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    debugPrint('DB upgrade: $oldVersion -> $newVersion');
+
+    // Migración a v13: agregar microchipNumber a pets
+    if (oldVersion < 13) {
+      final exists = await _columnExists(db, petsTable, 'microchipNumber');
+      if (!exists) {
+        await db.execute('ALTER TABLE $petsTable ADD COLUMN microchipNumber TEXT');
+        debugPrint('Columna microchipNumber agregada a $petsTable');
+      } else {
+        debugPrint('Columna microchipNumber ya existe en $petsTable');
+      }
+    }
+
+    if (oldVersion < 14) {
+      final exists = await _columnExists(db, vaccinationsTable, 'extraPhotoPath');
+      if (!exists) {
+        await db.execute('ALTER TABLE $vaccinationsTable ADD COLUMN extraPhotoPath TEXT');
+        debugPrint('Columna extraPhotoPath agregada a $vaccinationsTable');
+      } else {
+        debugPrint('Columna extraPhotoPath ya existe en $vaccinationsTable');
+      }
+    }
+
+    // Si tienes migraciones antiguas que antes estaban en onUpgrade,
+    // van aquí también, respetando el patrón: if (oldVersion < X) { ... }
+  }
+
+  /// Verifica si una columna existe (evita que ALTER TABLE falle).
+  Future<bool> _columnExists(Database db, String table, String column) async {
+    final result = await db.rawQuery('PRAGMA table_info($table)');
+    return result.any((row) => row['name'] == column);
+  }
+
 
   // --- MÉTODOS AÑADIDOS PARA EL CALENDARIO ---
   Future<List<Map<String, dynamic>>> getAllEventsForPet(String petId) async {
@@ -339,6 +386,21 @@ class DatabaseHelper {
     return List.generate(maps.length, (i) {
       return Vaccination.fromJson(maps[i]);
     });
+  }
+
+  Future<List<String>> getDewormingProductNames() async {
+    final db = await database;
+
+    final result = await db.rawQuery('''
+    SELECT DISTINCT product
+    FROM $dewormingsTable
+    WHERE product IS NOT NULL AND TRIM(product) <> ''
+    ORDER BY product COLLATE NOCASE
+  ''');
+
+    return result
+        .map((row) => row['product'] as String)
+        .toList();
   }
 
   Future<void> updateVaccination(Vaccination vaccination) async {

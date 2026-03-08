@@ -3,7 +3,6 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -18,9 +17,7 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
+    kotlinOptions { jvmTarget = "1.8" }
 
     defaultConfig {
         applicationId = "com.Sofia_Menzel.PetPal.pet_pal"
@@ -30,7 +27,7 @@ android {
         versionName = flutter.versionName
     }
 
-    // Load the key.properties file
+    // Carga key.properties (en la raíz: android/key.properties normalmente)
     val props = Properties()
     val propsFile = rootProject.file("key.properties")
     if (propsFile.exists()) {
@@ -38,26 +35,34 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file(props.getProperty("storeFile") ?: "")
-            storePassword = props.getProperty("storePassword") ?: ""
-            keyAlias = props.getProperty("keyAlias") ?: ""
-            keyPassword = props.getProperty("keyPassword") ?: ""
+        // Solo crea "release" si hay storeFile válido
+        val storeFilePath = props.getProperty("storeFile")
+        if (!storeFilePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(storeFilePath)
+                storePassword = props.getProperty("storePassword") ?: ""
+                keyAlias = props.getProperty("keyAlias") ?: ""
+                keyPassword = props.getProperty("keyPassword") ?: ""
+            }
         }
     }
 
     buildTypes {
+        debug {
+            // No tocar signingConfig: usa debug.keystore por defecto
+        }
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
+
+            // Asigna signingConfig solo si existe
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 }
 
-flutter {
-    source = "../.."
-}
+flutter { source = "../.." }
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")

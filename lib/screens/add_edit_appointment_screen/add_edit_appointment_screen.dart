@@ -148,8 +148,8 @@ class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
 
       // Si la fecha de la notificación no está en el pasado, la programamos.
       if (notificationDateTime.isAfter(DateTime.now())) {
-        await NotificationService().scheduleNotification(
-          id: id.hashCode,
+        await NotificationService().scheduleNotificationOnce(
+        id: id.hashCode,
           title: 'Recordatorio de Cita: ${_titleController.text}',
           body: 'Tu cita es mañana a las ${DateFormat('HH:mm').format(_selectedDateTime)}.',
           scheduledDateTime: notificationDateTime,

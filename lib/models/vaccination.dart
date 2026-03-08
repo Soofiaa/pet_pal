@@ -7,6 +7,7 @@ class Vaccination {
   final DateTime date;
   final DateTime? nextDueDate;
   final String? stickerPhotoPath;
+  final String? extraPhotoPath;
 
   Vaccination({
     String? id,
@@ -15,6 +16,7 @@ class Vaccination {
     required this.date,
     this.nextDueDate,
     this.stickerPhotoPath,
+    this.extraPhotoPath,
   }) : id = id ?? const Uuid().v4();
 
   // Método copyWith añadido

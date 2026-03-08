@@ -10,6 +10,9 @@ class Pet {
   final String color;
   final String? imageUrl;
 
+  // NUEVO: microchip (guardado idealmente solo con dígitos)
+  final String? microchipNumber;
+
   Pet({
     String? id,
     required this.name,
@@ -18,6 +21,7 @@ class Pet {
     required this.dob,
     required this.color,
     this.imageUrl,
+    this.microchipNumber,
   }) : id = id ?? const Uuid().v4();
 
   // Método para calcular la edad de forma precisa y detallada
@@ -59,6 +63,7 @@ class Pet {
       'dob': dob.toIso8601String(),
       'color': color,
       'imageUrl': imageUrl,
+      'microchipNumber': microchipNumber, // NUEVO
     };
   }
 
@@ -71,6 +76,18 @@ class Pet {
       dob: DateTime.parse(json['dob'] as String),
       color: json['color'] as String,
       imageUrl: json['imageUrl'] as String?,
+
+      // NUEVO: lectura segura (si no existe, queda null)
+      microchipNumber: json['microchipNumber'] as String?,
     );
+  }
+
+  /// Recomendado: utilidades para normalizar/validar (no obligatorias en este paso)
+  static String normalizeMicrochip(String input) {
+    return input.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  static bool isValidMicrochip15(String digitsOnly) {
+    return RegExp(r'^\d{15}$').hasMatch(digitsOnly);
   }
 }

@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/screens/add_edit_pet_screen/add_edit_pet_screen.dart';
 import 'package:pet_pal/screens/vaccinations_screen/vaccinations_screen.dart';
@@ -21,6 +23,20 @@ class PetDetailScreen extends StatefulWidget {
 }
 
 class _PetDetailScreenState extends State<PetDetailScreen> {
+  late Pet _pet;
+
+  @override
+  void initState() {
+    super.initState();
+    _pet = widget.pet;
+  }
+
+  Future<void> _reloadPet() async {
+    final updated = await DatabaseHelper().getPetById(_pet.id);
+    if (updated != null && mounted) {
+      setState(() => _pet = updated);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +46,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'icon': Icons.warning_amber,
         'color': Colors.amber,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => FoodAllergyScreen(pet: widget.pet)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => FoodAllergyScreen(pet: _pet)));
         },
       },
       {
@@ -38,7 +54,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'icon': Icons.event,
         'color': Colors.deepOrange,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => AppointmentsScreen(pet: widget.pet)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => AppointmentsScreen(pet: _pet)));
         },
       },
       {
@@ -46,7 +62,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'icon': Icons.medication,
         'color': Colors.orange,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => DewormingScreen(pet: widget.pet)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => DewormingScreen(pet: _pet)));
         },
       },
       {
@@ -54,7 +70,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'icon': Icons.medication_liquid,
         'color': Colors.blueGrey,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => MedicationsScreen(pet: widget.pet)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => MedicationsScreen(pet: _pet)));
         },
       },
       {
@@ -62,7 +78,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'icon': Icons.note,
         'color': Colors.teal,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => NotesScreen(pet: widget.pet)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => NotesScreen(pet: _pet)));
         },
       },
       {
@@ -70,7 +86,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'icon': Icons.monitor_weight,
         'color': Colors.purple,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => WeightRecordScreen(pet: widget.pet)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => WeightRecordScreen(pet: _pet)));
         },
       },
       {
@@ -78,7 +94,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'icon': Icons.vaccines,
         'color': Colors.green,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => VaccinationsScreen(pet: widget.pet)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => VaccinationsScreen(pet: _pet)));
         },
       },
     ];
@@ -90,23 +106,28 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     const double mainAxisSpacing = 10;
     const double horizontalPadding = 8.0;
 
-    // Obtenemos el ancho de la pantalla para los cálculos
     final screenWidth = MediaQuery.of(context).size.width;
-    final gridItemWidth = (screenWidth - (horizontalPadding * 2) - (crossAxisSpacing * (crossAxisCount - 1))) / crossAxisCount;
+    final gridItemWidth =
+        (screenWidth - (horizontalPadding * 2) - (crossAxisSpacing * (crossAxisCount - 1))) / crossAxisCount;
+
+    final microchipText = (_pet.microchipNumber == null || _pet.microchipNumber!.isEmpty)
+        ? 'No registrado'
+        : _pet.microchipNumber!;
+
+    final microchipHasValue = (_pet.microchipNumber != null && _pet.microchipNumber!.isNotEmpty);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.pet.name),
+        title: Text(_pet.name),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => AddEditPetScreen(pet: widget.pet),
-                ),
+                MaterialPageRoute(builder: (context) => AddEditPetScreen(pet: _pet)),
               );
+              await _reloadPet();
             },
           ),
         ],
@@ -123,14 +144,11 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                   SizedBox(
                     width: 120,
                     height: 120,
-                    child: widget.pet.imageUrl != null && widget.pet.imageUrl!.isNotEmpty
+                    child: _pet.imageUrl != null && _pet.imageUrl!.isNotEmpty
                         ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: File(widget.pet.imageUrl!).existsSync()
-                          ? Image.file(
-                        File(widget.pet.imageUrl!),
-                        fit: BoxFit.cover,
-                      )
+                      child: File(_pet.imageUrl!).existsSync()
+                          ? Image.file(File(_pet.imageUrl!), fit: BoxFit.cover)
                           : const Icon(Icons.pets, size: 80, color: Colors.grey),
                     )
                         : Container(
@@ -144,7 +162,6 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                     ),
                   ),
                   const Spacer(),
-                  // <-- CAMBIO AQUÍ: Eliminamos LayoutBuilder y usamos el valor calculado
                   SizedBox(
                     height: gridItemWidth,
                     width: gridItemWidth,
@@ -156,9 +173,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => CalendarScreen(pet: widget.pet),
-                          ),
+                          MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
                         );
                       },
                     ),
@@ -166,6 +181,51 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                 ],
               ),
             ),
+
+            // ✅ NUEVO: Microchip card
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.numbers, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Microchip', style: TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text(
+                              microchipText,
+                              style: TextStyle(
+                                color: microchipHasValue ? Colors.black : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (microchipHasValue)
+                        IconButton(
+                          tooltip: 'Copiar',
+                          icon: const Icon(Icons.copy),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: _pet.microchipNumber!));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Microchip copiado')),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             const Divider(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),

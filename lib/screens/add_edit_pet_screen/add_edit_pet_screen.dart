@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:uuid/uuid.dart';
@@ -23,6 +24,10 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
   final _speciesController = TextEditingController();
   final _breedController = TextEditingController();
   final _colorController = TextEditingController();
+
+  // NUEVO
+  final _microchipController = TextEditingController();
+
   DateTime _selectedDateOfBirth = DateTime.now();
   String? _imagePath;
 
@@ -40,6 +45,9 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
       _colorController.text = widget.pet!.color;
       _selectedDateOfBirth = widget.pet!.dob;
       _imagePath = widget.pet!.imageUrl;
+
+      // NUEVO
+      _microchipController.text = widget.pet!.microchipNumber ?? '';
     }
   }
 
@@ -49,6 +57,10 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
     _speciesController.dispose();
     _breedController.dispose();
     _colorController.dispose();
+
+    // NUEVO
+    _microchipController.dispose();
+
     super.dispose();
   }
 
@@ -99,7 +111,6 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
     );
   }
 
-  // Función para seleccionar y recortar la imagen
   Future<void> _pickAndCropImage(ImageSource source) async {
     final pickedFile = await _picker.pickImage(source: source);
 
@@ -113,7 +124,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
-            hideBottomControls: false, // Asegúrate de que esto esté en 'false' o no exista para mostrar los botones
+            hideBottomControls: false,
             showCropGrid: true,
           ),
           IOSUiSettings(
@@ -126,9 +137,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
         ],
       );
 
-      // Si se recortó correctamente, actualiza el estado y la interfaz
       if (croppedFile != null) {
-        // Esta llamada a setState es lo que actualiza la imagen en la pantalla.
         setState(() {
           _imagePath = croppedFile.path;
         });
@@ -141,6 +150,9 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
       final dbHelper = DatabaseHelper();
       final String id = widget.pet?.id ?? const Uuid().v4();
 
+      final microchipRaw = _microchipController.text.trim();
+      final microchipNormalized = microchipRaw.isEmpty ? null : Pet.normalizeMicrochip(microchipRaw);
+
       final newPet = Pet(
         id: id,
         name: _nameController.text,
@@ -149,6 +161,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
         dob: _selectedDateOfBirth,
         color: _colorController.text,
         imageUrl: _imagePath,
+        microchipNumber: microchipNormalized, // ✅ NUEVO
       );
 
       if (_isEditing) {
@@ -264,6 +277,30 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
                   return null;
                 },
               ),
+
+              // ✅ NUEVO: Microchip
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _microchipController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(15),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Microchip (15 dígitos)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.numbers),
+                  hintText: 'Ej: 978000123456789',
+                ),
+                validator: (value) {
+                  final v = (value ?? '').trim();
+                  if (v.isEmpty) return null; // opcional
+                  if (v.length != 15) return 'El microchip debe tener 15 dígitos';
+                  return null;
+                },
+              ),
+
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
