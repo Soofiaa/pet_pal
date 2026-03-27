@@ -74,6 +74,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  bool _hasValidPetImage(Pet pet) {
+    final imagePath = pet.imageUrl;
+    if (imagePath == null || imagePath.trim().isEmpty) return false;
+    return File(imagePath).existsSync();
+  }
+
   Future<void> _exportData() async {
     try {
       await _backupService.exportAllData();
@@ -153,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 50.0),
           child: Row(
             children: [
-              pet.imageUrl != null && pet.imageUrl!.isNotEmpty
+              _hasValidPetImage(pet)
                   ? CircleAvatar(
                 radius: 50,
                 backgroundImage: FileImage(File(pet.imageUrl!)),

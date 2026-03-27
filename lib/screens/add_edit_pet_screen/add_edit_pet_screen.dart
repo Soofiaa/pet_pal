@@ -34,6 +34,11 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
   final ImagePicker _picker = ImagePicker();
 
   bool get _isEditing => widget.pet != null;
+  bool get _hasValidImagePath {
+    final imagePath = _imagePath;
+    if (imagePath == null || imagePath.trim().isEmpty) return false;
+    return File(imagePath).existsSync();
+  }
 
   @override
   void initState() {
@@ -112,9 +117,11 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
   }
 
   Future<void> _pickAndCropImage(ImageSource source) async {
-    final pickedFile = await _picker.pickImage(source: source);
+    try {
+      final pickedFile = await _picker.pickImage(source: source);
 
-    if (pickedFile != null) {
+      if (pickedFile == null) return;
+
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: pickedFile.path,
         uiSettings: [
@@ -137,11 +144,20 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
         ],
       );
 
-      if (croppedFile != null) {
-        setState(() {
-          _imagePath = croppedFile.path;
-        });
-      }
+      if (croppedFile == null || !mounted) return;
+
+      setState(() {
+        _imagePath = croppedFile.path;
+      });
+    } catch (e, st) {
+      debugPrint('Error al seleccionar/recortar imagen de mascota: $e');
+      debugPrintStack(stackTrace: st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo procesar la imagen. Intenta de nuevo.'),
+        ),
+      );
     }
   }
 
@@ -203,8 +219,8 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
                 child: CircleAvatar(
                   radius: 80,
                   backgroundColor: Colors.grey[200],
-                  backgroundImage: _imagePath != null ? FileImage(File(_imagePath!)) : null,
-                  child: _imagePath == null
+                  backgroundImage: _hasValidImagePath ? FileImage(File(_imagePath!)) : null,
+                  child: !_hasValidImagePath
                       ? Icon(Icons.camera_alt, size: 50, color: Colors.grey[800])
                       : null,
                 ),
