@@ -12,6 +12,8 @@ import 'package:pet_pal/screens/notes_screen/notes_screen.dart';
 import 'package:pet_pal/screens/calendar_screen/calendar_screen.dart';
 import 'package:pet_pal/screens/deworming_screen/deworming_screen.dart';
 import 'package:pet_pal/screens/medications_screen/medications_screen.dart';
+import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
 
 class PetDetailScreen extends StatefulWidget {
   final Pet pet;
@@ -141,24 +143,42 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: 120,
-                    height: 120,
-                    child: _pet.imageUrl != null && _pet.imageUrl!.isNotEmpty
-                        ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: File(_pet.imageUrl!).existsSync()
-                          ? Image.file(File(_pet.imageUrl!), fit: BoxFit.cover)
-                          : const Icon(Icons.pets, size: 80, color: Colors.grey),
-                    )
-                        : Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.pets, size: 80, color: Colors.grey),
-                      ),
+                  GestureDetector(
+                    onTap: ImageStorageService.isValidLocalFile(_pet.imageUrl)
+                        ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ImagePreviewScreen(
+                                  imagePath: _pet.imageUrl!,
+                                  title: _pet.name,
+                                ),
+                              ),
+                            );
+                          }
+                        : null,
+                    child: SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: _pet.imageUrl != null && _pet.imageUrl!.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: ImageStorageService.isValidLocalFile(_pet.imageUrl)
+                                  ? Image.file(File(_pet.imageUrl!), fit: BoxFit.cover)
+                                  : Container(
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.broken_image, size: 70, color: Colors.grey),
+                                    ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.pets, size: 80, color: Colors.grey),
+                              ),
+                            ),
                     ),
                   ),
                   const Spacer(),

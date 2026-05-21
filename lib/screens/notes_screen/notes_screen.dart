@@ -1,12 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:pet_pal/models/pet.dart';
-import 'package:pet_pal/models/note.dart';
-import 'package:pet_pal/data/database_helper.dart';
-import 'package:pet_pal/screens/add_edit_note_screen/add_edit_note_screen.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/models/note.dart';
+import 'package:pet_pal/models/pet.dart';
+import 'package:pet_pal/screens/add_edit_note_screen/add_edit_note_screen.dart';
+import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:share_plus/share_plus.dart';
+
 // ignore: library_prefixes
 import '../../utils/pdf_generator.dart' as PdfGenerator;
 
@@ -32,23 +36,32 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _loadNotes() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     final notes = await DatabaseHelper().getNotesForPet(widget.pet.id);
     notes.sort((a, b) => b.date.compareTo(a.date));
+    if (!mounted) return;
     setState(() {
       _notes = notes;
       _isLoading = false;
     });
   }
 
+  void _openImage(String imagePath, String title) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ImagePreviewScreen(
+          imagePath: imagePath,
+          title: title,
+        ),
+      ),
+    );
+  }
+
   void _toggleSelectionMode() {
     setState(() {
       _isSelectionMode = !_isSelectionMode;
-      if (!_isSelectionMode) {
-        _selectedNoteIds.clear();
-      }
+      if (!_isSelectionMode) _selectedNoteIds.clear();
     });
   }
 
@@ -63,12 +76,14 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _deleteSelectedNotes() async {
-    final bool? confirm = await showDialog(
+    final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirmar Eliminación'),
-          content: Text('¿Estás seguro de que quieres eliminar ${_selectedNoteIds.length} notas?'),
+          title: const Text('Confirmar eliminación'),
+          content: Text(
+            'Se eliminarán ${_selectedNoteIds.length} nota(s) y sus imágenes asociadas. ¿Deseas continuar?',
+          ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -84,57 +99,81 @@ class _NotesScreenState extends State<NotesScreen> {
       },
     );
 
-    if (confirm == true) {
-      final dbHelper = DatabaseHelper();
-      for (final id in _selectedNoteIds) {
-        await dbHelper.deleteNote(id);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_selectedNoteIds.length} notas eliminadas con éxito.')),
-        );
-      }
-      _selectedNoteIds.clear();
-      _isSelectionMode = false;
-      _loadNotes();
+    if (confirm != true) return;
+
+    final dbHelper = DatabaseHelper();
+    final notesToDelete = _notes.where((note) => _selectedNoteIds.contains(note.id)).toList();
+
+    for (final note in notesToDelete) {
+      await ImageStorageService.deleteFilesIfExist(note.photoPaths);
+      await dbHelper.deleteNote(note.id);
     }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${notesToDelete.length} nota(s) eliminada(s) con éxito.')),
+    );
+
+    _selectedNoteIds.clear();
+    _isSelectionMode = false;
+    await _loadNotes();
   }
 
-  void _exportNotesToPdf() async {
+  Future<void> _exportNotesToPdf() async {
     if (_selectedNoteIds.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Selecciona al menos una nota para exportar.')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona al menos una nota para exportar.')),
+      );
       return;
     }
 
     final selectedNotes = _notes.where((note) => _selectedNoteIds.contains(note.id)).toList();
 
     try {
-      // CORRECCIÓN: Se usa `widget.pet` en lugar de `_pet`
       final Uint8List pdfData = await PdfGenerator.generateNotesPdf(widget.pet, selectedNotes);
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/notas_pet_pal.pdf');
       await file.writeAsBytes(pdfData);
 
-      // CORRECCIÓN: Se usa `widget.pet.name` en lugar de `_pet.name`
       await Share.shareXFiles([XFile(file.path)], text: 'Notas de ${widget.pet.name}');
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF de notas generado y listo para compartir.')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF de notas generado y listo para compartir.')),
+      );
     } catch (e) {
       debugPrint('Error al generar o compartir el PDF: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al exportar las notas.')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al exportar las notas.')),
+      );
     }
+  }
+
+  Widget _buildNoteThumbnail(Note note) {
+    final validPath = note.photoPaths
+        .where((path) => ImageStorageService.isValidLocalFile(path))
+        .cast<String?>()
+        .firstOrNull;
+
+    if (validPath == null) {
+      return const Icon(Icons.description, color: Colors.blueGrey);
+    }
+
+    return GestureDetector(
+      onTap: () => _openImage(validPath, note.title),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(validPath),
+          width: 52,
+          height: 52,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      ),
+    );
   }
 
   @override
@@ -172,79 +211,98 @@ class _NotesScreenState extends State<NotesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notes.isEmpty
-          ? const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'No hay notas registradas para esta mascota.\nPresiona "+" para añadir una nueva.',
-            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : ListView.builder(
-        itemCount: _notes.length,
-        itemBuilder: (context, index) {
-          final note = _notes[index];
-          final isSelected = _selectedNoteIds.contains(note.id);
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            color: isSelected ? Colors.blue.shade50 : null,
-            child: ListTile(
-              leading: _isSelectionMode
-                  ? Icon(
-                isSelected ? Icons.check_circle : Icons.circle_outlined,
-                color: isSelected ? Colors.blue : Colors.grey,
-              )
-                  : const Icon(Icons.description, color: Colors.blueGrey),
-              title: Text(
-                note.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                note.content,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: _isSelectionMode
-                  ? null
-                  : const Icon(Icons.chevron_right),
-              onTap: () async {
-                if (_isSelectionMode) {
-                  _toggleNoteSelection(note.id);
-                } else {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddEditNoteScreen(pet: widget.pet, note: note),
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Text(
+                      'No hay notas registradas para esta mascota.\nPresiona "+" para añadir una nueva.',
+                      style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
+                      textAlign: TextAlign.center,
                     ),
-                  );
-                  _loadNotes();
-                }
-              },
-              onLongPress: () {
-                _toggleSelectionMode();
-                _toggleNoteSelection(note.id);
-              },
-            ),
-          );
-        },
-      ),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _notes.length,
+                  itemBuilder: (context, index) {
+                    final note = _notes[index];
+                    final isSelected = _selectedNoteIds.contains(note.id);
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      color: isSelected ? Colors.blue.shade50 : null,
+                      child: ListTile(
+                        leading: _isSelectionMode
+                            ? Icon(
+                                isSelected ? Icons.check_circle : Icons.circle_outlined,
+                                color: isSelected ? Colors.blue : Colors.grey,
+                              )
+                            : _buildNoteThumbnail(note),
+                        title: Text(
+                          note.title,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              note.content,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (note.photoPaths.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  '${note.photoPaths.length} imagen(es)',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: _isSelectionMode ? null : const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          if (_isSelectionMode) {
+                            _toggleNoteSelection(note.id);
+                          } else {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddEditNoteScreen(pet: widget.pet, note: note),
+                              ),
+                            );
+                            await _loadNotes();
+                          }
+                        },
+                        onLongPress: () {
+                          _toggleSelectionMode();
+                          _toggleNoteSelection(note.id);
+                        },
+                      ),
+                    );
+                  },
+                ),
       floatingActionButton: _isSelectionMode
           ? null
           : FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddEditNoteScreen(pet: widget.pet),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddEditNoteScreen(pet: widget.pet),
+                  ),
+                );
+                await _loadNotes();
+              },
+              child: const Icon(Icons.add),
             ),
-          );
-          _loadNotes();
-        },
-        child: const Icon(Icons.add),
-      ),
     );
+  }
+}
+
+extension FirstOrNullExtension<E> on Iterable<E> {
+  E? get firstOrNull {
+    if (isEmpty) return null;
+    return first;
   }
 }

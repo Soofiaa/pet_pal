@@ -19,7 +19,6 @@ class Vaccination {
     this.extraPhotoPath,
   }) : id = id ?? const Uuid().v4();
 
-  // Método copyWith añadido
   Vaccination copyWith({
     String? id,
     String? petId,
@@ -27,6 +26,7 @@ class Vaccination {
     DateTime? date,
     DateTime? nextDueDate,
     String? stickerPhotoPath,
+    String? extraPhotoPath,
   }) {
     return Vaccination(
       id: id ?? this.id,
@@ -35,6 +35,7 @@ class Vaccination {
       date: date ?? this.date,
       nextDueDate: nextDueDate ?? this.nextDueDate,
       stickerPhotoPath: stickerPhotoPath ?? this.stickerPhotoPath,
+      extraPhotoPath: extraPhotoPath ?? this.extraPhotoPath,
     );
   }
 
@@ -46,6 +47,7 @@ class Vaccination {
       'date': date.toIso8601String(),
       'nextDueDate': nextDueDate?.toIso8601String(),
       'stickerPhotoPath': stickerPhotoPath,
+      'extraPhotoPath': extraPhotoPath,
     };
   }
 
@@ -55,14 +57,20 @@ class Vaccination {
       petId: json['petId'] as String,
       vaccineName: json['vaccineName'] as String,
       date: DateTime.parse(json['date'] as String),
-      nextDueDate: json['nextDueDate'] != null ? DateTime.parse(json['nextDueDate'] as String) : null,
+      nextDueDate: json['nextDueDate'] != null
+          ? DateTime.parse(json['nextDueDate'] as String)
+          : null,
       stickerPhotoPath: json['stickerPhotoPath'] as String?,
+      extraPhotoPath: json['extraPhotoPath'] as String?,
     );
   }
 
-  static List<Map<String, dynamic>> getEventsFromList(List<Vaccination> vaccinations) {
-    List<Map<String, dynamic>> events = [];
-    for (var vaccination in vaccinations) {
+  static List<Map<String, dynamic>> getEventsFromList(
+    List<Vaccination> vaccinations,
+  ) {
+    final List<Map<String, dynamic>> events = [];
+
+    for (final vaccination in vaccinations) {
       events.add({
         'id': vaccination.id,
         'petId': vaccination.petId,
@@ -70,6 +78,7 @@ class Vaccination {
         'title': 'Vacunación: ${vaccination.vaccineName}',
         'type': 'vaccination',
       });
+
       if (vaccination.nextDueDate != null) {
         events.add({
           'id': '${vaccination.id}_next',
@@ -80,6 +89,7 @@ class Vaccination {
         });
       }
     }
+
     return events;
   }
 }

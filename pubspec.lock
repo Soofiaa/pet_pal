@@ -2,13 +2,13 @@
 # See https://dart.dev/tools/pub/glossary#lockfile
 packages:
   archive:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: archive
-      sha256: a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff
+      sha256: cb6a278ef2dbb298455e1a713bda08524a175630ec643a242c399c932a0a1f7d
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.9"
+    version: "3.6.1"
   args:
     dependency: transitive
     description:
@@ -206,6 +206,54 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_image_compress:
+    dependency: "direct main"
+    description:
+      name: flutter_image_compress
+      sha256: "51d23be39efc2185e72e290042a0da41aed70b14ef97db362a6b5368d0523b27"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.0"
+  flutter_image_compress_common:
+    dependency: transitive
+    description:
+      name: flutter_image_compress_common
+      sha256: c5c5d50c15e97dd7dc72ff96bd7077b9f791932f2076c5c5b6c43f2c88607bfb
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.6"
+  flutter_image_compress_macos:
+    dependency: transitive
+    description:
+      name: flutter_image_compress_macos
+      sha256: "20019719b71b743aba0ef874ed29c50747461e5e8438980dfa5c2031898f7337"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.3"
+  flutter_image_compress_ohos:
+    dependency: transitive
+    description:
+      name: flutter_image_compress_ohos
+      sha256: e76b92bbc830ee08f5b05962fc78a532011fcd2041f620b5400a593e96da3f51
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.3"
+  flutter_image_compress_platform_interface:
+    dependency: transitive
+    description:
+      name: flutter_image_compress_platform_interface
+      sha256: "579cb3947fd4309103afe6442a01ca01e1e6f93dc53bb4cbd090e8ce34a41889"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.5"
+  flutter_image_compress_web:
+    dependency: transitive
+    description:
+      name: flutter_image_compress_web
+      sha256: b9b141ac7c686a2ce7bb9a98176321e1182c9074650e47bb140741a44b6f5a96
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.5"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:
@@ -316,34 +364,10 @@ packages:
     dependency: transitive
     description:
       name: image
-      sha256: "4e973fcf4caae1a4be2fa0a13157aa38a8f9cb049db6529aa00b4d71abc4d928"
+      sha256: f31d52537dc417fdcde36088fdf11d191026fd5e4fae742491ebd40e5a8bea7d
       url: "https://pub.dev"
     source: hosted
-    version: "4.5.4"
-  image_cropper:
-    dependency: "direct main"
-    description:
-      name: image_cropper
-      sha256: "4e9c96c029eb5a23798da1b6af39787f964da6ffc78fd8447c140542a9f7c6fc"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.1.0"
-  image_cropper_for_web:
-    dependency: transitive
-    description:
-      name: image_cropper_for_web
-      sha256: fd81ebe36f636576094377aab32673c4e5d1609b32dec16fad98d2b71f1250a9
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.0"
-  image_cropper_platform_interface:
-    dependency: transitive
-    description:
-      name: image_cropper_platform_interface
-      sha256: "2d8db8f4b638e448fa89a1e77cd8f053b4547472bd3ae073169e86626d03afef"
-      url: "https://pub.dev"
-    source: hosted
-    version: "7.2.0"
+    version: "4.3.0"
   image_picker:
     dependency: "direct main"
     description:
@@ -608,14 +632,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
-  posix:
-    dependency: transitive
+  pro_image_editor:
+    dependency: "direct main"
     description:
-      name: posix
-      sha256: "185ef7606574f789b40f289c233efa52e96dead518aed988e040a10737febb07"
+      name: pro_image_editor
+      sha256: a44e4a25a8baea9f1852938f19ea6fa60cb3d74aeb7ad6ec0ac7786b57f3eedf
       url: "https://pub.dev"
     source: hosted
-    version: "6.5.0"
+    version: "12.0.0"
   pub_semver:
     dependency: transitive
     description:
@@ -656,6 +680,62 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.0"
+  shared_preferences:
+    dependency: transitive
+    description:
+      name: shared_preferences
+      sha256: c3025c5534b01739267eb7d76959bbc25a6d10f6988e1c2a3036940133dd10bf
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.5"
+  shared_preferences_android:
+    dependency: transitive
+    description:
+      name: shared_preferences_android
+      sha256: e8d4762b1e2e8578fc4d0fd548cebf24afd24f49719c08974df92834565e2c53
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.23"
+  shared_preferences_foundation:
+    dependency: transitive
+    description:
+      name: shared_preferences_foundation
+      sha256: "4e7eaffc2b17ba398759f1151415869a34771ba11ebbccd1b0145472a619a64f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.6"
+  shared_preferences_linux:
+    dependency: transitive
+    description:
+      name: shared_preferences_linux
+      sha256: "580abfd40f415611503cae30adf626e6656dfb2f0cee8f465ece7b6defb40f2f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.1"
+  shared_preferences_platform_interface:
+    dependency: transitive
+    description:
+      name: shared_preferences_platform_interface
+      sha256: "649dc798a33931919ea356c4305c2d1f81619ea6e92244070b520187b5140ef9"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.2"
+  shared_preferences_web:
+    dependency: transitive
+    description:
+      name: shared_preferences_web
+      sha256: c49bd060261c9a3f0ff445892695d6212ff603ef3115edbb448509d407600019
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.3"
+  shared_preferences_windows:
+    dependency: transitive
+    description:
+      name: shared_preferences_windows
+      sha256: "94ef0f72b2d71bc3e700e025db3710911bd51a71cefb65cc609dd0d9a982e3c1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.1"
   simple_gesture_detector:
     dependency: transitive
     description:

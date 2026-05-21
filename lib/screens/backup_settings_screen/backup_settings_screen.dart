@@ -1,0 +1,154 @@
+import 'package:flutter/material.dart';
+import 'package:pet_pal/services/data_backup_service.dart';
+
+class BackupSettingsScreen extends StatefulWidget {
+  const BackupSettingsScreen({super.key});
+
+  @override
+  State<BackupSettingsScreen> createState() => _BackupSettingsScreenState();
+}
+
+class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
+  final DataBackupService _backupService = DataBackupService();
+  bool _isWorking = false;
+  String? _lastMessage;
+
+  Future<void> _exportBackup() async {
+    setState(() {
+      _isWorking = true;
+      _lastMessage = null;
+    });
+
+    final String result = await _backupService.exportAllData();
+
+    if (!mounted) return;
+    setState(() {
+      _isWorking = false;
+      _lastMessage = result;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+  }
+
+  Future<void> _importBackup() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Restaurar respaldo'),
+          content: const Text(
+            'Esto reemplazará toda la información actual de PetPal por la información del respaldo seleccionado. Esta acción no se puede deshacer. ¿Deseas continuar?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Restaurar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _isWorking = true;
+      _lastMessage = null;
+    });
+
+    final String result = await _backupService.importAllData();
+
+    if (!mounted) return;
+    setState(() {
+      _isWorking = false;
+      _lastMessage = result;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Respaldo'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Copia de seguridad completa', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Exporta mascotas, vacunas, notas, citas, peso, alergias, medicación, desparasitaciones e imágenes asociadas en un archivo ZIP.',
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isWorking ? null : _exportBackup,
+                      icon: const Icon(Icons.archive),
+                      label: const Text('Crear respaldo ZIP'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Restaurar respaldo', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Selecciona un respaldo ZIP válido de PetPal. Antes de importar, la app valida que tenga versión, backup.json, mascotas y archivos internos.',
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isWorking ? null : _importBackup,
+                      icon: const Icon(Icons.restore),
+                      label: const Text('Restaurar respaldo'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_isWorking)
+            const Center(child: CircularProgressIndicator()),
+          if (_lastMessage != null) ...[
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(_lastMessage!),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          const Text(
+            'Pendiente futuro: respaldo opcional en nube. Por ahora se mantiene fuera del alcance.',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+}

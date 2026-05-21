@@ -1,13 +1,15 @@
 import 'dart:io';
-
+import 'dart:typed_data';
+import 'package:pet_pal/screens/image_crop_screen/image_crop_screen.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/data/database_helper.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class AddEditPetScreen extends StatefulWidget {
   final Pet? pet;
@@ -122,40 +124,62 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
 
       if (pickedFile == null) return;
 
-      final croppedFile = await ImageCropper().cropImage(
-        sourcePath: pickedFile.path,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Recortar',
-            toolbarColor: Theme.of(context).primaryColor,
-            toolbarWidgetColor: Colors.white,
-            initAspectRatio: CropAspectRatioPreset.square,
-            lockAspectRatio: true,
-            hideBottomControls: false,
-            showCropGrid: true,
-          ),
-          IOSUiSettings(
-            title: 'Recortar',
-            aspectRatioLockEnabled: true,
-            aspectRatioPickerButtonHidden: true,
-            doneButtonTitle: 'Aceptar',
-            cancelButtonTitle: 'Cancelar',
-          ),
-        ],
+      final Uint8List? compressedBytes =
+      await FlutterImageCompress.compressWithFile(
+        pickedFile.path,
+        quality: 90,
+        format: CompressFormat.jpeg,
       );
 
-      if (croppedFile == null || !mounted) return;
+      if (compressedBytes == null) {
+        return;
+      }
+
+      final Uint8List imageBytes = compressedBytes;
+
+      if (!mounted) return;
+
+      final croppedBytes = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ImageCropScreen(
+            imageBytes: imageBytes,
+            title: 'Recortar foto',
+          ),
+        ),
+      );
+
+      if (croppedBytes == null || croppedBytes is! Uint8List) {
+        return;
+      }
+
+      final tempDir = Directory.systemTemp;
+
+      final croppedFile = File(
+        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+
+      await croppedFile.writeAsBytes(croppedBytes);
+
+      if (!mounted) return;
 
       setState(() {
         _imagePath = croppedFile.path;
       });
     } catch (e, st) {
-      debugPrint('Error al seleccionar/recortar imagen de mascota: $e');
+      debugPrint(
+        'Error al seleccionar/recortar imagen de mascota: $e',
+      );
+
       debugPrintStack(stackTrace: st);
+
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No se pudo procesar la imagen. Intenta de nuevo.'),
+          content: Text(
+            'No se pudo procesar la imagen. Intenta de nuevo.',
+          ),
         ),
       );
     }
@@ -169,15 +193,18 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
       final microchipRaw = _microchipController.text.trim();
       final microchipNormalized = microchipRaw.isEmpty ? null : Pet.normalizeMicrochip(microchipRaw);
 
+      final String? finalImagePath =
+          await ImageStorageService.saveImageIfNeeded(_imagePath, 'pets');
+
       final newPet = Pet(
         id: id,
-        name: _nameController.text,
-        species: _speciesController.text,
-        breed: _breedController.text,
+        name: _nameController.text.trim(),
+        species: _speciesController.text.trim(),
+        breed: _breedController.text.trim(),
         dob: _selectedDateOfBirth,
-        color: _colorController.text,
-        imageUrl: _imagePath,
-        microchipNumber: microchipNormalized, // ✅ NUEVO
+        color: _colorController.text.trim(),
+        imageUrl: finalImagePath,
+        microchipNumber: microchipNormalized,
       );
 
       if (_isEditing) {

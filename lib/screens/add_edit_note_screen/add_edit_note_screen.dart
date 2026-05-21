@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
 import 'dart:io';
 
 class AddEditNoteScreen extends StatefulWidget {
@@ -124,13 +125,16 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
       final dbHelper = DatabaseHelper();
       final String id = widget.note?.id ?? const Uuid().v4();
 
+      final List<String> savedPhotoPaths =
+          await ImageStorageService.saveImagesIfNeeded(_photoPaths, 'notes');
+
       final newNote = Note(
         id: id,
         petId: widget.pet.id,
-        title: _titleController.text,
-        content: _contentController.text,
+        title: _titleController.text.trim(),
+        content: _contentController.text.trim(),
         date: _selectedDate,
-        photoPaths: _photoPaths,
+        photoPaths: savedPhotoPaths,
       );
 
       if (_isEditing) {
@@ -217,12 +221,22 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Image.file(
-                            File(photoPath),
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                          ),
+                          child: File(photoPath).existsSync()
+                              ? Image.file(
+                                  File(photoPath),
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: 100,
+                                  height: 100,
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                         ),
                         Positioned(
                           right: 0,

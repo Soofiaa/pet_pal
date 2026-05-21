@@ -1,12 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_cropper/image_cropper.dart';
+import 'dart:typed_data';
+import 'package:pet_pal/screens/image_crop_screen/image_crop_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class AddEditVaccinationScreen extends StatefulWidget {
   final String petId;
@@ -96,37 +99,44 @@ class _AddEditVaccinationScreenState extends State<AddEditVaccinationScreen> {
 
   Future<File?> _cropImage(String path) async {
     try {
-      debugPrint("✂️ Abriendo cropper...");
-
-      final cropped = await ImageCropper().cropImage(
-        sourcePath: path,
-        compressQuality: 85,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Recortar adhesivo',
-            toolbarColor: Theme.of(context).primaryColor,
-            toolbarWidgetColor: Colors.white,
-            lockAspectRatio: false,
-          ),
-          IOSUiSettings(
-            title: 'Recortar adhesivo',
-            aspectRatioLockEnabled: false,
-          ),
-        ],
+      final Uint8List? compressedBytes =
+      await FlutterImageCompress.compressWithFile(
+        path,
+        quality: 90,
+        format: CompressFormat.jpeg,
       );
 
-      if (cropped == null) {
-        debugPrint("⚠️ Cropper cancelado");
+      if (compressedBytes == null) return null;
+
+      final Uint8List imageBytes = compressedBytes;
+
+      if (!mounted) return null;
+
+      final croppedBytes = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ImageCropScreen(
+            imageBytes: imageBytes,
+            title: 'Recortar',
+          ),
+        ),
+      );
+
+      if (croppedBytes == null || croppedBytes is! Uint8List) {
         return null;
       }
 
-      debugPrint("✂️ Cropper OK: ${cropped.path}");
+      final tempDir = Directory.systemTemp;
 
-      return File(cropped.path);
+      final croppedFile = File(
+        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
 
+      await croppedFile.writeAsBytes(croppedBytes);
+
+      return croppedFile;
     } catch (e, stack) {
-      debugPrint("💥 ERROR en cropper");
-      debugPrint("Error: $e");
+      debugPrint('Error en cropper Flutter: $e');
       debugPrintStack(stackTrace: stack);
       return null;
     }
@@ -277,14 +287,26 @@ class _AddEditVaccinationScreenState extends State<AddEditVaccinationScreen> {
       final dbHelper = DatabaseHelper();
       final String id = _isEditing ? widget.vaccination!.id : const Uuid().v4();
 
+      final String? finalStickerPhotoPath =
+          await ImageStorageService.saveImageIfNeeded(
+        _stickerPhotoPath,
+        'vaccinations',
+      );
+
+      final String? finalExtraPhotoPath =
+          await ImageStorageService.saveImageIfNeeded(
+        _extraPhotoPath,
+        'vaccinations',
+      );
+
       final newVaccination = Vaccination(
         id: id,
         petId: widget.petId,
         vaccineName: _normalizeVaccineName(_vaccineNameController.text),
         date: _selectedDate,
         nextDueDate: _nextDueDate,
-        stickerPhotoPath: _stickerPhotoPath,
-        extraPhotoPath: _extraPhotoPath,
+        stickerPhotoPath: finalStickerPhotoPath,
+        extraPhotoPath: finalExtraPhotoPath,
       );
 
       if (_isEditing) {
@@ -426,10 +448,18 @@ class _AddEditVaccinationScreenState extends State<AddEditVaccinationScreen> {
                           )
                               : ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(_stickerPhotoPath!),
-                              fit: BoxFit.cover,
-                            ),
+                            child: File(_stickerPhotoPath!).existsSync()
+                                ? Image.file(
+                                    File(_stickerPhotoPath!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Center(
+                                    child: Icon(
+                                      Icons.broken_image,
+                                      size: 50,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -454,36 +484,137 @@ class _AddEditVaccinationScreenState extends State<AddEditVaccinationScreen> {
               ),
               const SizedBox(height: 8),
 
-              GestureDetector(
-                onTap: _showExtraImageSourceDialog,
-                child: Container(
-                  height: 250,
-                  width: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.grey,
-                      width: 2,
+              if (_extraPhotoPath != null &&
+                  _extraPhotoPath!.isNotEmpty &&
+                  File(_extraPhotoPath!).existsSync())
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(_extraPhotoPath!),
+                        height: 220,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
-                  child: _extraPhotoPath == null
-                      ? const Center(
-                    child: Icon(
-                      Icons.add_photo_alternate,
-                      size: 50,
-                      color: Colors.grey,
+
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.black54,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _extraPhotoPath = null;
+                            });
+                          },
+                        ),
+                      ),
                     ),
-                  )
-                      : ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(_extraPhotoPath!),
-                      fit: BoxFit.cover,
+                  ],
+                )
+              else
+                Container(
+                  margin: const EdgeInsets.only(bottom: 28),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: _showExtraImageSourceDialog,
+                    child: Ink(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 18,
+                        horizontal: 20,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.12),
+                            Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.05),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.35),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.add_photo_alternate_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 28,
+                            ),
+                          ),
+
+                          const SizedBox(width: 16),
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Agregar foto adicional',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    color:
+                                    Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 4),
+
+                                Text(
+                                  'Cartilla, comprobante o información extra',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 18,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
               ElevatedButton.icon(
                 onPressed: _saveVaccination,
