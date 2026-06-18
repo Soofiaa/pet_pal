@@ -54,3 +54,16 @@ flutter run
 Requiere Flutter 3.x o superior y un dispositivo o emulador Android.
 
 ## Estructura del proyecto
+pet_pal/
+├── lib/
+│   ├── screens/     # Pantallas de la app
+│   ├── services/    # Lógica de negocio y persistencia
+│   ├── models/      # Modelos de datos
+│   └── widgets/     # Componentes reutilizables
+├── assets/
+└── pubspec.yaml
+
+## Autor
+
+Sofía Menzel — [GitHub](https://github.com/Soofiaa) · 
+[LinkedIn](https://linkedin.com/in/sofia-menzel-madrid)
