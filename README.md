@@ -54,6 +54,8 @@ flutter run
 Requiere Flutter 3.x o superior y un dispositivo o emulador Android.
 
 ## Estructura del proyecto
+
+\```
 pet_pal/
 ├── lib/
 │   ├── screens/     # Pantallas de la app
@@ -62,6 +64,7 @@ pet_pal/
 │   └── widgets/     # Componentes reutilizables
 ├── assets/
 └── pubspec.yaml
+\```
 
 ## Autor
 
