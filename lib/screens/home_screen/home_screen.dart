@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,6 +61,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirm == true) {
+      // Los documentos guardan archivos en disco (PDFs/imágenes) que SQLite
+      // nunca borra por sí solo. Hay que leerlos y borrar sus archivos ANTES
+      // de eliminar la mascota: una vez que deletePet() corre, el cascade
+      // borra las filas de documents y ya no habría forma de saber qué
+      // archivos correspondían a esta mascota.
+      final documents = await DatabaseHelper().getDocumentsForPet(petId);
+      for (final document in documents) {
+        await ImageStorageService.deleteFileIfExist(document.filePath);
+      }
+
       await DatabaseHelper().deletePet(petId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

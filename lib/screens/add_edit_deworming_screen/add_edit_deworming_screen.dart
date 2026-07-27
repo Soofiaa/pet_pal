@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
@@ -76,6 +77,13 @@ class _AddEditDewormingScreenState extends State<AddEditDewormingScreen> {
             ? DateFormat('dd/MM/yyyy').parse(_nextDateController.text)
             : null,
       );
+
+      // Si se está editando, cancela el recordatorio anterior antes de
+      // reprogramar (la próxima fecha puede haber cambiado).
+      if (_currentDeworming != null) {
+        await ReminderScheduler.cancelDewormingReminder(_currentDeworming!);
+      }
+      await ReminderScheduler.scheduleDewormingReminder(newDeworming);
 
       if (_currentDeworming == null) {
         await DatabaseHelper().insertDeworming(newDeworming);

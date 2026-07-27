@@ -18,6 +18,7 @@ import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/deworming.dart';
+import 'package:pet_pal/models/document.dart';
 
 class DataBackupService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
@@ -35,6 +36,7 @@ class DataBackupService {
         final foodAllergies = await _dbHelper.getFoodAllergiesForPet(pet.id);
         final medications = await _dbHelper.getMedicationsForPet(pet.id);
         final dewormings = await _dbHelper.getDewormingsForPet(pet.id);
+        final documents = await _dbHelper.getDocumentsForPet(pet.id);
 
         petsJson.add({
           'id': pet.id,
@@ -51,6 +53,7 @@ class DataBackupService {
           'foodAllergies': foodAllergies.map((f) => f.toJson()).toList(),
           'medications': medications.map((m) => m.toJson()).toList(),
           'dewormings': dewormings.map((d) => d.toJson()).toList(),
+          'documents': documents.map((doc) => doc.toJson()).toList(),
         });
       }
 
@@ -204,6 +207,15 @@ class DataBackupService {
             final Deworming deworming = Deworming.fromJson(data);
             await _dbHelper.insertDeworming(
               deworming.copyWith(petId: newPetId),
+            );
+          }
+        }
+
+        if (petData['documents'] is List) {
+          for (final data in petData['documents']) {
+            final Document document = Document.fromJson(data);
+            await _dbHelper.insertDocument(
+              document.copyWith(petId: newPetId),
             );
           }
         }

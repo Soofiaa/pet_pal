@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 class Medication {
@@ -9,6 +11,10 @@ class Medication {
   final String notes;
   final DateTime startDate;
   final DateTime? endDate;
+  /// Horarios de toma en formato "HH:mm", uno por cada vez al día.
+  /// Vacío significa que la medicación no tiene horarios definidos
+  /// (medicaciones creadas antes de este campo, o aún no configuradas).
+  final List<String> reminderTimes;
 
   Medication({
     this.id,
@@ -19,6 +25,7 @@ class Medication {
     required this.notes,
     required this.startDate,
     this.endDate,
+    this.reminderTimes = const [],
   });
 
   // Método copyWith añadido
@@ -31,6 +38,7 @@ class Medication {
     String? notes,
     DateTime? startDate,
     DateTime? endDate,
+    List<String>? reminderTimes,
   }) {
     return Medication(
       id: id ?? this.id,
@@ -41,6 +49,7 @@ class Medication {
       notes: notes ?? this.notes,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      reminderTimes: reminderTimes ?? this.reminderTimes,
     );
   }
 
@@ -54,6 +63,7 @@ class Medication {
       'notes': notes,
       'startDate': startDate.toIso8601String(),
       'endDate': endDate?.toIso8601String(),
+      'reminderTimes': jsonEncode(reminderTimes),
     };
   }
 
@@ -67,6 +77,9 @@ class Medication {
       notes: json['notes'] as String,
       startDate: DateTime.parse(json['startDate'] as String),
       endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
+      reminderTimes: json['reminderTimes'] == null
+          ? []
+          : List<String>.from(jsonDecode(json['reminderTimes'])),
     );
   }
 

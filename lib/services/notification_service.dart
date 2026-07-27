@@ -41,11 +41,45 @@ class NotificationService {
       onDidReceiveBackgroundNotificationResponse,
     );
 
+    final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+        _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
     // Recomendado para Android 13+ (no rompe en versiones anteriores)
-    await _flutterLocalNotificationsPlugin
+    await androidPlugin?.requestNotificationsPermission();
+
+    // Requerido en Android 12+ para poder usar AndroidScheduleMode.exactAllowWhileIdle.
+    // Sin este permiso, las alarmas exactas no se agendan (sin error visible).
+    await androidPlugin?.requestExactAlarmsPermission();
+  }
+
+  /// Indica si la app puede programar alarmas exactas en este momento.
+  /// Útil para decidir el AndroidScheduleMode y para la UI de estado de permisos.
+  Future<bool> canScheduleExactAlarms() async {
+    final bool? result = await _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+        ?.canScheduleExactNotifications();
+    return result ?? false;
+  }
+
+  /// Indica si las notificaciones básicas están habilitadas para la app.
+  Future<bool> areNotificationsEnabled() async {
+    final bool? result = await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.areNotificationsEnabled();
+    return result ?? false;
+  }
+
+  /// Vuelve a pedir el permiso de alarmas exactas (abre el flujo del sistema
+  /// correspondiente). Devuelve si quedó concedido.
+  Future<bool> requestExactAlarmsPermission() async {
+    final bool? result = await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestExactAlarmsPermission();
+    return result ?? false;
   }
 
   Future<void> _configureLocalTimeZone() async {
@@ -113,13 +147,17 @@ class NotificationService {
     // Evita agendar en el pasado
     if (scheduledDateTime.isBefore(DateTime.now())) return;
 
+    final bool canScheduleExact = await canScheduleExactAlarms();
+
     await _flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       title,
       body,
       tz.TZDateTime.from(scheduledDateTime, tz.local),
       _notificationDetails(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: canScheduleExact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: null,
       payload: payload,
     );
@@ -137,6 +175,11 @@ class NotificationService {
   }) async {
     if (days <= 0) return;
 
+    final bool canScheduleExact = await canScheduleExactAlarms();
+    final AndroidScheduleMode scheduleMode = canScheduleExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
     for (int i = 0; i < days; i++) {
       final DateTime doseDateTime = firstDoseDateTime.add(Duration(days: i));
       if (doseDateTime.isBefore(DateTime.now())) continue;
@@ -150,11 +193,40 @@ class NotificationService {
         body,
         tz.TZDateTime.from(doseDateTime, tz.local),
         _notificationDetails(),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
         matchDateTimeComponents: null, // one-shot
         payload: payload,
       );
     }
+  }
+
+  /// Notificación que se repite todos los días a la misma hora (usa
+  /// [DateTimeComponents.time], así que Android/el plugin se encargan de
+  /// reprogramarla automáticamente cada día; no hace falta pre-programar
+  /// día por día). Pensada para tratamientos sin fecha de fin.
+  /// [firstOccurrence] debe ser la primera vez futura en la que debe sonar;
+  /// a partir de ahí se repite indefinidamente hasta que se cancele con [id].
+  Future<void> scheduleDailyRepeatingNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime firstOccurrence,
+    String? payload,
+  }) async {
+    final bool canScheduleExact = await canScheduleExactAlarms();
+
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(firstOccurrence, tz.local),
+      _notificationDetails(),
+      androidScheduleMode: canScheduleExact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: payload,
+    );
   }
 
   /// Cancela una notificación (por id exacto).

@@ -8,6 +8,7 @@ import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/screens/add_edit_vaccination_screen/add_edit_vaccination_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/services/reminder_scheduler.dart';
 
 class VaccinationsScreen extends StatefulWidget {
   final Pet pet;
@@ -90,6 +91,7 @@ class _VaccinationsScreenState extends State<VaccinationsScreen> {
       vaccination.extraPhotoPath,
     ]);
 
+    await ReminderScheduler.cancelVaccinationReminder(vaccination);
     await DatabaseHelper().deleteVaccination(vaccination.id);
 
     if (!mounted) return;

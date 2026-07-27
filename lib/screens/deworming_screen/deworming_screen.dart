@@ -4,6 +4,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/screens/add_edit_deworming_screen/add_edit_deworming_screen.dart';
+import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:intl/intl.dart';
 
 class DewormingScreen extends StatefulWidget {
@@ -50,6 +51,7 @@ class _DewormingScreenState extends State<DewormingScreen> {
     );
 
     if (shouldDelete == true) {
+      await ReminderScheduler.cancelDewormingReminder(deworming);
       await DatabaseHelper().deleteDeworming(deworming.id!);
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(

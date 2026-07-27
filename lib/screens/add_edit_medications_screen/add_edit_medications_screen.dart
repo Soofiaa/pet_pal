@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
@@ -27,6 +28,9 @@ class _AddEditMedicationScreenState extends State<AddEditMedicationScreen> {
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
 
+  int _timesPerDay = 1;
+  List<String> _reminderTimes = ['09:00'];
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +42,43 @@ class _AddEditMedicationScreenState extends State<AddEditMedicationScreen> {
       _notesController.text = widget.medication!.notes;
       _startDate = widget.medication!.startDate;
       _endDate = widget.medication!.endDate;
+      if (widget.medication!.reminderTimes.isNotEmpty) {
+        _reminderTimes = List<String>.from(widget.medication!.reminderTimes);
+        _timesPerDay = _reminderTimes.length;
+      }
+    }
+  }
+
+  TimeOfDay _parseTimeOfDay(String value) {
+    final parts = value.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) =>
+      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+  void _setTimesPerDay(int value) {
+    setState(() {
+      _timesPerDay = value;
+      if (_reminderTimes.length < value) {
+        _reminderTimes = List<String>.from(_reminderTimes)
+          ..addAll(List.generate(
+              value - _reminderTimes.length, (_) => '09:00'));
+      } else if (_reminderTimes.length > value) {
+        _reminderTimes = _reminderTimes.sublist(0, value);
+      }
+    });
+  }
+
+  Future<void> _pickReminderTime(int index) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _parseTimeOfDay(_reminderTimes[index]),
+    );
+    if (picked != null) {
+      setState(() {
+        _reminderTimes[index] = _formatTimeOfDay(picked);
+      });
     }
   }
 
@@ -90,7 +131,15 @@ class _AddEditMedicationScreenState extends State<AddEditMedicationScreen> {
         notes: _notesController.text,
         startDate: _startDate,
         endDate: _endDate,
+        reminderTimes: _reminderTimes,
       );
+
+      // Si se está editando, cancela los recordatorios anteriores antes de
+      // reprogramar (el rango de días puede haber cambiado).
+      if (widget.medication != null) {
+        await ReminderScheduler.cancelMedicationReminders(widget.medication!);
+      }
+      await ReminderScheduler.scheduleMedicationReminders(newMedication);
 
       if (widget.medication == null) {
         // Añadir una nueva medicación
@@ -147,13 +196,9 @@ class _AddEditMedicationScreenState extends State<AddEditMedicationScreen> {
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: _frequencyController,
-                decoration: const InputDecoration(labelText: 'Frecuencia (ej. "Cada 8 horas", "Una vez al día")'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, introduce la frecuencia';
-                  }
-                  return null;
-                },
+                decoration: const InputDecoration(
+                  labelText: 'Notas de frecuencia (opcional, ej. "con comida", "en ayunas")',
+                ),
               ),
               const SizedBox(height: 16.0),
               TextFormField(
@@ -175,6 +220,41 @@ class _AddEditMedicationScreenState extends State<AddEditMedicationScreen> {
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () => _selectDate(context, false),
               ),
+              const SizedBox(height: 24.0),
+              Text('Veces al día:', style: Theme.of(context).textTheme.titleMedium),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: _timesPerDay > 1
+                        ? () => _setTimesPerDay(_timesPerDay - 1)
+                        : null,
+                  ),
+                  Text(
+                    '$_timesPerDay',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: _timesPerDay < 6
+                        ? () => _setTimesPerDay(_timesPerDay + 1)
+                        : null,
+                  ),
+                ],
+              ),
+              Text('Horarios de toma:', style: Theme.of(context).textTheme.titleMedium),
+              ...List.generate(_timesPerDay, (index) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.access_time),
+                  title: Text('Horario ${index + 1}'),
+                  trailing: Text(
+                    _reminderTimes[index],
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  onTap: () => _pickReminderTime(index),
+                );
+              }),
               const SizedBox(height: 32.0),
               ElevatedButton.icon(
                 onPressed: _saveMedication,

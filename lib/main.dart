@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:pet_pal/screens/home_screen/home_screen.dart'; // Asegúrate de que esta sea tu pantalla principal
 import 'package:pet_pal/services/notification_service.dart'; // Importar el servicio de notificaciones
+import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Necesario para el tipo NotificationResponse
 import 'package:intl/date_symbol_data_local.dart'; // Importación necesaria
 
@@ -13,6 +16,13 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Asegura que los widgets de Flutter estén inicializados
   await NotificationService().init(); // Inicializa el servicio de notificaciones
+
+  // Red de seguridad adicional al receiver nativo de reinicio: si el usuario
+  // reabre la app después de un reinicio del dispositivo (o de una
+  // reinstalación/actualización), esto reprograma cualquier recordatorio
+  // pendiente. Es idempotente: usa los mismos ids que ya se usan hoy, así
+  // que no genera notificaciones duplicadas.
+  unawaited(ReminderScheduler.rescheduleAllPending());
 
   // Inicializa los datos de formato de fecha para el idioma español (o el que necesites)
   await initializeDateFormatting('es_ES', null);

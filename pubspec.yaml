@@ -28,6 +28,8 @@ dependencies:
   archive: ^3.6.1
   pro_image_editor: ^12.0.0
   flutter_image_compress: ^2.4.0
+  app_settings: ^5.1.1
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

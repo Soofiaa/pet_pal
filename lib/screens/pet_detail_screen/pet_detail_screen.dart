@@ -12,6 +12,7 @@ import 'package:pet_pal/screens/notes_screen/notes_screen.dart';
 import 'package:pet_pal/screens/calendar_screen/calendar_screen.dart';
 import 'package:pet_pal/screens/deworming_screen/deworming_screen.dart';
 import 'package:pet_pal/screens/medications_screen/medications_screen.dart';
+import 'package:pet_pal/screens/documents_screen/documents_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 
@@ -57,6 +58,14 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'color': Colors.deepOrange,
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => AppointmentsScreen(pet: _pet)));
+        },
+      },
+      {
+        'title': 'Documentos',
+        'icon': Icons.folder_shared,
+        'color': Colors.indigo,
+        'onTap': () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => DocumentsScreen(pet: _pet)));
         },
       },
       {

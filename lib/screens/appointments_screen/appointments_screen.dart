@@ -3,6 +3,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/screens/add_edit_appointment_screen/add_edit_appointment_screen.dart';
+import 'package:pet_pal/services/notification_service.dart';
 import 'package:intl/intl.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -76,6 +77,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
 
     if (confirm == true) {
+      await NotificationService().cancelNotification(appointment.id.hashCode);
       await DatabaseHelper().deleteAppointment(appointment.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

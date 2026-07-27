@@ -9,6 +9,7 @@ import 'package:pet_pal/models/weight_record.dart';
 import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
+import 'package:pet_pal/models/document.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -28,6 +29,7 @@ class DatabaseHelper {
   static const String foodAllergiesTable = 'food_allergies';
   static const String dewormingsTable = 'dewormings';
   static const String medicationsTable = 'medications';
+  static const String documentsTable = 'documents';
 
   Future<Database> get database async {
     if (_database != null) {
@@ -41,10 +43,18 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 14,
+      version: 16,
+      onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Habilita la aplicación real de las restricciones de llave foránea
+  /// (ON DELETE CASCADE, etc.) declaradas en el esquema. SQLite las ignora
+  /// por conexión a menos que se pidan explícitamente con este PRAGMA.
+  Future<void> _onConfigure(Database db) async {
+    await db.execute('PRAGMA foreign_keys = ON');
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -156,10 +166,26 @@ class DatabaseHelper {
         notes TEXT,
         startDate TEXT,
         endDate TEXT,
+        reminderTimes TEXT,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
     debugPrint('Tabla de medicaciones creada');
+
+    // 9. Crear tabla de documentos
+    await db.execute('''
+      CREATE TABLE $documentsTable(
+        id TEXT PRIMARY KEY,
+        petId TEXT,
+        categoria TEXT,
+        titulo TEXT,
+        fecha TEXT,
+        filePath TEXT,
+        notas TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    debugPrint('Tabla de documentos creada');
   }
 
   Future<List<String>> getVaccineNames() async {
@@ -199,6 +225,38 @@ class DatabaseHelper {
       } else {
         debugPrint('Columna extraPhotoPath ya existe en $vaccinationsTable');
       }
+    }
+
+    // Migración a v15: agregar reminderTimes a medications (horarios exactos
+    // de toma). Las medicaciones existentes quedan con reminderTimes NULL
+    // (equivalente a lista vacía en Medication.fromJson), por lo que
+    // conservan su recordatorio único de las 9:00 AM hasta que se editen.
+    if (oldVersion < 15) {
+      final exists = await _columnExists(db, medicationsTable, 'reminderTimes');
+      if (!exists) {
+        await db.execute('ALTER TABLE $medicationsTable ADD COLUMN reminderTimes TEXT');
+        debugPrint('Columna reminderTimes agregada a $medicationsTable');
+      } else {
+        debugPrint('Columna reminderTimes ya existe en $medicationsTable');
+      }
+    }
+
+    // Migración a v16: nueva tabla documents (exámenes, cirugías,
+    // radiografías, recetas), con el mismo ON DELETE CASCADE que el resto.
+    if (oldVersion < 16) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $documentsTable(
+          id TEXT PRIMARY KEY,
+          petId TEXT,
+          categoria TEXT,
+          titulo TEXT,
+          fecha TEXT,
+          filePath TEXT,
+          notas TEXT,
+          FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+        )
+      ''');
+      debugPrint('Tabla de documentos creada (migración v16)');
     }
 
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
@@ -263,6 +321,7 @@ class DatabaseHelper {
     await db.delete(foodAllergiesTable);
     await db.delete(dewormingsTable);
     await db.delete(medicationsTable);
+    await db.delete(documentsTable);
     debugPrint('Todos los datos han sido eliminados de la base de datos.');
   }
 
@@ -647,5 +706,50 @@ class DatabaseHelper {
       whereArgs: [id],
     );
     debugPrint('Medicación $id eliminada');
+  }
+
+  // --- Métodos para Documentos (Documents) ---
+  Future<void> insertDocument(Document document) async {
+    final db = await database;
+    await db.insert(
+      documentsTable,
+      document.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    debugPrint('Documento "${document.titulo}" para petId: ${document.petId} insertado/actualizado');
+  }
+
+  Future<List<Document>> getDocumentsForPet(String petId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      documentsTable,
+      where: 'petId = ?',
+      whereArgs: [petId],
+      orderBy: 'fecha DESC',
+    );
+    return List.generate(maps.length, (i) {
+      return Document.fromJson(maps[i]);
+    });
+  }
+
+  Future<void> updateDocument(Document document) async {
+    final db = await database;
+    await db.update(
+      documentsTable,
+      document.toJson(),
+      where: 'id = ?',
+      whereArgs: [document.id],
+    );
+    debugPrint('Documento ${document.id} actualizado');
+  }
+
+  Future<void> deleteDocument(String id) async {
+    final db = await database;
+    await db.delete(
+      documentsTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    debugPrint('Documento $id eliminado');
   }
 }
