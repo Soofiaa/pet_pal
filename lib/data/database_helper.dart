@@ -21,6 +21,15 @@ class DatabaseHelper {
 
   DatabaseHelper._internal();
 
+  /// Resultado de la migración v17 (limpieza de filas huérfanas), por tabla.
+  /// Solo se puebla si _onUpgrade realmente ejecutó esa migración en este
+  /// lanzamiento del proceso — no se persiste a disco. Sirve como señal
+  /// para que OrphanCleanupService sepa si corresponde también barrer
+  /// archivos huérfanos en este mismo lanzamiento, reutilizando la propia
+  /// versión de la base de datos como disparador único, sin agregar un
+  /// mecanismo de "flag ya ejecutado" aparte.
+  static Map<String, int>? lastOrphanRowCleanupCounts;
+
   static const String petsTable = 'pets';
   static const String notesTable = 'notes';
   static const String vaccinationsTable = 'vaccinations';
@@ -43,7 +52,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 16,
+      version: 17,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -259,6 +268,36 @@ class DatabaseHelper {
       debugPrint('Tabla de documentos creada (migración v16)');
     }
 
+    // Migración a v17: limpieza única de filas huérfanas heredadas de antes
+    // de activar PRAGMA foreign_keys = ON (ver _onConfigure). Hasta ese
+    // cambio, eliminar una mascota nunca borraba en la práctica sus notas,
+    // vacunas, citas, medicaciones, desparasitaciones, alergias ni
+    // documentos: quedaban como filas huérfanas referenciando un petId que
+    // ya no existe. Se ejecuta una sola vez porque _onUpgrade solo corre en
+    // el salto de versión; no hace falta ninguna flag adicional.
+    if (oldVersion < 17) {
+      const List<String> tablesWithPetId = [
+        notesTable,
+        vaccinationsTable,
+        appointmentsTable,
+        weightRecordsTable,
+        foodAllergiesTable,
+        dewormingsTable,
+        medicationsTable,
+        documentsTable,
+      ];
+
+      final Map<String, int> deletedCounts = {};
+      for (final table in tablesWithPetId) {
+        final int deleted = await db.rawDelete(
+          'DELETE FROM $table WHERE petId NOT IN (SELECT id FROM pets)',
+        );
+        deletedCounts[table] = deleted;
+      }
+
+      lastOrphanRowCleanupCounts = deletedCounts;
+    }
+
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
     // van aquí también, respetando el patrón: if (oldVersion < X) { ... }
   }
@@ -304,6 +343,11 @@ class DatabaseHelper {
     final weightMaps = await db.query(weightRecordsTable, where: 'petId = ?', whereArgs: [petId]);
     final weightRecords = List.generate(weightMaps.length, (i) => WeightRecord.fromJson(weightMaps[i]));
     allEvents.addAll(WeightRecord.getEventsFromList(weightRecords));
+
+    // Documentos
+    final documentMaps = await db.query(documentsTable, where: 'petId = ?', whereArgs: [petId]);
+    final documents = List.generate(documentMaps.length, (i) => Document.fromJson(documentMaps[i]));
+    allEvents.addAll(Document.getEventsFromList(documents));
 
     return allEvents;
   }

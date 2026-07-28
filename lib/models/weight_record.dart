@@ -51,7 +51,7 @@ class WeightRecord {
         'petId': record.petId,
         'date': record.date,
         'title': 'Peso: ${record.weight.toStringAsFixed(2)} kg',
-        'type': 'weight_record',
+        'type': 'weight',
       });
     }
     return events;

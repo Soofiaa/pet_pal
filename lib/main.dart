@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:pet_pal/screens/home_screen/home_screen.dart'; // Asegúrate de que esta sea tu pantalla principal
 import 'package:pet_pal/services/notification_service.dart'; // Importar el servicio de notificaciones
 import 'package:pet_pal/services/reminder_scheduler.dart';
+import 'package:pet_pal/services/orphan_cleanup_service.dart';
+import 'package:pet_pal/data/database_helper.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Necesario para el tipo NotificationResponse
 import 'package:intl/date_symbol_data_local.dart'; // Importación necesaria
 
@@ -17,12 +19,30 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Asegura que los widgets de Flutter estén inicializados
   await NotificationService().init(); // Inicializa el servicio de notificaciones
 
+  // Abre la conexión a la base de datos una sola vez y de forma explícita
+  // ANTES de lanzar las dos tareas de abajo. DatabaseHelper.database es un
+  // getter de inicialización perezosa no atómico (chequea _database == null
+  // y recién después lo asigna, con un await en el medio); si
+  // ReminderScheduler y OrphanCleanupService llamaran a ese getter al mismo
+  // tiempo sin esto, ambos podrían ver _database == null y disparar
+  // _initDatabase() (y por lo tanto _onUpgrade) por duplicado. No es un
+  // problema introducido por esta tarea, pero como ya estamos tocando este
+  // arranque, lo cerramos de una vez.
+  await DatabaseHelper().database;
+
   // Red de seguridad adicional al receiver nativo de reinicio: si el usuario
   // reabre la app después de un reinicio del dispositivo (o de una
   // reinstalación/actualización), esto reprograma cualquier recordatorio
   // pendiente. Es idempotente: usa los mismos ids que ya se usan hoy, así
   // que no genera notificaciones duplicadas.
   unawaited(ReminderScheduler.rescheduleAllPending());
+
+  // Limpieza única de datos heredados de antes de activar PRAGMA
+  // foreign_keys: filas huérfanas (vía migración v17) y sus archivos
+  // asociados en petpal_files/. Solo hace algo la primera vez que se abre
+  // la app tras esta actualización; en cualquier otro lanzamiento es un
+  // no-op inmediato. Nunca debe bloquear ni impedir que la app abra.
+  unawaited(OrphanCleanupService.runOnce());
 
   // Inicializa los datos de formato de fecha para el idioma español (o el que necesites)
   await initializeDateFormatting('es_ES', null);

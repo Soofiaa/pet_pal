@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
-
 class Medication {
   final String? id;
   final String petId;
@@ -87,19 +85,19 @@ class Medication {
     List<Map<String, dynamic>> events = [];
     for (var medication in medications) {
       events.add({
-        'type': 'Medicación',
+        'id': medication.id,
+        'petId': medication.petId,
+        'type': 'medication',
         'title': 'Inicio de ${medication.name}',
         'date': medication.startDate,
-        'icon': Icons.medication_liquid,
-        'color': Colors.blueGrey,
       });
       if (medication.endDate != null) {
         events.add({
-          'type': 'Fin de medicación',
+          'id': medication.id,
+          'petId': medication.petId,
+          'type': 'medication_end',
           'title': 'Fin de tratamiento: ${medication.name}',
           'date': medication.endDate!,
-          'icon': Icons.check,
-          'color': Colors.green,
         });
       }
     }
