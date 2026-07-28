@@ -23,12 +23,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     'note': {'icon': Icons.description, 'color': Colors.blue},
     'appointment': {'icon': Icons.calendar_today, 'color': Colors.orange},
     'vaccination': {'icon': Icons.local_hospital, 'color': Colors.green},
+    'next_vaccination': {'icon': Icons.event_repeat, 'color': Colors.green[300]},
     'medication': {'icon': Icons.medical_services, 'color': Colors.purple},
+    'medication_end': {'icon': Icons.check_circle, 'color': Colors.purple[300]},
     'deworming': {'icon': Icons.bug_report, 'color': Colors.red},
-    'allergy': {'icon': Icons.warning, 'color': Colors.yellow},
+    'next_deworming': {'icon': Icons.next_plan, 'color': Colors.red[300]},
     'weight': {'icon': Icons.scale, 'color': Colors.teal},
-    'peso': {'icon': Icons.scale, 'color': Colors.teal},
-    'desparasitacion': {'icon': Icons.bug_report, 'color': Colors.red},
+    'document': {'icon': Icons.folder_shared, 'color': Colors.brown},
   };
 
   @override

@@ -81,4 +81,18 @@ class Document {
       notas: json['notas'] as String?,
     );
   }
+
+  static List<Map<String, dynamic>> getEventsFromList(List<Document> documents) {
+    final List<Map<String, dynamic>> events = [];
+    for (final document in documents) {
+      events.add({
+        'id': document.id,
+        'petId': document.petId,
+        'date': document.fecha,
+        'title': '${document.categoria}: ${document.titulo}',
+        'type': 'document',
+      });
+    }
+    return events;
+  }
 }

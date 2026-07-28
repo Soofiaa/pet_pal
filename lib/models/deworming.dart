@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class Deworming {
   final String? id; // Cambiado a String
   final String petId;
@@ -56,19 +54,19 @@ class Deworming {
     List<Map<String, dynamic>> events = [];
     for (var deworming in dewormings) {
       events.add({
-        'type': 'Desparasitación',
+        'id': deworming.id,
+        'petId': deworming.petId,
+        'type': 'deworming',
         'title': 'Desparasitación: ${deworming.product}',
         'date': deworming.date,
-        'icon': Icons.vaccines,
-        'color': Colors.orange[800],
       });
       if (deworming.nextDate != null) {
         events.add({
-          'type': 'Próxima desparasitación',
+          'id': deworming.id,
+          'petId': deworming.petId,
+          'type': 'next_deworming',
           'title': 'Próxima desparasitación: ${deworming.product}',
           'date': deworming.nextDate!,
-          'icon': Icons.next_plan,
-          'color': Colors.orange,
         });
       }
     }
