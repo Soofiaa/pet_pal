@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/pet.dart';
+// ignore: library_prefixes
+import '../../utils/pdf_generator.dart' as PdfGenerator;
 import 'package:pet_pal/screens/add_edit_pet_screen/add_edit_pet_screen.dart';
 import 'package:pet_pal/screens/vaccinations_screen/vaccinations_screen.dart';
 import 'package:pet_pal/screens/appointments_screen/appointments_screen.dart';
@@ -27,6 +31,7 @@ class PetDetailScreen extends StatefulWidget {
 
 class _PetDetailScreenState extends State<PetDetailScreen> {
   late Pet _pet;
+  bool _isGeneratingHealthSummary = false;
 
   @override
   void initState() {
@@ -38,6 +43,47 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     final updated = await DatabaseHelper().getPetById(_pet.id);
     if (updated != null && mounted) {
       setState(() => _pet = updated);
+    }
+  }
+
+  Future<void> _generateAndShareHealthSummary() async {
+    setState(() => _isGeneratingHealthSummary = true);
+
+    try {
+      final dbHelper = DatabaseHelper();
+      final vaccinations = await dbHelper.getVaccinationsForPet(_pet.id);
+      final medications = await dbHelper.getMedicationsForPet(_pet.id);
+      final dewormings = await dbHelper.getDewormingsForPet(_pet.id);
+      final weightRecords = await dbHelper.getWeightRecordsForPet(_pet.id);
+      final documents = await dbHelper.getDocumentsForPet(_pet.id);
+
+      final pdfData = await PdfGenerator.generateHealthSummaryPdf(
+        _pet,
+        vaccinations: vaccinations,
+        medications: medications,
+        dewormings: dewormings,
+        weightRecords: weightRecords,
+        documents: documents,
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/ficha_clinica_${_pet.name}.pdf');
+      await file.writeAsBytes(pdfData);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Ficha clínica de ${_pet.name}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al generar la ficha clínica.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingHealthSummary = false);
+      }
     }
   }
 
@@ -131,6 +177,21 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       appBar: AppBar(
         title: Text(_pet.name),
         actions: [
+          if (_isGeneratingHealthSummary)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'Compartir ficha clínica',
+              onPressed: _generateAndShareHealthSummary,
+            ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () async {

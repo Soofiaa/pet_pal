@@ -30,12 +30,14 @@ dependencies:
   flutter_image_compress: ^2.4.0
   app_settings: ^5.1.1
   open_filex: ^4.5.0
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: "^0.13.1"
+  sqflite_common_ffi: ^2.3.4
 
 flutter_launcher_icons:
   android: "launcher_icon"

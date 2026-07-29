@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/weight_record.dart';
@@ -69,6 +70,113 @@ class _WeightRecordScreenState extends State<WeightRecordScreen> {
     }
   }
 
+  Widget _buildWeightChart() {
+    final DateTime firstDate = _weightRecords.first.date;
+
+    final List<FlSpot> spots = _weightRecords.map((record) {
+      final double daysSinceFirst =
+          record.date.difference(firstDate).inDays.toDouble();
+      return FlSpot(daysSinceFirst, record.weight);
+    }).toList();
+
+    // Si todos los registros cayeran en el mismo día (maxX 0), se fuerza un
+    // rango mínimo de 1 día para que el eje X no quede degenerado.
+    final double maxX = spots.last.x > 0 ? spots.last.x : 1;
+    double bottomInterval = maxX / 4;
+    if (bottomInterval < 1) bottomInterval = 1;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+      child: SizedBox(
+        height: 220,
+        child: LineChart(
+          LineChartData(
+            minX: 0,
+            maxX: maxX,
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipColor: (_) => Colors.green.shade700,
+                getTooltipItems: (touchedSpots) {
+                  return touchedSpots.map((spot) {
+                    final DateTime date =
+                        firstDate.add(Duration(days: spot.x.round()));
+                    return LineTooltipItem(
+                      '${DateFormat('dd/MM/yyyy').format(date)}\n'
+                      '${spot.y.toStringAsFixed(2)} kg',
+                      const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }).toList();
+                },
+              ),
+            ),
+            titlesData: FlTitlesData(
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 32,
+                  interval: bottomInterval,
+                  getTitlesWidget: (value, meta) {
+                    final DateTime date =
+                        firstDate.add(Duration(days: value.round()));
+                    return SideTitleWidget(
+                      axisSide: meta.axisSide,
+                      child: Text(
+                        DateFormat('dd/MM').format(date),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 44,
+                  getTitlesWidget: (value, meta) {
+                    return SideTitleWidget(
+                      axisSide: meta.axisSide,
+                      child: Text(
+                        '${value.toStringAsFixed(0)} kg',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            gridData: const FlGridData(show: true, drawVerticalLine: false),
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: false,
+                color: Colors.green,
+                barWidth: 3,
+                dotData: const FlDotData(show: true),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: Colors.green.withValues(alpha: 0.15),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,6 +198,17 @@ class _WeightRecordScreenState extends State<WeightRecordScreen> {
       )
           : Column(
         children: [
+          if (_weightRecords.length == 1)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Agrega al menos un registro más para ver la evolución del peso.',
+                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            )
+          else
+            _buildWeightChart(),
           Expanded(
             child: ListView.builder(
               itemCount: _weightRecords.length,
