@@ -3,6 +3,8 @@
 // flutter_local_notifications -el repository es solo acceso a datos, no
 // programa ni cancela recordatorios; eso vive en DewormingsNotifier y se
 // prueba aparte en test/providers/deworming_providers_test.dart-.
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -24,9 +26,32 @@ Future<Pet> _insertSamplePet(DatabaseHelper dbHelper) async {
 }
 
 void main() {
-  setUpAll(() {
+  late Directory tempDbDir;
+
+  setUpAll(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    // Ruta propia de este archivo: evita que este y otros archivos que
+    // también usan sqflite_common_ffi (database_helper_test.dart,
+    // weight_record_repository_test.dart) compartan el mismo pet_pal_v2.db
+    // físico cuando corren en paralelo -> "database is locked".
+    tempDbDir = await Directory.systemTemp.createTemp('pet_pal_test_db_');
+    // ignore: deprecated_member_use
+    await databaseFactory.setDatabasesPath(tempDbDir.path);
+  });
+
+  tearDownAll(() async {
+    // Mejor esfuerzo, no crítico: DatabaseHelper es un singleton que nunca
+    // cierra su conexión, así que en Windows el archivo .db puede seguir
+    // con un handle abierto acá y el borrado fallar (PathAccessException).
+    // No debe hacer fallar la corrida por una limpieza que es solo prolijidad.
+    try {
+      if (await tempDbDir.exists()) {
+        await tempDbDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Se ignora: el SO limpia temporales eventualmente.
+    }
   });
 
   setUp(() async {

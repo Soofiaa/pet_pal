@@ -5,6 +5,8 @@
 // autor de sqflite) sustituye esa implementación por una real basada en FFI,
 // así estas pruebas ejercitan SQLite de verdad -incluyendo
 // `PRAGMA foreign_keys = ON`- sin necesitar un emulador ni un dispositivo.
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -102,9 +104,34 @@ Future<void> _expectChildRowCountsForPet(
 }
 
 void main() {
-  setUpAll(() {
+  late Directory tempDbDir;
+
+  setUpAll(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    // Cada archivo de test corre en su propio isolate, pero
+    // databaseFactoryFfi resuelve a una ruta compartida por defecto si no
+    // se le indica una explícita. Sin esto, este archivo y otros que
+    // también usan sqflite_common_ffi (weight_record_repository_test.dart,
+    // deworming_repository_test.dart) terminan abriendo el mismo archivo
+    // físico pet_pal_v2.db en paralelo -> "database is locked".
+    tempDbDir = await Directory.systemTemp.createTemp('pet_pal_test_db_');
+    // ignore: deprecated_member_use
+    await databaseFactory.setDatabasesPath(tempDbDir.path);
+  });
+
+  tearDownAll(() async {
+    // Mejor esfuerzo, no crítico: DatabaseHelper es un singleton que nunca
+    // cierra su conexión, así que en Windows el archivo .db puede seguir
+    // con un handle abierto acá y el borrado fallar (PathAccessException).
+    // No debe hacer fallar la corrida por una limpieza que es solo prolijidad.
+    try {
+      if (await tempDbDir.exists()) {
+        await tempDbDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Se ignora: el SO limpia temporales eventualmente.
+    }
   });
 
   // DatabaseHelper es un singleton: la conexión real se abre una única vez
