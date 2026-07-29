@@ -1,43 +1,22 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/weight_record.dart';
-import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/providers/weight_record_providers.dart';
 import 'package:pet_pal/screens/add_edit_weight_record_screen/add_edit_weight_record_screen.dart';
-import 'package:intl/intl.dart';
 
-class WeightRecordScreen extends StatefulWidget {
+class WeightRecordScreen extends ConsumerWidget {
   final Pet pet;
 
   const WeightRecordScreen({super.key, required this.pet});
 
-  @override
-  State<WeightRecordScreen> createState() => _WeightRecordScreenState();
-}
-
-class _WeightRecordScreenState extends State<WeightRecordScreen> {
-  List<WeightRecord> _weightRecords = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWeightRecords();
-  }
-
-  Future<void> _loadWeightRecords() async {
-    setState(() {
-      _isLoading = true;
-    });
-    final records = await DatabaseHelper().getWeightRecordsForPet(widget.pet.id);
-    records.sort((a, b) => a.date.compareTo(b.date));
-    setState(() {
-      _weightRecords = records;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _deleteRecord(WeightRecord record) async {
+  Future<void> _deleteRecord(
+    BuildContext context,
+    WidgetRef ref,
+    WeightRecord record,
+  ) async {
     final bool? confirm = await showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -60,20 +39,20 @@ class _WeightRecordScreenState extends State<WeightRecordScreen> {
     );
 
     if (confirm == true) {
-      await DatabaseHelper().deleteWeightRecord(record.id!);
-      if (mounted) {
+      await ref.read(weightRecordRepositoryProvider).deleteWeightRecord(record.id!);
+      await ref.read(weightRecordsProvider(pet.id).notifier).refresh();
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registro de peso eliminado con éxito.')),
         );
       }
-      _loadWeightRecords();
     }
   }
 
-  Widget _buildWeightChart() {
-    final DateTime firstDate = _weightRecords.first.date;
+  Widget _buildWeightChart(List<WeightRecord> weightRecords) {
+    final DateTime firstDate = weightRecords.first.date;
 
-    final List<FlSpot> spots = _weightRecords.map((record) {
+    final List<FlSpot> spots = weightRecords.map((record) {
       final double daysSinceFirst =
           record.date.difference(firstDate).inDays.toDouble();
       return FlSpot(daysSinceFirst, record.weight);
@@ -178,96 +157,107 @@ class _WeightRecordScreenState extends State<WeightRecordScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<WeightRecord>> asyncWeightRecords =
+        ref.watch(weightRecordsProvider(pet.id));
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Registro de Peso de ${widget.pet.name}'),
+        title: Text('Registro de Peso de ${pet.name}'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _weightRecords.isEmpty
-          ? const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'No hay registros de peso para esta mascota.',
-            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : Column(
-        children: [
-          if (_weightRecords.length == 1)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Agrega al menos un registro más para ver la evolución del peso.',
-                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
-                textAlign: TextAlign.center,
+      body: asyncWeightRecords.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Center(child: Text('Error: $error')),
+        data: (weightRecords) {
+          if (weightRecords.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'No hay registros de peso para esta mascota.',
+                  style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            )
-          else
-            _buildWeightChart(),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _weightRecords.length,
-              itemBuilder: (context, index) {
-                final record = _weightRecords[index];
-                return Dismissible(
-                  key: Key(record.id.toString()),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: const Icon(Icons.delete, color: Colors.white),
+            );
+          }
+
+          return Column(
+            children: [
+              if (weightRecords.length == 1)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'Agrega al menos un registro más para ver la evolución del peso.',
+                    style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                    textAlign: TextAlign.center,
                   ),
-                  confirmDismiss: (direction) async {
-                    await _deleteRecord(record);
-                    return null;
-                  },
-                  child: Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: ListTile(
-                      leading: const Icon(Icons.monitor_weight, color: Colors.green),
-                      title: Text(
-                        'Peso: ${record.weight.toStringAsFixed(2)} kg',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                )
+              else
+                _buildWeightChart(weightRecords),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: weightRecords.length,
+                  itemBuilder: (context, index) {
+                    final record = weightRecords[index];
+                    return Dismissible(
+                      key: Key(record.id.toString()),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      subtitle: Text(
-                        'Fecha: ${DateFormat('dd/MM/yyyy').format(record.date)}',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AddEditWeightRecordScreen(
-                              petId: widget.pet.id,
-                              weightRecord: record,
-                            ),
-                          ),
-                        );
-                        _loadWeightRecords();
+                      confirmDismiss: (direction) async {
+                        await _deleteRecord(context, ref, record);
+                        return null;
                       },
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        child: ListTile(
+                          leading: const Icon(Icons.monitor_weight, color: Colors.green),
+                          title: Text(
+                            'Peso: ${record.weight.toStringAsFixed(2)} kg',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'Fecha: ${DateFormat('dd/MM/yyyy').format(record.date)}',
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddEditWeightRecordScreen(
+                                  petId: pet.id,
+                                  weightRecord: record,
+                                ),
+                              ),
+                            );
+                            await ref
+                                .read(weightRecordsProvider(pet.id).notifier)
+                                .refresh();
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddEditWeightRecordScreen(petId: widget.pet.id),
+              builder: (context) => AddEditWeightRecordScreen(petId: pet.id),
             ),
           );
-          _loadWeightRecords();
+          await ref.read(weightRecordsProvider(pet.id).notifier).refresh();
         },
         child: const Icon(Icons.add),
       ),

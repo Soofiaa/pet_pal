@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/screens/home_screen/home_screen.dart'; // Asegúrate de que esta sea tu pantalla principal
 import 'package:pet_pal/services/notification_service.dart'; // Importar el servicio de notificaciones
 import 'package:pet_pal/services/reminder_scheduler.dart';
@@ -62,7 +63,11 @@ Future<void> main() async {
     }
   }
 
-  runApp(const PetPalApp());
+  // ProviderScope solo envuelve el árbol de widgets: no afecta ni reordena
+  // nada de la secuencia de arranque de arriba (apertura de la DB,
+  // notificaciones, reprogramación de recordatorios, limpieza de
+  // huérfanos), que sigue corriendo exactamente igual antes de este punto.
+  runApp(const ProviderScope(child: PetPalApp()));
 }
 
 // Función para manejar el payload de la notificación y navegar

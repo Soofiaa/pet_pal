@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/weight_record.dart';
-import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/providers/weight_record_providers.dart';
 
-class AddEditWeightRecordScreen extends StatefulWidget {
+class AddEditWeightRecordScreen extends ConsumerStatefulWidget {
   final String petId;
   final WeightRecord? weightRecord;
 
   const AddEditWeightRecordScreen({super.key, required this.petId, this.weightRecord});
 
   @override
-  State<AddEditWeightRecordScreen> createState() => _AddEditWeightRecordScreenState();
+  ConsumerState<AddEditWeightRecordScreen> createState() => _AddEditWeightRecordScreenState();
 }
 
-class _AddEditWeightRecordScreenState extends State<AddEditWeightRecordScreen> {
+class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _weightController = TextEditingController();
   DateTime _date = DateTime.now();
@@ -51,7 +52,7 @@ class _AddEditWeightRecordScreenState extends State<AddEditWeightRecordScreen> {
 
   void _saveWeightRecord() async {
     if (_formKey.currentState!.validate()) {
-      final dbHelper = DatabaseHelper();
+      final repository = ref.read(weightRecordRepositoryProvider);
       final int? id = _isEditing ? widget.weightRecord!.id : null; // <-- CORREGIDO: Ahora el ID es opcional (nullable)
 
       final newWeightRecord = WeightRecord(
@@ -62,9 +63,9 @@ class _AddEditWeightRecordScreenState extends State<AddEditWeightRecordScreen> {
       );
 
       if (_isEditing) {
-        await dbHelper.updateWeightRecord(newWeightRecord);
+        await repository.updateWeightRecord(newWeightRecord);
       } else {
-        await dbHelper.insertWeightRecord(newWeightRecord);
+        await repository.insertWeightRecord(newWeightRecord);
       }
 
       if (mounted) {
