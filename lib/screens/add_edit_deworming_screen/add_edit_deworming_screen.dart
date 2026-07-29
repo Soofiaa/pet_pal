@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/data/database_helper.dart';
-import 'package:pet_pal/services/reminder_scheduler.dart';
+import 'package:pet_pal/providers/deworming_providers.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
-class AddEditDewormingScreen extends StatefulWidget {
+class AddEditDewormingScreen extends ConsumerStatefulWidget {
   final Pet pet;
   final Deworming? deworming;
 
@@ -17,10 +18,10 @@ class AddEditDewormingScreen extends StatefulWidget {
   });
 
   @override
-  State<AddEditDewormingScreen> createState() => _AddEditDewormingScreenState();
+  ConsumerState<AddEditDewormingScreen> createState() => _AddEditDewormingScreenState();
 }
 
-class _AddEditDewormingScreenState extends State<AddEditDewormingScreen> {
+class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _productController;
   late TextEditingController _dateController;
@@ -78,22 +79,17 @@ class _AddEditDewormingScreenState extends State<AddEditDewormingScreen> {
             : null,
       );
 
-      // Si se está editando, cancela el recordatorio anterior antes de
-      // reprogramar (la próxima fecha puede haber cambiado).
-      if (_currentDeworming != null) {
-        await ReminderScheduler.cancelDewormingReminder(_currentDeworming!);
-      }
-      await ReminderScheduler.scheduleDewormingReminder(newDeworming);
+      final notifier = ref.read(dewormingsProvider(widget.pet.id).notifier);
 
       if (_currentDeworming == null) {
-        await DatabaseHelper().insertDeworming(newDeworming);
+        await notifier.addDeworming(newDeworming);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Desparasitación agregada con éxito.')),
           );
         }
       } else {
-        await DatabaseHelper().updateDeworming(newDeworming);
+        await notifier.updateDeworming(_currentDeworming!, newDeworming);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Desparasitación actualizada con éxito.')),
