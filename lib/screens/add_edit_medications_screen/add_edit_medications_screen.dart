@@ -1,24 +1,24 @@
 // ignore_for_file: use_build_context_synchronously, duplicate_ignore
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication.dart';
-import 'package:pet_pal/data/database_helper.dart';
-import 'package:pet_pal/services/reminder_scheduler.dart';
+import 'package:pet_pal/providers/medication_providers.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
-class AddEditMedicationScreen extends StatefulWidget {
+class AddEditMedicationScreen extends ConsumerStatefulWidget {
   final Pet pet;
   final Medication? medication;
 
   const AddEditMedicationScreen({super.key, required this.pet, this.medication});
 
   @override
-  State<AddEditMedicationScreen> createState() => _AddEditMedicationScreenState();
+  ConsumerState<AddEditMedicationScreen> createState() => _AddEditMedicationScreenState();
 }
 
-class _AddEditMedicationScreenState extends State<AddEditMedicationScreen> {
+class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _dosageController = TextEditingController();
@@ -134,28 +134,27 @@ class _AddEditMedicationScreenState extends State<AddEditMedicationScreen> {
         reminderTimes: _reminderTimes,
       );
 
-      // Si se está editando, cancela los recordatorios anteriores antes de
-      // reprogramar (el rango de días puede haber cambiado).
-      if (widget.medication != null) {
-        await ReminderScheduler.cancelMedicationReminders(widget.medication!);
-      }
-      await ReminderScheduler.scheduleMedicationReminders(newMedication);
+      final notifier = ref.read(medicationsProvider(widget.pet.id).notifier);
 
       if (widget.medication == null) {
-        // Añadir una nueva medicación
-        await DatabaseHelper().insertMedication(newMedication);
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Medicación agregada con éxito.')),
-        );
+        await notifier.addMedication(newMedication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Medicación agregada con éxito.')),
+          );
+        }
       } else {
-        // Actualizar una medicación existente
-        await DatabaseHelper().updateMedication(newMedication);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Medicación actualizada con éxito.')),
-        );
+        await notifier.updateMedication(widget.medication!, newMedication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Medicación actualizada con éxito.')),
+          );
+        }
       }
-      Navigator.of(context).pop();
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 

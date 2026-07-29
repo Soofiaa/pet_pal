@@ -1,36 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication.dart';
-import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/providers/medication_providers.dart';
 import 'package:pet_pal/screens/add_edit_medications_screen/add_edit_medications_screen.dart';
-import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:intl/intl.dart';
 
-class MedicationsScreen extends StatefulWidget {
+class MedicationsScreen extends ConsumerWidget {
   final Pet pet;
 
   const MedicationsScreen({super.key, required this.pet});
 
-  @override
-  State<MedicationsScreen> createState() => _MedicationsScreenState();
-}
-
-class _MedicationsScreenState extends State<MedicationsScreen> {
-  late Future<List<Medication>> _medications;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMedications();
-  }
-
-  void _loadMedications() {
-    setState(() {
-      _medications = DatabaseHelper().getMedicationsForPet(widget.pet.id);
-    });
-  }
-
-  Future<void> _confirmDelete(Medication medication) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Medication medication,
+  ) async {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -50,119 +35,120 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     );
 
     if (shouldDelete == true) {
-      await ReminderScheduler.cancelMedicationReminders(medication);
-      await DatabaseHelper().deleteMedication(medication.id!);
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Medicación eliminada correctamente.')),
-      );
-      _loadMedications();
+      await ref.read(medicationsProvider(pet.id).notifier).deleteMedication(medication);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Medicación eliminada correctamente.')),
+        );
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<Medication>> asyncMedications =
+        ref.watch(medicationsProvider(pet.id));
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Medicación de ${widget.pet.name}'),
+        title: Text('Medicación de ${pet.name}'),
       ),
-      body: FutureBuilder<List<Medication>>(
-        future: _medications,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+      body: asyncMedications.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Center(child: Text('Error: $error')),
+        data: (medicationList) {
+          if (medicationList.isEmpty) {
             return const Center(child: Text('No hay medicaciones registradas.'));
-          } else {
-            final medicationList = snapshot.data!;
-            return ListView.builder(
-              itemCount: medicationList.length,
-              itemBuilder: (context, index) {
-                final medication = medicationList[index];
-                Future<void> goToEdit() async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddEditMedicationScreen(
-                        pet: widget.pet,
-                        medication: medication,
-                      ),
-                    ),
-                  );
-                  _loadMedications();
-                }
+          }
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        title: Text(medication.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Dosis: ${medication.dosage}'),
-                            if (medication.frequency.isNotEmpty)
-                              Text('Frecuencia: ${medication.frequency}'),
-                            Text('Inicio: ${DateFormat('dd/MM/yyyy').format(medication.startDate)}'),
-                            if (medication.endDate != null)
-                              Text('Fin: ${DateFormat('dd/MM/yyyy').format(medication.endDate!)}'),
-                            if (medication.reminderTimes.isNotEmpty)
-                              Text('Horarios: ${medication.reminderTimes.join(', ')}'),
-                            if (medication.notes.isNotEmpty)
-                              Text('Notas: ${medication.notes}'),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: goToEdit,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _confirmDelete(medication),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (medication.reminderTimes.isEmpty)
-                        InkWell(
-                          onTap: goToEdit,
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade100,
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(12),
-                                bottomRight: Radius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.schedule, color: Colors.amber.shade900),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Definí horarios exactos para recordatorios más precisos.',
-                                    style: TextStyle(color: Colors.amber.shade900),
-                                  ),
-                                ),
-                                Icon(Icons.chevron_right, color: Colors.amber.shade900),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
+          return ListView.builder(
+            itemCount: medicationList.length,
+            itemBuilder: (context, index) {
+              final medication = medicationList[index];
+              Future<void> goToEdit() async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddEditMedicationScreen(
+                      pet: pet,
+                      medication: medication,
+                    ),
                   ),
                 );
-              },
-            );
-          }
+                // No hace falta refrescar acá: si se guardó algo,
+                // MedicationsNotifier.addMedication/updateMedication ya
+                // refrescó el estado internamente antes de volver; si se
+                // canceló, no hay nada que refrescar.
+              }
+
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Column(
+                  children: [
+                    ListTile(
+                      title: Text(medication.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Dosis: ${medication.dosage}'),
+                          if (medication.frequency.isNotEmpty)
+                            Text('Frecuencia: ${medication.frequency}'),
+                          Text('Inicio: ${DateFormat('dd/MM/yyyy').format(medication.startDate)}'),
+                          if (medication.endDate != null)
+                            Text('Fin: ${DateFormat('dd/MM/yyyy').format(medication.endDate!)}'),
+                          if (medication.reminderTimes.isNotEmpty)
+                            Text('Horarios: ${medication.reminderTimes.join(', ')}'),
+                          if (medication.notes.isNotEmpty)
+                            Text('Notas: ${medication.notes}'),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: goToEdit,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _confirmDelete(context, ref, medication),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (medication.reminderTimes.isEmpty)
+                      InkWell(
+                        onTap: goToEdit,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(12),
+                              bottomRight: Radius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule, color: Colors.amber.shade900),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Definí horarios exactos para recordatorios más precisos.',
+                                  style: TextStyle(color: Colors.amber.shade900),
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: Colors.amber.shade900),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          );
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -170,10 +156,10 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddEditMedicationScreen(pet: widget.pet),
+              builder: (context) => AddEditMedicationScreen(pet: pet),
             ),
           );
-          _loadMedications();
+          // Mismo motivo que arriba: addMedication ya refresca internamente.
         },
         child: const Icon(Icons.add),
       ),
