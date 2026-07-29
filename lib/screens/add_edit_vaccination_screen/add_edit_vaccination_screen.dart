@@ -1,18 +1,19 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
 import 'package:pet_pal/screens/image_crop_screen/image_crop_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
-import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
-class AddEditVaccinationScreen extends StatefulWidget {
+class AddEditVaccinationScreen extends ConsumerStatefulWidget {
   final String petId;
   final Vaccination? vaccination;
 
@@ -23,10 +24,10 @@ class AddEditVaccinationScreen extends StatefulWidget {
   });
 
   @override
-  State<AddEditVaccinationScreen> createState() => _AddEditVaccinationScreenState();
+  ConsumerState<AddEditVaccinationScreen> createState() => _AddEditVaccinationScreenState();
 }
 
-class _AddEditVaccinationScreenState extends State<AddEditVaccinationScreen> {
+class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _vaccineNameController = TextEditingController();
 
@@ -285,7 +286,6 @@ class _AddEditVaccinationScreenState extends State<AddEditVaccinationScreen> {
 
   void _saveVaccination() async {
     if (_formKey.currentState!.validate()) {
-      final dbHelper = DatabaseHelper();
       final String id = _isEditing ? widget.vaccination!.id : const Uuid().v4();
 
       final String? finalStickerPhotoPath =
@@ -310,17 +310,12 @@ class _AddEditVaccinationScreenState extends State<AddEditVaccinationScreen> {
         extraPhotoPath: finalExtraPhotoPath,
       );
 
-      // Si se está editando, cancela el recordatorio anterior antes de
-      // reprogramar (la próxima fecha puede haber cambiado).
-      if (_isEditing) {
-        await ReminderScheduler.cancelVaccinationReminder(widget.vaccination!);
-      }
-      await ReminderScheduler.scheduleVaccinationReminder(newVaccination);
+      final notifier = ref.read(vaccinationsProvider(widget.petId).notifier);
 
       if (_isEditing) {
-        await dbHelper.updateVaccination(newVaccination);
+        await notifier.updateVaccination(widget.vaccination!, newVaccination);
       } else {
-        await dbHelper.insertVaccination(newVaccination);
+        await notifier.addVaccination(newVaccination);
       }
 
       if (mounted) {
