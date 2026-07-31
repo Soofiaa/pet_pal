@@ -1,4 +1,5 @@
 # Miscellaneous
+graphify-out/
 *.class
 *.log
 *.pyc
