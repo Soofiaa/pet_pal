@@ -65,26 +65,35 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
         dateRecorded: _selectedDate,
       );
 
-      if (widget.foodAllergy == null) {
-        // Añadir nueva alergia
-        await dbHelper.insertFoodAllergy(newAllergy);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Alergia alimentaria añadida con éxito.')),
-          );
+      try {
+        if (widget.foodAllergy == null) {
+          // Añadir nueva alergia
+          await dbHelper.insertFoodAllergy(newAllergy);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Alergia alimentaria añadida con éxito.')),
+            );
+          }
+        } else {
+          // Actualizar alergia existente
+          await dbHelper.updateFoodAllergy(newAllergy);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Alergia alimentaria actualizada con éxito.')),
+            );
+          }
         }
-      } else {
-        // Actualizar alergia existente
-        await dbHelper.updateFoodAllergy(newAllergy);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Alergia alimentaria actualizada con éxito.')),
-          );
-        }
-      }
 
-      if (mounted) {
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        debugPrint('Error al guardar la alergia alimentaria: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al guardar la alergia alimentaria: $e')),
+          );
+        }
       }
     }
   }

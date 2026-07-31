@@ -96,13 +96,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
 
     if (shouldDelete == true) {
-      await ImageStorageService.deleteFileIfExist(document.filePath);
-      await DatabaseHelper().deleteDocument(document.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Documento eliminado correctamente.')),
-      );
-      _loadDocuments();
+      try {
+        await ImageStorageService.deleteFileIfExist(document.filePath);
+        await DatabaseHelper().deleteDocument(document.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Documento eliminado correctamente.')),
+        );
+        _loadDocuments();
+      } catch (e) {
+        debugPrint('Error al eliminar el documento: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar el documento: $e')),
+        );
+      }
     }
   }
 

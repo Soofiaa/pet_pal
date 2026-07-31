@@ -141,40 +141,49 @@ class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
       // Lógica para programar notificación un día antes
       final notificationDateTime = _selectedDateTime.subtract(const Duration(days: 1));
 
-      // Si se está editando una cita, cancela la notificación anterior
-      if (widget.appointment != null) {
-        await NotificationService().cancelNotification(widget.appointment!.id.hashCode);
-      }
+      try {
+        // Si se está editando una cita, cancela la notificación anterior
+        if (widget.appointment != null) {
+          await NotificationService().cancelNotification(widget.appointment!.id.hashCode);
+        }
 
-      // Si la fecha de la notificación no está en el pasado, la programamos.
-      if (notificationDateTime.isAfter(DateTime.now())) {
-        await NotificationService().scheduleNotificationOnce(
-        id: id.hashCode,
-          title: 'Recordatorio de Cita: ${_titleController.text}',
-          body: 'Tu cita es mañana a las ${DateFormat('HH:mm').format(_selectedDateTime)}.',
-          scheduledDateTime: notificationDateTime,
-          payload: id,
-        );
-      }
-
-      if (widget.appointment == null) {
-        await dbHelper.insertAppointment(newAppointment);
-        if(mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cita añadida con éxito.')),
+        // Si la fecha de la notificación no está en el pasado, la programamos.
+        if (notificationDateTime.isAfter(DateTime.now())) {
+          await NotificationService().scheduleNotificationOnce(
+          id: id.hashCode,
+            title: 'Recordatorio de Cita: ${_titleController.text}',
+            body: 'Tu cita es mañana a las ${DateFormat('HH:mm').format(_selectedDateTime)}.',
+            scheduledDateTime: notificationDateTime,
+            payload: id,
           );
         }
-      } else {
-        await dbHelper.updateAppointment(newAppointment);
+
+        if (widget.appointment == null) {
+          await dbHelper.insertAppointment(newAppointment);
+          if(mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cita añadida con éxito.')),
+            );
+          }
+        } else {
+          await dbHelper.updateAppointment(newAppointment);
+          if(mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cita actualizada con éxito.')),
+            );
+          }
+        }
+
         if(mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        debugPrint('Error al guardar la cita: $e');
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cita actualizada con éxito.')),
+            SnackBar(content: Text('Error al guardar la cita: $e')),
           );
         }
-      }
-
-      if(mounted) {
-        Navigator.of(context).pop();
       }
     }
   }

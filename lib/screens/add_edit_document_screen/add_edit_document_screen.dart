@@ -84,37 +84,46 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
       return;
     }
 
-    final String? savedPath =
-        await ImageStorageService.saveImageIfNeeded(_filePath, 'documents');
+    try {
+      final String? savedPath =
+          await ImageStorageService.saveImageIfNeeded(_filePath, 'documents');
 
-    final newDocument = Document(
-      id: widget.document?.id,
-      petId: widget.pet.id,
-      categoria: _categoria,
-      titulo: _tituloController.text,
-      fecha: _fecha,
-      filePath: savedPath!,
-      notas: _notasController.text.trim().isEmpty ? null : _notasController.text.trim(),
-    );
+      final newDocument = Document(
+        id: widget.document?.id,
+        petId: widget.pet.id,
+        categoria: _categoria,
+        titulo: _tituloController.text,
+        fecha: _fecha,
+        filePath: savedPath!,
+        notas: _notasController.text.trim().isEmpty ? null : _notasController.text.trim(),
+      );
 
-    if (_isEditing) {
-      await DatabaseHelper().updateDocument(newDocument);
+      if (_isEditing) {
+        await DatabaseHelper().updateDocument(newDocument);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Documento actualizado con éxito.')),
+          );
+        }
+      } else {
+        await DatabaseHelper().insertDocument(newDocument);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Documento agregado con éxito.')),
+          );
+        }
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      debugPrint('Error al guardar el documento: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Documento actualizado con éxito.')),
+          SnackBar(content: Text('Error al guardar el documento: $e')),
         );
       }
-    } else {
-      await DatabaseHelper().insertDocument(newDocument);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Documento agregado con éxito.')),
-        );
-      }
-    }
-
-    if (mounted) {
-      Navigator.of(context).pop();
     }
   }
 

@@ -5,6 +5,8 @@ import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vital_sign_config.dart';
+import 'package:pet_pal/models/vital_sign_record.dart';
 import 'package:pet_pal/services/notification_service.dart';
 
 /// Punto único donde se decide CUÁNDO y con QUÉ id se programa cada
@@ -218,6 +220,29 @@ class ReminderScheduler {
       body: 'Hoy corresponde la próxima desparasitación con ${deworming.product}.',
       scheduledDateTime: _atReminderHour(deworming.nextDate!),
       payload: deworming.id,
+    );
+  }
+
+  static int _vitalSignAlertId(String recordId) =>
+      '${recordId}_alert'.hashCode;
+
+  /// Dispara una alerta inmediata (no una alarma programada a futuro) para
+  /// un registro de signo vital fuera del rango normal configurado para su
+  /// tipo. A diferencia del resto de esta clase, no hay nada que cancelar
+  /// después: es un evento puntual del momento de la carga, no algo que
+  /// deba sobrevivir a un reinicio del dispositivo, así que no participa
+  /// de [rescheduleAllPending].
+  static Future<void> notifyAbnormalVitalSign(
+    VitalSignRecord record,
+    VitalSignConfig config,
+  ) async {
+    if (record.id == null) return;
+
+    await NotificationService().showImmediateNotification(
+      id: _vitalSignAlertId(record.id.toString()),
+      title: 'Valor anormal de ${config.label}',
+      body: '${record.value}${config.unit} está fuera del rango normal '
+          '(${config.normalMin}–${config.normalMax}${config.unit}).',
     );
   }
 

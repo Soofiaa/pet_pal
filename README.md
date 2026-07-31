@@ -7,31 +7,45 @@ organización y registro médico.
 ## Características
 
 - Registro y gestión de múltiples mascotas con perfil individual
+- Dashboard "Hoy": resumen de citas, próximas dosis y tratamientos activos de todas las mascotas, ordenado por urgencia
 - Foto de perfil con recorte integrado dentro de la app
 - Cálculo automático de edad exacta (años, meses y días)
-- Historial de vacunas con nombre, fecha, observaciones e imagen de comprobante
-- Diario de comportamiento y notas por mascota
-- Acceso a galería y cámara con manejo de permisos Android modernos
+- Historial de vacunas, desparasitaciones y medicación, con recordatorios locales (horarios múltiples, tratamientos con o sin fecha de fin)
+- Control de peso y signos vitales (temperatura) con gráfico de evolución y alertas cuando un valor sale del rango normal
+- Registro de alergias alimentarias, integrado al calendario
+- Calendario unificado de eventos por mascota
+- Diario de comportamiento y notas, con documentos médicos adjuntos (exámenes, recetas, cirugías)
+- Exportación de historial (peso, vacunas, medicación) a CSV
+- Copia de seguridad completa cifrada (ZIP con contraseña) con restauración, incluyendo imágenes y documentos
+- Modo oscuro (sigue la preferencia del sistema)
+- Acceso a galería y cámara con manejo de permisos Android/iOS modernos
 - Persistencia local de datos estructurados por mascota
-- Arquitectura modular por pantallas y servicios orientada a escalabilidad
+- Arquitectura repository + Riverpod (en migración incremental) para testabilidad, con suite de tests automatizados y CI
 
 ## Stack tecnológico
 
 - **Flutter / Dart** — desarrollo multiplataforma (Android / iOS)
-- **Almacenamiento local** — persistencia de datos y registros médicos
-- **image_picker / image_cropper** — gestión y recorte de imágenes
+- **sqflite** — persistencia local en SQLite
+- **flutter_riverpod** — manejo de estado (módulos migrados: mascotas, peso, vacunas, desparasitación, medicación, signos vitales)
+- **flutter_local_notifications** — recordatorios y alertas locales
+- **fl_chart** — gráficos de evolución (peso, signos vitales)
+- **archive** — copia de seguridad ZIP con cifrado AES por contraseña
+- **csv** — exportación de historiales
+- **image_picker / pro_image_editor** — gestión y recorte de imágenes
 - **Gradle / Kotlin** — compatibilidad con versiones recientes de Android
 
 ## Estado del proyecto
 
-En desarrollo activo. Funcionalidades implementadas y estables:
-perfiles, vacunas, diario, imágenes y persistencia local.
+En desarrollo activo. Funcionalidades implementadas y estables: perfiles,
+dashboard, vacunas, desparasitación, medicación, peso, signos vitales,
+alergias, documentos, calendario, notas, notificaciones, exportación a CSV,
+backup/restore cifrado, modo oscuro y persistencia local.
 
 Próximas funcionalidades planificadas:
-- Notificaciones locales para vacunas y medicamentos
-- Historial médico extendido
-- Control de peso y alimentación
-- Rutinas de cuidado
+- Localización a inglés
+- Recordatorios recurrentes flexibles (ej. "cada 3 meses")
+- Backup opcional en la nube
+- Toggle manual de modo oscuro (hoy sigue la preferencia del sistema)
 
 ## Instalación
 
@@ -52,6 +66,16 @@ flutter run
 ```
 
 Requiere Flutter 3.x o superior y un dispositivo o emulador Android.
+
+## Tests
+
+```bash
+flutter analyze
+flutter test
+```
+
+Corre automáticamente en cada push/PR vía GitHub Actions
+(`.github/workflows/ci.yml`).
 
 ## Autor
 

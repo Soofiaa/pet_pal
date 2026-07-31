@@ -111,13 +111,17 @@ class NotificationService {
     }
   }
 
-  NotificationDetails _notificationDetails() {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+  NotificationDetails _notificationDetails({
+    String channelId = 'medication_reminders',
+    String channelName = 'Recordatorios de Medicación',
+    String channelDescription =
+        'Canal para notificaciones de recordatorios de medicación de mascotas.',
+  }) {
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
     AndroidNotificationDetails(
-      'medication_reminders',
-      'Recordatorios de Medicación',
-      channelDescription:
-      'Canal para notificaciones de recordatorios de medicación de mascotas.',
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'ticker',
@@ -130,7 +134,7 @@ class NotificationService {
       presentSound: true,
     );
 
-    return const NotificationDetails(
+    return NotificationDetails(
       android: androidPlatformChannelSpecifics,
       iOS: iosPlatformChannelSpecifics,
     );
@@ -247,6 +251,31 @@ class NotificationService {
 
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
+  }
+
+  /// Notificación inmediata (sin `zonedSchedule`), para alertas puntuales
+  /// que no son un recordatorio programado a futuro -ej. un signo vital
+  /// fuera de rango normal al momento de registrarlo-. Usa un canal propio
+  /// (no 'medication_reminders') para que el usuario pueda silenciar estas
+  /// alertas por separado de los recordatorios de medicación.
+  Future<void> showImmediateNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _flutterLocalNotificationsPlugin.show(
+      id,
+      title,
+      body,
+      _notificationDetails(
+        channelId: 'vital_sign_alerts',
+        channelName: 'Alertas de Signos Vitales',
+        channelDescription:
+            'Canal para alertas de valores de signos vitales fuera de rango normal.',
+      ),
+      payload: payload,
+    );
   }
 
   void dispose() {

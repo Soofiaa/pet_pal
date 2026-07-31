@@ -32,6 +32,7 @@ dependencies:
   open_filex: ^4.5.0
   fl_chart: ^0.69.0
   flutter_riverpod: ^2.6.1
+  csv: ^6.0.0
 
 dev_dependencies:
   flutter_test:

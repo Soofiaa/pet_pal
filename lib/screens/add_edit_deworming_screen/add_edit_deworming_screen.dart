@@ -81,24 +81,33 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
 
       final notifier = ref.read(dewormingsProvider(widget.pet.id).notifier);
 
-      if (_currentDeworming == null) {
-        await notifier.addDeworming(newDeworming);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Desparasitación agregada con éxito.')),
-          );
+      try {
+        if (_currentDeworming == null) {
+          await notifier.addDeworming(newDeworming);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Desparasitación agregada con éxito.')),
+            );
+          }
+        } else {
+          await notifier.updateDeworming(_currentDeworming!, newDeworming);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Desparasitación actualizada con éxito.')),
+            );
+          }
         }
-      } else {
-        await notifier.updateDeworming(_currentDeworming!, newDeworming);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Desparasitación actualizada con éxito.')),
-          );
-        }
-      }
 
-      if (mounted) {
-        Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        debugPrint('Error al guardar la desparasitación: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al guardar la desparasitación: $e')),
+          );
+        }
       }
     }
   }

@@ -104,19 +104,27 @@ class _NotesScreenState extends State<NotesScreen> {
     final dbHelper = DatabaseHelper();
     final notesToDelete = _notes.where((note) => _selectedNoteIds.contains(note.id)).toList();
 
-    for (final note in notesToDelete) {
-      await ImageStorageService.deleteFilesIfExist(note.photoPaths);
-      await dbHelper.deleteNote(note.id);
+    try {
+      for (final note in notesToDelete) {
+        await ImageStorageService.deleteFilesIfExist(note.photoPaths);
+        await dbHelper.deleteNote(note.id);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${notesToDelete.length} nota(s) eliminada(s) con éxito.')),
+      );
+
+      _selectedNoteIds.clear();
+      _isSelectionMode = false;
+      await _loadNotes();
+    } catch (e) {
+      debugPrint('Error al eliminar las notas: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar las notas: $e')),
+      );
     }
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${notesToDelete.length} nota(s) eliminada(s) con éxito.')),
-    );
-
-    _selectedNoteIds.clear();
-    _isSelectionMode = false;
-    await _loadNotes();
   }
 
   Future<void> _exportNotesToPdf() async {

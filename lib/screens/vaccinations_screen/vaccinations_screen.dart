@@ -60,13 +60,21 @@ class VaccinationsScreen extends ConsumerWidget {
 
     if (confirm != true) return;
 
-    await ref.read(vaccinationsProvider(pet.id).notifier).deleteVaccination(vaccination);
+    try {
+      await ref.read(vaccinationsProvider(pet.id).notifier).deleteVaccination(vaccination);
 
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Vacunación eliminada con éxito.')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vacunación eliminada con éxito.')),
+      );
+    } catch (e) {
+      debugPrint('Error al eliminar la vacunación: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar la vacunación: $e')),
+      );
+    }
   }
 
   Widget _buildPhotoPreview(

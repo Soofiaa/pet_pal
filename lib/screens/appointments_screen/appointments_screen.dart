@@ -77,14 +77,23 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
 
     if (confirm == true) {
-      await NotificationService().cancelNotification(appointment.id.hashCode);
-      await DatabaseHelper().deleteAppointment(appointment.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cita eliminada con éxito.')),
-        );
+      try {
+        await NotificationService().cancelNotification(appointment.id.hashCode);
+        await DatabaseHelper().deleteAppointment(appointment.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cita eliminada con éxito.')),
+          );
+        }
+        _loadAppointments();
+      } catch (e) {
+        debugPrint('Error al eliminar la cita: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar la cita: $e')),
+          );
+        }
       }
-      _loadAppointments();
     }
   }
 

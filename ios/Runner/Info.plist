@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>PetPal necesita acceso a la cámara para tomar fotos de tus mascotas, vacunas y documentos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PetPal necesita acceso a tus fotos para adjuntar imágenes de tus mascotas, vacunas y documentos.</string>
 </dict>
 </plist>

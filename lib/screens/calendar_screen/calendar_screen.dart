@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/utils/event_type_details.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
@@ -18,19 +19,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late Future<List<Map<String, dynamic>>> _allEvents;
-
-  final Map<String, Map<String, dynamic>> _eventDetails = {
-    'note': {'icon': Icons.description, 'color': Colors.blue},
-    'appointment': {'icon': Icons.calendar_today, 'color': Colors.orange},
-    'vaccination': {'icon': Icons.local_hospital, 'color': Colors.green},
-    'next_vaccination': {'icon': Icons.event_repeat, 'color': Colors.green[300]},
-    'medication': {'icon': Icons.medical_services, 'color': Colors.purple},
-    'medication_end': {'icon': Icons.check_circle, 'color': Colors.purple[300]},
-    'deworming': {'icon': Icons.bug_report, 'color': Colors.red},
-    'next_deworming': {'icon': Icons.next_plan, 'color': Colors.red[300]},
-    'weight': {'icon': Icons.scale, 'color': Colors.teal},
-    'document': {'icon': Icons.folder_shared, 'color': Colors.brown},
-  };
 
   @override
   void initState() {
@@ -165,11 +153,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               final isPast = eventDate.isBefore(DateTime.now());
 
                               final eventType = event['type'] as String? ?? 'Desconocido';
-                              final eventIcon = _eventDetails[eventType.toLowerCase()]?['icon'] as IconData? ?? Icons.help_outline;
-                              final eventColor = _eventDetails[eventType.toLowerCase()]?['color'] as Color? ?? Colors.grey;
+                              final eventIcon = eventIconFor(eventType);
+                              final eventColor = eventColorFor(eventType);
 
                               return Card(
-                                color: isPast ? Colors.grey[300] : Colors.white,
+                                color: isPast
+                                    ? Theme.of(context).colorScheme.surfaceContainerHighest
+                                    : null,
                                 margin: const EdgeInsets.symmetric(vertical: 4),
                                 child: ListTile(
                                   leading: Icon(
@@ -180,13 +170,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     event['title'] as String,
                                     style: TextStyle(
                                         fontWeight: FontWeight.w500,
-                                        color: isPast ? Colors.grey[600] : Colors.black
+                                        color: isPast ? Theme.of(context).disabledColor : null
                                     ),
                                   ),
                                   subtitle: Text(
                                     DateFormat('dd/MM/yyyy').format(eventDate),
                                     style: TextStyle(
-                                        color: isPast ? Colors.grey[500] : Colors.grey[600]
+                                        color: isPast ? Theme.of(context).disabledColor : null
                                     ),
                                   ),
                                   trailing: isPast

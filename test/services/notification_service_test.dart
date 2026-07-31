@@ -142,6 +142,42 @@ void main() {
     );
   });
 
+  group('NotificationService - alertas inmediatas', () {
+    test('showImmediateNotification dispara un show (no zonedSchedule)', () async {
+      final service = NotificationService();
+      await service.init();
+      calls.clear();
+
+      await service.showImmediateNotification(
+        id: 123,
+        title: 'Valor anormal de Temperatura',
+        body: '40.5°C está fuera del rango normal.',
+      );
+
+      final showCalls = calls.where((c) => c.method == 'show').toList();
+      expect(showCalls, hasLength(1));
+      expect(showCalls.first.arguments['id'], 123);
+      expect(calls.where((c) => c.method == 'zonedSchedule'), isEmpty);
+    });
+
+    test('showImmediateNotification usa el canal vital_sign_alerts', () async {
+      final service = NotificationService();
+      await service.init();
+      calls.clear();
+
+      await service.showImmediateNotification(
+        id: 1,
+        title: 'Título',
+        body: 'Cuerpo',
+      );
+
+      final showCall = calls.firstWhere((c) => c.method == 'show');
+      final platformSpecifics =
+          showCall.arguments['platformSpecifics'] as Map;
+      expect(platformSpecifics['channelId'], 'vital_sign_alerts');
+    });
+  });
+
   group('NotificationService - cancelación', () {
     test('cancelNotification cancela por el id exacto', () async {
       final service = NotificationService();

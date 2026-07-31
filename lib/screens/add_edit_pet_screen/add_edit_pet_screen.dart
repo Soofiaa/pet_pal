@@ -192,37 +192,46 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
       final microchipRaw = _microchipController.text.trim();
       final microchipNormalized = microchipRaw.isEmpty ? null : Pet.normalizeMicrochip(microchipRaw);
 
-      final String? finalImagePath =
-          await ImageStorageService.saveImageIfNeeded(_imagePath, 'pets');
+      try {
+        final String? finalImagePath =
+            await ImageStorageService.saveImageIfNeeded(_imagePath, 'pets');
 
-      final newPet = Pet(
-        id: id,
-        name: _nameController.text.trim(),
-        species: _speciesController.text.trim(),
-        breed: _breedController.text.trim(),
-        dob: _selectedDateOfBirth,
-        color: _colorController.text.trim(),
-        imageUrl: finalImagePath,
-        microchipNumber: microchipNormalized,
-      );
+        final newPet = Pet(
+          id: id,
+          name: _nameController.text.trim(),
+          species: _speciesController.text.trim(),
+          breed: _breedController.text.trim(),
+          dob: _selectedDateOfBirth,
+          color: _colorController.text.trim(),
+          imageUrl: finalImagePath,
+          microchipNumber: microchipNormalized,
+        );
 
-      if (_isEditing) {
-        await dbHelper.updatePet(newPet);
+        if (_isEditing) {
+          await dbHelper.updatePet(newPet);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Mascota actualizada con éxito.')),
+            );
+          }
+        } else {
+          await dbHelper.insertPet(newPet);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Mascota guardada con éxito.')),
+            );
+          }
+        }
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        debugPrint('Error al guardar la mascota: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mascota actualizada con éxito.')),
+            SnackBar(content: Text('Error al guardar la mascota: $e')),
           );
         }
-      } else {
-        await dbHelper.insertPet(newPet);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mascota guardada con éxito.')),
-          );
-        }
-      }
-      if (mounted) {
-        Navigator.of(context).pop();
       }
     }
   }

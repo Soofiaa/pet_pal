@@ -19,11 +19,15 @@ import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/document.dart';
+import 'package:pet_pal/models/vital_sign_record.dart';
 
 class DataBackupService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
 
-  Future<String> exportAllData() async {
+  /// [password] cifra el ZIP con AES (soportado nativamente por
+  /// `archive` vía `ZipEncoder(password: ...)`) — desde que `documents`
+  /// incluye archivos médicos reales, el backup ya no viaja en texto plano.
+  Future<String> exportAllData(String password) async {
     try {
       final List<Pet> pets = await _dbHelper.getPets();
       final List<Map<String, dynamic>> petsJson = [];
@@ -37,6 +41,7 @@ class DataBackupService {
         final medications = await _dbHelper.getMedicationsForPet(pet.id);
         final dewormings = await _dbHelper.getDewormingsForPet(pet.id);
         final documents = await _dbHelper.getDocumentsForPet(pet.id);
+        final vitalSigns = await _dbHelper.getVitalSignRecordsForPet(pet.id);
 
         petsJson.add({
           'id': pet.id,
@@ -54,6 +59,7 @@ class DataBackupService {
           'medications': medications.map((m) => m.toJson()).toList(),
           'dewormings': dewormings.map((d) => d.toJson()).toList(),
           'documents': documents.map((doc) => doc.toJson()).toList(),
+          'vitalSigns': vitalSigns.map((v) => v.toJson()).toList(),
         });
       }
 
@@ -87,7 +93,9 @@ class DataBackupService {
         ),
       );
 
-      final Uint8List zipBytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+      final Uint8List zipBytes = Uint8List.fromList(
+        ZipEncoder(password: password).encode(archive)!,
+      );
 
       final Directory tempDir = await getTemporaryDirectory();
       final String fileName =
@@ -107,7 +115,7 @@ class DataBackupService {
     }
   }
 
-  Future<String> importAllData() async {
+  Future<String> importAllData({required String password}) async {
     try {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -121,7 +129,17 @@ class DataBackupService {
       final File zipFile = File(result.files.single.path!);
       final Uint8List zipBytes = await zipFile.readAsBytes();
 
-      final Archive archive = ZipDecoder().decodeBytes(zipBytes);
+      final Archive archive;
+      try {
+        // verify:true fuerza la validación HMAC (formato AE-2) en este
+        // punto; sin esto, decodeBytes con una contraseña incorrecta no
+        // lanza nada y devuelve un Archive "válido" cuyo contenido
+        // descomprimido recién falla (o peor, produce basura) más
+        // adelante en el pipeline de restauración.
+        archive = ZipDecoder().decodeBytes(zipBytes, password: password, verify: true);
+      } catch (e) {
+        return 'No se pudo abrir el respaldo. Verifica que la contraseña sea correcta.';
+      }
 
       final ArchiveFile? backupJsonFile = archive.files
           .where((file) => file.name == 'backup.json')
@@ -216,6 +234,15 @@ class DataBackupService {
             final Document document = Document.fromJson(data);
             await _dbHelper.insertDocument(
               document.copyWith(petId: newPetId),
+            );
+          }
+        }
+
+        if (petData['vitalSigns'] is List) {
+          for (final data in petData['vitalSigns']) {
+            final VitalSignRecord vitalSign = VitalSignRecord.fromJson(data);
+            await _dbHelper.insertVitalSignRecord(
+              vitalSign.copyWith(petId: newPetId),
             );
           }
         }

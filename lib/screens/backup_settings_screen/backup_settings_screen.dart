@@ -2,6 +2,7 @@ import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/utils/backup_password_dialog.dart';
 
 class BackupSettingsScreen extends StatefulWidget {
   const BackupSettingsScreen({super.key});
@@ -64,12 +65,20 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen>
   }
 
   Future<void> _exportBackup() async {
+    final String? password = await promptForBackupPassword(
+      context,
+      title: 'Contraseña del respaldo',
+      confirmLabel: 'Exportar',
+      requireConfirmation: true,
+    );
+    if (password == null || !mounted) return;
+
     setState(() {
       _isWorking = true;
       _lastMessage = null;
     });
 
-    final String result = await _backupService.exportAllData();
+    final String result = await _backupService.exportAllData(password);
 
     if (!mounted) return;
     setState(() {
@@ -104,14 +113,21 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen>
       },
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
+
+    final String? password = await promptForBackupPassword(
+      context,
+      title: 'Contraseña del respaldo',
+      confirmLabel: 'Importar',
+    );
+    if (password == null || !mounted) return;
 
     setState(() {
       _isWorking = true;
       _lastMessage = null;
     });
 
-    final String result = await _backupService.importAllData();
+    final String result = await _backupService.importAllData(password: password);
 
     if (!mounted) return;
     setState(() {

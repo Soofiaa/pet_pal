@@ -18,7 +18,10 @@ import 'package:pet_pal/screens/deworming_screen/deworming_screen.dart';
 import 'package:pet_pal/screens/medications_screen/medications_screen.dart';
 import 'package:pet_pal/screens/documents_screen/documents_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
+import 'package:pet_pal/screens/vital_sign_screen/vital_sign_screen.dart';
+import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/services/csv_export_service.dart';
 
 class PetDetailScreen extends StatefulWidget {
   final Pet pet;
@@ -32,6 +35,7 @@ class PetDetailScreen extends StatefulWidget {
 class _PetDetailScreenState extends State<PetDetailScreen> {
   late Pet _pet;
   bool _isGeneratingHealthSummary = false;
+  final CsvExportService _csvExportService = CsvExportService();
 
   @override
   void initState() {
@@ -84,6 +88,27 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       if (mounted) {
         setState(() => _isGeneratingHealthSummary = false);
       }
+    }
+  }
+
+  Future<void> _exportCsvHistory(String kind) async {
+    String result;
+    switch (kind) {
+      case 'weight':
+        result = await _csvExportService.exportWeightHistory(_pet);
+        break;
+      case 'vaccinations':
+        result = await _csvExportService.exportVaccinationHistory(_pet);
+        break;
+      case 'medications':
+        result = await _csvExportService.exportMedicationHistory(_pet);
+        break;
+      default:
+        return;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
     }
   }
 
@@ -154,6 +179,19 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           Navigator.push(context, MaterialPageRoute(builder: (context) => VaccinationsScreen(pet: _pet)));
         },
       },
+      {
+        'title': 'Signos Vitales',
+        'icon': Icons.thermostat,
+        'color': Colors.orange,
+        'onTap': () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VitalSignScreen(pet: _pet, type: VitalSignType.temperature),
+            ),
+          );
+        },
+      },
     ];
 
     features.sort((a, b) => (a['title'] as String).compareTo(b['title'] as String));
@@ -192,6 +230,16 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               tooltip: 'Compartir ficha clínica',
               onPressed: _generateAndShareHealthSummary,
             ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.ios_share),
+            tooltip: 'Exportar historial a CSV',
+            onSelected: _exportCsvHistory,
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'weight', child: Text('Historial de peso')),
+              PopupMenuItem(value: 'vaccinations', child: Text('Historial de vacunas')),
+              PopupMenuItem(value: 'medications', child: Text('Historial de medicación')),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () async {

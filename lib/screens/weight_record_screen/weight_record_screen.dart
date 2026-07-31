@@ -39,12 +39,21 @@ class WeightRecordScreen extends ConsumerWidget {
     );
 
     if (confirm == true) {
-      await ref.read(weightRecordRepositoryProvider).deleteWeightRecord(record.id!);
-      await ref.read(weightRecordsProvider(pet.id).notifier).refresh();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registro de peso eliminado con éxito.')),
-        );
+      try {
+        await ref.read(weightRecordRepositoryProvider).deleteWeightRecord(record.id!);
+        await ref.read(weightRecordsProvider(pet.id).notifier).refresh();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Registro de peso eliminado con éxito.')),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error al eliminar el registro de peso: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar el registro de peso: $e')),
+          );
+        }
       }
     }
   }

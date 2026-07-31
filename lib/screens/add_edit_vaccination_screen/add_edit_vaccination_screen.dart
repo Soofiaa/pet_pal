@@ -288,38 +288,50 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
     if (_formKey.currentState!.validate()) {
       final String id = _isEditing ? widget.vaccination!.id : const Uuid().v4();
 
-      final String? finalStickerPhotoPath =
-          await ImageStorageService.saveImageIfNeeded(
-        _stickerPhotoPath,
-        'vaccinations',
-      );
+      try {
+        final String? finalStickerPhotoPath =
+            await ImageStorageService.saveImageIfNeeded(
+          _stickerPhotoPath,
+          'vaccinations',
+        );
 
-      final String? finalExtraPhotoPath =
-          await ImageStorageService.saveImageIfNeeded(
-        _extraPhotoPath,
-        'vaccinations',
-      );
+        final String? finalExtraPhotoPath =
+            await ImageStorageService.saveImageIfNeeded(
+          _extraPhotoPath,
+          'vaccinations',
+        );
 
-      final newVaccination = Vaccination(
-        id: id,
-        petId: widget.petId,
-        vaccineName: _normalizeVaccineName(_vaccineNameController.text),
-        date: _selectedDate,
-        nextDueDate: _nextDueDate,
-        stickerPhotoPath: finalStickerPhotoPath,
-        extraPhotoPath: finalExtraPhotoPath,
-      );
+        final newVaccination = Vaccination(
+          id: id,
+          petId: widget.petId,
+          vaccineName: _normalizeVaccineName(_vaccineNameController.text),
+          date: _selectedDate,
+          nextDueDate: _nextDueDate,
+          stickerPhotoPath: finalStickerPhotoPath,
+          extraPhotoPath: finalExtraPhotoPath,
+        );
 
-      final notifier = ref.read(vaccinationsProvider(widget.petId).notifier);
+        final notifier = ref.read(vaccinationsProvider(widget.petId).notifier);
 
-      if (_isEditing) {
-        await notifier.updateVaccination(widget.vaccination!, newVaccination);
-      } else {
-        await notifier.addVaccination(newVaccination);
-      }
+        if (_isEditing) {
+          await notifier.updateVaccination(widget.vaccination!, newVaccination);
+        } else {
+          await notifier.addVaccination(newVaccination);
+        }
 
-      if (mounted) {
-        Navigator.of(context).pop();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vacunación guardada con éxito.')),
+          );
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        debugPrint('Error al guardar la vacunación: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al guardar la vacunación: $e')),
+          );
+        }
       }
     }
   }

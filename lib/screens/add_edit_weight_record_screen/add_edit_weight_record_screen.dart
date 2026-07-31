@@ -62,14 +62,23 @@ class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordS
         date: _date,
       );
 
-      if (_isEditing) {
-        await repository.updateWeightRecord(newWeightRecord);
-      } else {
-        await repository.insertWeightRecord(newWeightRecord);
-      }
+      try {
+        if (_isEditing) {
+          await repository.updateWeightRecord(newWeightRecord);
+        } else {
+          await repository.insertWeightRecord(newWeightRecord);
+        }
 
-      if (mounted) {
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        debugPrint('Error al guardar el registro de peso: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al guardar el registro de peso: $e')),
+          );
+        }
       }
     }
   }

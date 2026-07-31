@@ -136,24 +136,33 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
 
       final notifier = ref.read(medicationsProvider(widget.pet.id).notifier);
 
-      if (widget.medication == null) {
-        await notifier.addMedication(newMedication);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Medicación agregada con éxito.')),
-          );
+      try {
+        if (widget.medication == null) {
+          await notifier.addMedication(newMedication);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Medicación agregada con éxito.')),
+            );
+          }
+        } else {
+          await notifier.updateMedication(widget.medication!, newMedication);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Medicación actualizada con éxito.')),
+            );
+          }
         }
-      } else {
-        await notifier.updateMedication(widget.medication!, newMedication);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Medicación actualizada con éxito.')),
-          );
-        }
-      }
 
-      if (mounted) {
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        debugPrint('Error al guardar la medicación: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al guardar la medicación: $e')),
+          );
+        }
       }
     }
   }

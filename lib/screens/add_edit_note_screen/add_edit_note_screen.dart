@@ -125,35 +125,44 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
       final dbHelper = DatabaseHelper();
       final String id = widget.note?.id ?? const Uuid().v4();
 
-      final List<String> savedPhotoPaths =
-          await ImageStorageService.saveImagesIfNeeded(_photoPaths, 'notes');
+      try {
+        final List<String> savedPhotoPaths =
+            await ImageStorageService.saveImagesIfNeeded(_photoPaths, 'notes');
 
-      final newNote = Note(
-        id: id,
-        petId: widget.pet.id,
-        title: _titleController.text.trim(),
-        content: _contentController.text.trim(),
-        date: _selectedDate,
-        photoPaths: savedPhotoPaths,
-      );
+        final newNote = Note(
+          id: id,
+          petId: widget.pet.id,
+          title: _titleController.text.trim(),
+          content: _contentController.text.trim(),
+          date: _selectedDate,
+          photoPaths: savedPhotoPaths,
+        );
 
-      if (_isEditing) {
-        await dbHelper.updateNote(newNote);
+        if (_isEditing) {
+          await dbHelper.updateNote(newNote);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Nota actualizada con éxito.')),
+            );
+          }
+        } else {
+          await dbHelper.insertNote(newNote);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Nota guardada con éxito.')),
+            );
+          }
+        }
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        debugPrint('Error al guardar la nota: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nota actualizada con éxito.')),
+            SnackBar(content: Text('Error al guardar la nota: $e')),
           );
         }
-      } else {
-        await dbHelper.insertNote(newNote);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nota guardada con éxito.')),
-          );
-        }
-      }
-      if (mounted) {
-        Navigator.of(context).pop();
       }
     }
   }

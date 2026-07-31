@@ -60,14 +60,23 @@ class _FoodAllergyScreenState extends State<FoodAllergyScreen> {
     );
 
     if (confirm == true) {
-      // CORREGIDO: Uso correcto del singleton DatabaseHelper
-      await DatabaseHelper().deleteFoodAllergy(foodAllergy.id!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Alergia alimentaria eliminada con éxito.')),
-        );
+      try {
+        // CORREGIDO: Uso correcto del singleton DatabaseHelper
+        await DatabaseHelper().deleteFoodAllergy(foodAllergy.id!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Alergia alimentaria eliminada con éxito.')),
+          );
+        }
+        _loadFoodAllergies();
+      } catch (e) {
+        debugPrint('Error al eliminar la alergia alimentaria: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar la alergia alimentaria: $e')),
+          );
+        }
       }
-      _loadFoodAllergies();
     }
   }
 

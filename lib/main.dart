@@ -153,6 +153,58 @@ class _PetPalAppState extends State<PetPalApp> {
         ),
         // Puedes añadir más personalizaciones aquí
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        colorSchemeSeed: const Color(0xFF86B6F6),
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF2C3E50),
+          foregroundColor: Colors.white,
+          centerTitle: true,
+          elevation: 4,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: Color(0xFF5278D9),
+          foregroundColor: Colors.white,
+        ),
+        cardTheme: CardTheme.of(context).copyWith(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF5278D9),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            textStyle: const TextStyle(fontSize: 16),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF5278D9)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF86B6F6), width: 2),
+          ),
+          labelStyle: const TextStyle(color: Color(0xFF86B6F6)),
+          floatingLabelStyle: const TextStyle(color: Color(0xFF86B6F6)),
+        ),
+      ),
+      // Sigue la preferencia del sistema operativo; no hay toggle manual
+      // (evita agregar shared_preferences solo para persistir esta única
+      // preferencia -no es dependencia hoy del proyecto-).
+      themeMode: ThemeMode.system,
       home: const HomeScreen(), // Tu pantalla principal
     );
   }

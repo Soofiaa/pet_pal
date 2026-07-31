@@ -37,11 +37,20 @@ class DewormingScreen extends ConsumerWidget {
     );
 
     if (shouldDelete == true) {
-      await ref.read(dewormingsProvider(pet.id).notifier).deleteDeworming(deworming);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Desparasitación eliminada correctamente.')),
-        );
+      try {
+        await ref.read(dewormingsProvider(pet.id).notifier).deleteDeworming(deworming);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Desparasitación eliminada correctamente.')),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error al eliminar la desparasitación: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar la desparasitación: $e')),
+          );
+        }
       }
     }
   }

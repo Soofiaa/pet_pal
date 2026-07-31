@@ -19,6 +19,8 @@ import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vital_sign_config.dart';
+import 'package:pet_pal/models/vital_sign_record.dart';
 import 'package:pet_pal/models/weight_record.dart';
 
 Future<Pet> _insertSamplePetWithOneRowPerChildTable(DatabaseHelper dbHelper) async {
@@ -85,6 +87,13 @@ Future<Pet> _insertSamplePetWithOneRowPerChildTable(DatabaseHelper dbHelper) asy
     filePath: '/tmp/documento_falso.pdf',
   ));
 
+  await dbHelper.insertVitalSignRecord(VitalSignRecord(
+    petId: pet.id,
+    type: VitalSignType.temperature,
+    value: 38.5,
+    date: DateTime.now(),
+  ));
+
   return pet;
 }
 
@@ -101,6 +110,7 @@ Future<void> _expectChildRowCountsForPet(
   expect((await dbHelper.getDewormingsForPet(petId)).length, expectedCount);
   expect((await dbHelper.getMedicationsForPet(petId)).length, expectedCount);
   expect((await dbHelper.getDocumentsForPet(petId)).length, expectedCount);
+  expect((await dbHelper.getVitalSignRecordsForPet(petId)).length, expectedCount);
 }
 
 void main() {
@@ -144,7 +154,7 @@ void main() {
   });
 
   group('DatabaseHelper - borrado en cascada', () {
-    test('eliminar una mascota borra en cascada las 8 tablas hijas', () async {
+    test('eliminar una mascota borra en cascada las 9 tablas hijas', () async {
       final dbHelper = DatabaseHelper();
       final pet = await _insertSamplePetWithOneRowPerChildTable(dbHelper);
 
@@ -282,6 +292,48 @@ void main() {
         )),
         throwsA(isA<DatabaseException>()),
       );
+    });
+
+    test('insertar un signo vital con petId inexistente falla', () async {
+      final dbHelper = DatabaseHelper();
+
+      expect(
+        () => dbHelper.insertVitalSignRecord(VitalSignRecord(
+          petId: 'pet-que-no-existe',
+          type: VitalSignType.temperature,
+          value: 38.5,
+          date: DateTime.now(),
+        )),
+        throwsA(isA<DatabaseException>()),
+      );
+    });
+  });
+
+  group('DatabaseHelper - getAllEventsForPet', () {
+    test('incluye las alergias alimentarias registradas', () async {
+      final dbHelper = DatabaseHelper();
+      final pet = Pet(
+        name: 'Firulais',
+        species: 'Perro',
+        breed: 'Mestizo',
+        dob: DateTime(2020, 1, 1),
+        color: 'Marrón',
+      );
+      await dbHelper.insertPet(pet);
+
+      await dbHelper.insertFoodAllergy(FoodAllergy(
+        petId: pet.id,
+        food: 'Pollo',
+        dateRecorded: DateTime.now(),
+      ));
+
+      final events = await dbHelper.getAllEventsForPet(pet.id);
+      final foodAllergyEvents =
+          events.where((e) => e['type'] == 'food_allergy').toList();
+
+      expect(foodAllergyEvents, hasLength(1));
+      expect(foodAllergyEvents.first['title'], 'Alergia registrada: Pollo');
+      expect(foodAllergyEvents.first['petId'], pet.id);
     });
   });
 }

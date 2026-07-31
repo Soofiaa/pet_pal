@@ -43,4 +43,22 @@ class FoodAllergy {
       dateRecorded: DateTime.parse(json['dateRecorded'] as String),
     );
   }
+
+  static List<Map<String, dynamic>> getEventsFromList(
+    List<FoodAllergy> allergies,
+  ) {
+    final List<Map<String, dynamic>> events = [];
+
+    for (final allergy in allergies) {
+      events.add({
+        'id': allergy.id,
+        'petId': allergy.petId,
+        'date': allergy.dateRecorded,
+        'title': 'Alergia registrada: ${allergy.food}',
+        'type': 'food_allergy',
+      });
+    }
+
+    return events;
+  }
 }

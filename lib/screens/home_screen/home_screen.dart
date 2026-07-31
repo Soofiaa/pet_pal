@@ -1,42 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/screens/add_edit_pet_screen/add_edit_pet_screen.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'dart:io';
 import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/utils/backup_password_dialog.dart';
+import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  List<Pet> _pets = [];
-  bool _isLoading = true;
-
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final DataBackupService _backupService = DataBackupService();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPets();
-  }
-
-  Future<void> _loadPets() async {
-    setState(() {
-      _isLoading = true;
-    });
-    final pets = await DatabaseHelper().getPets();
-    setState(() {
-      _pets = pets;
-      _isLoading = false;
-    });
-    debugPrint('Mascotas cargadas desde la BD: ${_pets.length}');
-  }
 
   Future<bool?> _deletePet(String petId, String petName) async {
     final bool? confirm = await showDialog(
@@ -72,15 +55,14 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       await DatabaseHelper().deletePet(petId);
+      await ref.read(petsProvider.notifier).refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$petName eliminada con éxito.')),
         );
       }
-      _loadPets();
       return true;
     } else {
-      _loadPets();
       return false;
     }
   }
@@ -92,12 +74,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _exportData() async {
+    final String? password = await promptForBackupPassword(
+      context,
+      title: 'Contraseña del respaldo',
+      confirmLabel: 'Exportar',
+      requireConfirmation: true,
+    );
+    if (password == null || !mounted) return;
+
     try {
-      await _backupService.exportAllData();
+      final String result = await _backupService.exportAllData(password);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Datos exportados con éxito. Revisa tus archivos compartidos.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
       }
     } catch (e) {
       debugPrint('Error al exportar datos: $e');
@@ -128,22 +116,27 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    if (confirm == true) {
-      try {
-        await _backupService.importAllData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Datos importados con éxito.')),
-          );
-          _loadPets();
-        }
-      } catch (e) {
-        debugPrint('Error al importar datos: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al importar datos: $e')),
-          );
-        }
+    if (confirm != true || !mounted) return;
+
+    final String? password = await promptForBackupPassword(
+      context,
+      title: 'Contraseña del respaldo',
+      confirmLabel: 'Importar',
+    );
+    if (password == null || !mounted) return;
+
+    try {
+      final String result = await _backupService.importAllData(password: password);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+        await ref.read(petsProvider.notifier).refresh();
+      }
+    } catch (e) {
+      debugPrint('Error al importar datos: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al importar datos: $e')),
+        );
       }
     }
   }
@@ -157,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context) => PetDetailScreen(pet: pet),
           ),
         );
-        _loadPets();
+        ref.read(petsProvider.notifier).refresh();
       },
       onLongPress: () {
         _deletePet(pet.id, pet.name);
@@ -208,6 +201,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final petsAsync = ref.watch(petsProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Mascotas'),
@@ -224,36 +219,49 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _pets.isEmpty
-          ? const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'Aquí aparecerán tus mascotas registradas.\nPresiona "+" para añadir una nueva.',
-            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : ListView.builder(
-        itemCount: _pets.length,
-        itemBuilder: (context, index) {
-          final pet = _pets[index];
-          return Dismissible(
-            key: Key(pet.id),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            confirmDismiss: (direction) async {
-              return await _deletePet(pet.id, pet.name);
-            },
-            child: _buildPetCard(pet),
+      body: petsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('Error al cargar mascotas: $error')),
+        data: (pets) {
+          if (pets.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'Aquí aparecerán tus mascotas registradas.\nPresiona "+" para añadir una nueva.',
+                  style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          return CustomScrollView(
+            slivers: [
+              const SliverToBoxAdapter(child: TodayDashboardSection()),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final pet = pets[index];
+                    return Dismissible(
+                      key: Key(pet.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      confirmDismiss: (direction) async {
+                        return await _deletePet(pet.id, pet.name);
+                      },
+                      child: _buildPetCard(pet),
+                    );
+                  },
+                  childCount: pets.length,
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -265,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context) => const AddEditPetScreen(),
             ),
           );
-          _loadPets();
+          ref.read(petsProvider.notifier).refresh();
         },
         child: const Icon(Icons.add),
       ),

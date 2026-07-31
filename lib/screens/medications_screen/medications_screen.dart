@@ -35,11 +35,20 @@ class MedicationsScreen extends ConsumerWidget {
     );
 
     if (shouldDelete == true) {
-      await ref.read(medicationsProvider(pet.id).notifier).deleteMedication(medication);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Medicación eliminada correctamente.')),
-        );
+      try {
+        await ref.read(medicationsProvider(pet.id).notifier).deleteMedication(medication);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Medicación eliminada correctamente.')),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error al eliminar la medicación: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar la medicación: $e')),
+          );
+        }
       }
     }
   }

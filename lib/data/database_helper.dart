@@ -10,6 +10,7 @@ import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/document.dart';
+import 'package:pet_pal/models/vital_sign_record.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -39,6 +40,7 @@ class DatabaseHelper {
   static const String dewormingsTable = 'dewormings';
   static const String medicationsTable = 'medications';
   static const String documentsTable = 'documents';
+  static const String vitalSignsTable = 'vital_signs';
 
   Future<Database> get database async {
     if (_database != null) {
@@ -52,7 +54,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 17,
+      version: 18,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -195,6 +197,19 @@ class DatabaseHelper {
       )
     ''');
     debugPrint('Tabla de documentos creada');
+
+    // 10. Crear tabla de signos vitales
+    await db.execute('''
+      CREATE TABLE $vitalSignsTable(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        petId TEXT,
+        type TEXT,
+        value REAL,
+        date TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    debugPrint('Tabla de signos vitales creada');
   }
 
   Future<List<String>> getVaccineNames() async {
@@ -298,6 +313,22 @@ class DatabaseHelper {
       lastOrphanRowCleanupCounts = deletedCounts;
     }
 
+    // Migración a v18: nueva tabla vital_signs (temperatura y, a futuro,
+    // otros signos vitales), mismo ON DELETE CASCADE que el resto.
+    if (oldVersion < 18) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $vitalSignsTable(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          petId TEXT,
+          type TEXT,
+          value REAL,
+          date TEXT,
+          FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+        )
+      ''');
+      debugPrint('Tabla de signos vitales creada (migración v18)');
+    }
+
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
     // van aquí también, respetando el patrón: if (oldVersion < X) { ... }
   }
@@ -349,6 +380,16 @@ class DatabaseHelper {
     final documents = List.generate(documentMaps.length, (i) => Document.fromJson(documentMaps[i]));
     allEvents.addAll(Document.getEventsFromList(documents));
 
+    // Alergias Alimentarias
+    final foodAllergyMaps = await db.query(foodAllergiesTable, where: 'petId = ?', whereArgs: [petId]);
+    final foodAllergies = List.generate(foodAllergyMaps.length, (i) => FoodAllergy.fromJson(foodAllergyMaps[i]));
+    allEvents.addAll(FoodAllergy.getEventsFromList(foodAllergies));
+
+    // Signos Vitales
+    final vitalSignMaps = await db.query(vitalSignsTable, where: 'petId = ?', whereArgs: [petId]);
+    final vitalSigns = List.generate(vitalSignMaps.length, (i) => VitalSignRecord.fromJson(vitalSignMaps[i]));
+    allEvents.addAll(VitalSignRecord.getEventsFromList(vitalSigns));
+
     return allEvents;
   }
 
@@ -366,6 +407,7 @@ class DatabaseHelper {
     await db.delete(dewormingsTable);
     await db.delete(medicationsTable);
     await db.delete(documentsTable);
+    await db.delete(vitalSignsTable);
     debugPrint('Todos los datos han sido eliminados de la base de datos.');
   }
 
@@ -617,6 +659,53 @@ class DatabaseHelper {
       whereArgs: [id],
     );
     debugPrint('Registro de peso $id eliminado');
+  }
+
+  // --- Métodos para Signos Vitales (VitalSignRecords) ---
+
+  Future<int> insertVitalSignRecord(VitalSignRecord record) async {
+    final db = await database;
+    final id = await db.insert(
+      vitalSignsTable,
+      record.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    debugPrint('Signo vital para petId: ${record.petId} insertado/actualizado con id: $id');
+    return id;
+  }
+
+  Future<List<VitalSignRecord>> getVitalSignRecordsForPet(String petId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      vitalSignsTable,
+      where: 'petId = ?',
+      whereArgs: [petId],
+      orderBy: 'date ASC',
+    );
+    return List.generate(maps.length, (i) {
+      return VitalSignRecord.fromJson(maps[i]);
+    });
+  }
+
+  Future<void> updateVitalSignRecord(VitalSignRecord record) async {
+    final db = await database;
+    await db.update(
+      vitalSignsTable,
+      record.toJson(),
+      where: 'id = ?',
+      whereArgs: [record.id],
+    );
+    debugPrint('Signo vital ${record.id} actualizado');
+  }
+
+  Future<void> deleteVitalSignRecord(int id) async {
+    final db = await database;
+    await db.delete(
+      vitalSignsTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    debugPrint('Signo vital $id eliminado');
   }
 
   // --- Métodos para FoodAllergy (Alergias) ---
