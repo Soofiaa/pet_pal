@@ -44,13 +44,10 @@ class DataBackupService {
         final vitalSigns = await _dbHelper.getVitalSignRecordsForPet(pet.id);
 
         petsJson.add({
-          'id': pet.id,
-          'name': pet.name,
-          'species': pet.species,
-          'breed': pet.breed,
-          'dob': pet.dob.toIso8601String(),
-          'color': pet.color,
-          'imageUrl': pet.imageUrl,
+          // pet.toJson() en vez de listar los campos a mano: evita que un
+          // campo nuevo de Pet (como pasó con microchipNumber) quede afuera
+          // del backup en silencio la próxima vez que se agregue uno.
+          ...pet.toJson(),
           'notes': notes.map((n) => n.toJson()).toList(),
           'weightRecords': weightRecords.map((w) => w.toJson()).toList(),
           'appointments': appointments.map((a) => a.toJson()).toList(),
