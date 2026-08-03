@@ -10,6 +10,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/appointment.dart';
+import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/providers/dashboard_providers.dart';
@@ -147,6 +148,41 @@ void main() {
 
       expect(events, hasLength(1));
       expect(events.first.petName, 'Firulais');
+    });
+
+    test(
+        'con múltiples desparasitaciones históricas, solo expone la próxima '
+        'del registro con fecha de aplicación más reciente', () async {
+      final dbHelper = DatabaseHelper();
+      final pet = await _insertPet(dbHelper, 'Firulais');
+
+      // Registro viejo: su "próxima" ya quedó en el pasado (vencida).
+      await dbHelper.insertDeworming(Deworming(
+        id: 'deworming-antiguo',
+        petId: pet.id,
+        product: 'Antiguo',
+        date: DateTime.now().subtract(const Duration(days: 60)),
+        nextDate: DateTime.now().subtract(const Duration(days: 30)),
+      ));
+      // Registro más reciente (fecha de aplicación más nueva): su
+      // "próxima" es la que debería sobrevivir, aunque sea a futuro.
+      await dbHelper.insertDeworming(Deworming(
+        id: 'deworming-reciente',
+        petId: pet.id,
+        product: 'Reciente',
+        date: DateTime.now().subtract(const Duration(days: 10)),
+        nextDate: DateTime.now().add(const Duration(days: 20)),
+      ));
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final events = await container.read(todayDashboardProvider.future);
+
+      final nextDewormingEvents =
+          events.where((e) => e.type == 'next_deworming').toList();
+      expect(nextDewormingEvents, hasLength(1));
+      expect(nextDewormingEvents.first.title, 'Próxima desparasitación: Reciente');
     });
   });
 }

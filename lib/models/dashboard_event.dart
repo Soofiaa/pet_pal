@@ -50,11 +50,29 @@ class DashboardEvent {
   /// Convierte los mapas sueltos de `getAllEventsForPet` en eventos
   /// tipados, quedándose solo con los tipos accionables y descartando
   /// citas ya marcadas como completadas.
+  ///
+  /// `Deworming`/`Vaccination.getEventsFromList()` generan un evento
+  /// 'next_X' por cada registro histórico que tenga fecha secundaria, no
+  /// solo por el más reciente (correcto para el calendario, que quiere ver
+  /// todo el historial). Acá se deduplica a UN solo 'next_deworming' y UN
+  /// solo 'next_vaccination' por mascota: el correspondiente al registro
+  /// con la fecha de aplicación ('date') más reciente. El resto se
+  /// descarta por superado.
   static List<DashboardEvent> fromEventMaps(
     List<Map<String, dynamic>> rawEvents,
     Pet pet,
   ) {
     final events = <DashboardEvent>[];
+
+    final dewormingWinnerId =
+        _idOfMostRecentApplication(rawEvents, 'deworming');
+    final vaccinationWinnerId =
+        _idOfMostRecentApplication(rawEvents, 'vaccination');
+    // 'next_vaccination' usa '${vaccination.id}_next' como id (ver
+    // Vaccination.getEventsFromList), a diferencia de 'next_deworming' que
+    // reutiliza el mismo id que su registro de aplicación.
+    final nextVaccinationWinnerId =
+        vaccinationWinnerId == null ? null : '${vaccinationWinnerId}_next';
 
     for (final raw in rawEvents) {
       final type = raw['type'] as String?;
@@ -62,6 +80,12 @@ class DashboardEvent {
         continue;
       }
       if (type == 'appointment' && raw['isCompleted'] == true) {
+        continue;
+      }
+      if (type == 'next_deworming' && raw['id'] != dewormingWinnerId) {
+        continue;
+      }
+      if (type == 'next_vaccination' && raw['id'] != nextVaccinationWinnerId) {
         continue;
       }
 
@@ -79,5 +103,25 @@ class DashboardEvent {
     }
 
     return events;
+  }
+
+  /// Id del registro de tipo [applicationType] ('deworming' o
+  /// 'vaccination') con la fecha de aplicación más reciente, o `null` si no
+  /// hay ninguno.
+  static dynamic _idOfMostRecentApplication(
+    List<Map<String, dynamic>> rawEvents,
+    String applicationType,
+  ) {
+    Map<String, dynamic>? latest;
+    for (final raw in rawEvents) {
+      if (raw['type'] != applicationType) continue;
+      final date = raw['date'];
+      if (date is! DateTime) continue;
+      final latestDate = latest?['date'] as DateTime?;
+      if (latestDate == null || date.isAfter(latestDate)) {
+        latest = raw;
+      }
+    }
+    return latest?['id'];
   }
 }
