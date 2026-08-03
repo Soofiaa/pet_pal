@@ -23,11 +23,20 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   List<Document> _documents = [];
   bool _isLoading = true;
   String _selectedCategory = _allCategoriesLabel;
+  String _searchQuery = '';
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadDocuments();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadDocuments() async {
@@ -41,10 +50,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   List<Document> get _filteredDocuments {
-    if (_selectedCategory == _allCategoriesLabel) return _documents;
-    return _documents
-        .where((document) => document.categoria == _selectedCategory)
-        .toList();
+    return _documents.where((document) {
+      final matchesCategory = _selectedCategory == _allCategoriesLabel ||
+          document.categoria == _selectedCategory;
+      final matchesSearch = document.titulo
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          (document.notas ?? '')
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    }).toList();
   }
 
   Future<void> _openDocument(Document document) async {
@@ -120,7 +136,35 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Documentos de ${widget.pet.name}'),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar documentos...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white),
+                onChanged: (value) => setState(() => _searchQuery = value),
+              )
+            : Text('Documentos de ${widget.pet.name}'),
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                if (_isSearching) {
+                  _isSearching = false;
+                  _searchQuery = '';
+                  _searchController.clear();
+                } else {
+                  _isSearching = true;
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -147,13 +191,29 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredDocuments.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Padding(
-                          padding: EdgeInsets.all(24.0),
-                          child: Text(
-                            'No hay documentos registrados para esta categoría.',
-                            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                            textAlign: TextAlign.center,
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.folder_open_outlined, size: 80, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchQuery.isNotEmpty 
+                                    ? 'No se encontraron resultados' 
+                                    : 'Sin documentos',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _searchQuery.isNotEmpty
+                                    ? 'Prueba con otra palabra clave.'
+                                    : 'Guarda recetas, exámenes o carnets\nen formato PDF o imagen.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
                           ),
                         ),
                       )

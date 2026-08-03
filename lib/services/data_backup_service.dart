@@ -20,6 +20,11 @@ import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/vital_sign_record.dart';
+import 'package:pet_pal/models/medication_intake.dart';
+import 'package:pet_pal/models/pet_food_config.dart';
+import 'package:pet_pal/models/deworming_product.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
+import 'package:pet_pal/models/emergency_contact.dart';
 
 class DataBackupService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
@@ -42,11 +47,16 @@ class DataBackupService {
         final dewormings = await _dbHelper.getDewormingsForPet(pet.id);
         final documents = await _dbHelper.getDocumentsForPet(pet.id);
         final vitalSigns = await _dbHelper.getVitalSignRecordsForPet(pet.id);
+        final foodConfig = await _dbHelper.getFoodConfigForPet(pet.id);
+
+        // ✅ NUEVO: Obtener todas las tomas registradas para esta mascota
+        final List<MedicationIntake> intakes = [];
+        for (final medication in medications) {
+          final mIntakes = await _dbHelper.getIntakesForMedication(medication.id!);
+          intakes.addAll(mIntakes);
+        }
 
         petsJson.add({
-          // pet.toJson() en vez de listar los campos a mano: evita que un
-          // campo nuevo de Pet (como pasó con microchipNumber) quede afuera
-          // del backup en silencio la próxima vez que se agregue uno.
           ...pet.toJson(),
           'notes': notes.map((n) => n.toJson()).toList(),
           'weightRecords': weightRecords.map((w) => w.toJson()).toList(),
@@ -57,14 +67,24 @@ class DataBackupService {
           'dewormings': dewormings.map((d) => d.toJson()).toList(),
           'documents': documents.map((doc) => doc.toJson()).toList(),
           'vitalSigns': vitalSigns.map((v) => v.toJson()).toList(),
+          'foodConfig': foodConfig?.toJson(),
+          'medicationIntakes': intakes.map((i) => i.toJson()).toList(),
         });
       }
 
+      final dewormingProducts = await _dbHelper.getDewormingProducts();
+      final vaccinationProducts = await _dbHelper.getVaccinationProducts();
+      final emergencyContacts = await _dbHelper.getEmergencyContacts();
+
       final Map<String, dynamic> allData = {
-        'version': 2,
-        'format': 'petpal_full_zip_backup',
+        'version': 3,
+        'format': 'petpal_full_zip_backup_v3',
         'timestamp': DateTime.now().toIso8601String(),
+        'appVersion': '1.0.0',
         'pets': petsJson,
+        'dewormingProducts': dewormingProducts.map((p) => p.toJson()).toList(),
+        'vaccinationProducts': vaccinationProducts.map((p) => p.toJson()).toList(),
+        'emergencyContacts': emergencyContacts.map((c) => c.toJson()).toList(),
       };
 
       final archive = Archive();
@@ -242,6 +262,50 @@ class DataBackupService {
               vitalSign.copyWith(petId: newPetId),
             );
           }
+        }
+
+        if (petData['foodConfig'] != null) {
+          final config = PetFoodConfig.fromJson(petData['foodConfig']);
+          await _dbHelper.insertOrUpdateFoodConfig(
+            PetFoodConfig(
+              petId: newPetId,
+              dailyGrams: config.dailyGrams,
+              portions: config.portions,
+              foodKcalPerKg: config.foodKcalPerKg,
+            ),
+          );
+        }
+
+        if (petData['medicationIntakes'] is List) {
+          for (final data in petData['medicationIntakes']) {
+            final intake = MedicationIntake.fromJson(data);
+            await _dbHelper.insertMedicationIntake(
+              MedicationIntake(
+                id: intake.id,
+                petId: newPetId,
+                medicationId: intake.medicationId, // Se asume que medicationId es estable
+                intakeDateTime: intake.intakeDateTime,
+                medicationName: intake.medicationName,
+              ),
+            );
+          }
+        }
+      }
+
+      // Restaurar catálogos y contactos (fuera del bucle de mascotas)
+      if (restoredData['dewormingProducts'] is List) {
+        for (final data in restoredData['dewormingProducts']) {
+          await _dbHelper.insertDewormingProduct(DewormingProduct.fromJson(data));
+        }
+      }
+      if (restoredData['vaccinationProducts'] is List) {
+        for (final data in restoredData['vaccinationProducts']) {
+          await _dbHelper.insertVaccinationProduct(VaccinationProduct.fromJson(data));
+        }
+      }
+      if (restoredData['emergencyContacts'] is List) {
+        for (final data in restoredData['emergencyContacts']) {
+          await _dbHelper.insertEmergencyContact(EmergencyContact.fromJson(data));
         }
       }
 

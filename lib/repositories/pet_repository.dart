@@ -1,5 +1,6 @@
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/pet.dart';
+import 'package:pet_pal/services/reminder_scheduler.dart';
 
 /// Capa entre las pantallas y [DatabaseHelper] para Pet, mismo patrón
 /// pass-through que WeightRecordRepository. Pet no dispara notificaciones,
@@ -15,5 +16,9 @@ class PetRepository {
 
   Future<void> updatePet(Pet pet) => _dbHelper.updatePet(pet);
 
-  Future<void> deletePet(String id) => _dbHelper.deletePet(id);
+  Future<void> deletePet(String id) async {
+    // ✅ Mejora: Limpiar todas las notificaciones pendientes antes de borrar la mascota
+    await ReminderScheduler.cancelAllRemindersForPet(id);
+    await _dbHelper.deletePet(id);
+  }
 }

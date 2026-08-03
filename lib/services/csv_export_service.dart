@@ -50,6 +50,17 @@ class CsvExportService {
     }
   }
 
+  Future<String> exportDewormingHistory(Pet pet) async {
+    try {
+      final dewormings = await _dbHelper.getDewormingsForPet(pet.id);
+      final csv = generateDewormingsCsv(dewormings);
+      await _shareCsv(csv, 'desparasitacion', pet);
+      return 'Historial de desparasitación exportado con éxito.';
+    } catch (e) {
+      return 'Error al exportar el historial de desparasitación: $e';
+    }
+  }
+
   Future<void> _shareCsv(String csvContent, String kind, Pet pet) async {
     final Uint8List bytes = Uint8List.fromList(utf8.encode(csvContent));
 

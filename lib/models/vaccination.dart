@@ -8,6 +8,7 @@ class Vaccination {
   final DateTime? nextDueDate;
   final String? stickerPhotoPath;
   final String? extraPhotoPath;
+  final int reminderDaysAhead;
 
   Vaccination({
     String? id,
@@ -17,6 +18,7 @@ class Vaccination {
     this.nextDueDate,
     this.stickerPhotoPath,
     this.extraPhotoPath,
+    this.reminderDaysAhead = 0,
   }) : id = id ?? const Uuid().v4();
 
   Vaccination copyWith({
@@ -27,6 +29,7 @@ class Vaccination {
     DateTime? nextDueDate,
     String? stickerPhotoPath,
     String? extraPhotoPath,
+    int? reminderDaysAhead,
   }) {
     return Vaccination(
       id: id ?? this.id,
@@ -36,6 +39,7 @@ class Vaccination {
       nextDueDate: nextDueDate ?? this.nextDueDate,
       stickerPhotoPath: stickerPhotoPath ?? this.stickerPhotoPath,
       extraPhotoPath: extraPhotoPath ?? this.extraPhotoPath,
+      reminderDaysAhead: reminderDaysAhead ?? this.reminderDaysAhead,
     );
   }
 
@@ -48,6 +52,7 @@ class Vaccination {
       'nextDueDate': nextDueDate?.toIso8601String(),
       'stickerPhotoPath': stickerPhotoPath,
       'extraPhotoPath': extraPhotoPath,
+      'reminderDaysAhead': reminderDaysAhead,
     };
   }
 
@@ -62,6 +67,7 @@ class Vaccination {
           : null,
       stickerPhotoPath: json['stickerPhotoPath'] as String?,
       extraPhotoPath: json['extraPhotoPath'] as String?,
+      reminderDaysAhead: json['reminderDaysAhead'] as int? ?? 0,
     );
   }
 

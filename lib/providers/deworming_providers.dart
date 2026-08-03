@@ -1,12 +1,49 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/deworming.dart';
+import 'package:pet_pal/models/deworming_product.dart';
 import 'package:pet_pal/providers/database_providers.dart';
 import 'package:pet_pal/repositories/deworming_repository.dart';
+import 'package:pet_pal/repositories/deworming_product_repository.dart';
 import 'package:pet_pal/services/reminder_scheduler.dart';
 
 final dewormingRepositoryProvider = Provider<DewormingRepository>((ref) {
   return DewormingRepository(ref.watch(databaseHelperProvider));
 });
+
+final dewormingProductRepositoryProvider = Provider<DewormingProductRepository>((ref) {
+  return DewormingProductRepository(ref.watch(databaseHelperProvider));
+});
+
+final dewormingProductsProvider = AsyncNotifierProvider<DewormingProductsNotifier, List<DewormingProduct>>(
+  DewormingProductsNotifier.new,
+);
+
+class DewormingProductsNotifier extends AsyncNotifier<List<DewormingProduct>> {
+  @override
+  Future<List<DewormingProduct>> build() async {
+    return ref.watch(dewormingProductRepositoryProvider).getProducts();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => build());
+  }
+
+  Future<void> addProduct(DewormingProduct product) async {
+    await ref.read(dewormingProductRepositoryProvider).insertProduct(product);
+    await refresh();
+  }
+
+  Future<void> updateProduct(DewormingProduct product) async {
+    await ref.read(dewormingProductRepositoryProvider).updateProduct(product);
+    await refresh();
+  }
+
+  Future<void> deleteProduct(String id) async {
+    await ref.read(dewormingProductRepositoryProvider).deleteProduct(id);
+    await refresh();
+  }
+}
 
 /// Reemplaza los antiguos campos _dewormings manejados a mano en
 /// deworming_screen.dart. A diferencia de weightRecordsProvider, este

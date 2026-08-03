@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
+import 'package:pet_pal/models/medication_intake.dart';
 import 'package:pet_pal/providers/database_providers.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
 
@@ -16,7 +17,8 @@ final todayDashboardProvider =
   final events = <DashboardEvent>[];
   for (final pet in pets) {
     final rawEvents = await dbHelper.getAllEventsForPet(pet.id);
-    events.addAll(DashboardEvent.fromEventMaps(rawEvents, pet));
+    final intakes = await dbHelper.getAllIntakesForPet(pet.id);
+    events.addAll(DashboardEvent.fromEventMaps(rawEvents, pet, intakes: intakes));
   }
 
   events.sort((a, b) {

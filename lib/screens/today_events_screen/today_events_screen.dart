@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/providers/dashboard_providers.dart';
+import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
 /// Vista completa de los eventos accionables de "Hoy", sin el recorte a
@@ -12,6 +13,7 @@ class TodayEventsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(todayDashboardProvider);
+    final petsAsync = ref.watch(petsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Eventos de hoy')),
@@ -25,11 +27,17 @@ class TodayEventsScreen extends ConsumerWidget {
             return const Center(child: Text('No hay eventos pendientes.'));
           }
 
+          final petsCount = petsAsync.value?.length ?? 0;
+          final showPetName = petsCount > 1;
+
           return ListView.builder(
             padding: const EdgeInsets.all(16.0),
             itemCount: events.length,
             itemBuilder: (context, index) =>
-                DashboardEventTile(event: events[index]),
+                DashboardEventTile(
+                  event: events[index],
+                  showPetName: showPetName,
+                ),
           );
         },
       ),

@@ -8,7 +8,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
+import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -33,6 +35,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
 
   DateTime _selectedDate = DateTime.now();
   DateTime? _nextDueDate;
+  int _reminderDaysAhead = 0;
   String? _stickerPhotoPath;
   String? _extraPhotoPath;
 
@@ -48,6 +51,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
       _vaccineNameController.text = widget.vaccination!.vaccineName;
       _selectedDate = widget.vaccination!.date;
       _nextDueDate = widget.vaccination!.nextDueDate;
+      _reminderDaysAhead = widget.vaccination!.reminderDaysAhead;
       _stickerPhotoPath = widget.vaccination!.stickerPhotoPath;
       _extraPhotoPath = widget.vaccination!.extraPhotoPath;
     }
@@ -284,6 +288,17 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
     );
   }
 
+  void _onVaccineProductSelected(VaccinationProduct product) {
+    setState(() {
+      _vaccineNameController.text = product.name;
+      _nextDueDate = DateTime(
+        _selectedDate.year,
+        _selectedDate.month + product.defaultFrequencyMonths,
+        _selectedDate.day,
+      );
+    });
+  }
+
   void _saveVaccination() async {
     if (_formKey.currentState!.validate()) {
       final String id = _isEditing ? widget.vaccination!.id : const Uuid().v4();
@@ -309,6 +324,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           nextDueDate: _nextDueDate,
           stickerPhotoPath: finalStickerPhotoPath,
           extraPhotoPath: finalExtraPhotoPath,
+          reminderDaysAhead: _reminderDaysAhead,
         );
 
         final notifier = ref.read(vaccinationsProvider(widget.petId).notifier);
@@ -353,6 +369,16 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Vacunación' : 'Añadir Nueva Vacunación'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Gestionar Catálogo de Vacunas',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const VaccinationProductsScreen()),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -361,6 +387,34 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Consumer(
+                builder: (context, ref, child) {
+                  final productsAsync = ref.watch(vaccinationProductsProvider);
+                  return productsAsync.when(
+                    data: (products) {
+                      if (products.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: DropdownButtonFormField<VaccinationProduct>(
+                          decoration: const InputDecoration(
+                            labelText: 'Usar vacuna del catálogo',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.inventory_2),
+                          ),
+                          items: products
+                              .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) _onVaccineProductSelected(val);
+                          },
+                        ),
+                      );
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (e, _) => const SizedBox.shrink(),
+                  );
+                },
+              ),
               Autocomplete<String>(
                 initialValue: TextEditingValue(text: _vaccineNameController.text),
                 optionsBuilder: (TextEditingValue textEditingValue) {
@@ -422,6 +476,26 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
                 ),
                 trailing: const Icon(Icons.event_repeat),
                 onTap: () => _selectNextDueDate(context),
+              ),
+              const SizedBox(height: 16),
+
+              DropdownButtonFormField<int>(
+                initialValue: _reminderDaysAhead,
+                decoration: const InputDecoration(
+                  labelText: 'Avisarme con anticipación',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.notification_important),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('El mismo día')),
+                  DropdownMenuItem(value: 1, child: Text('1 día antes')),
+                  DropdownMenuItem(value: 2, child: Text('2 días antes')),
+                  DropdownMenuItem(value: 3, child: Text('3 días antes')),
+                  DropdownMenuItem(value: 7, child: Text('1 semana antes')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _reminderDaysAhead = value);
+                },
               ),
               const SizedBox(height: 16),
 

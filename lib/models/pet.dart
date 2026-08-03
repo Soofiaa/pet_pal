@@ -12,6 +12,7 @@ class Pet {
 
   // NUEVO: microchip (guardado idealmente solo con dígitos)
   final String? microchipNumber;
+  final bool isNeutered;
 
   Pet({
     String? id,
@@ -22,6 +23,7 @@ class Pet {
     required this.color,
     this.imageUrl,
     this.microchipNumber,
+    this.isNeutered = false,
   }) : id = id ?? const Uuid().v4();
 
   // Método para calcular la edad de forma precisa y detallada
@@ -42,9 +44,9 @@ class Pet {
     }
 
     if (years > 0) {
-      return '$years año${years > 1 ? 's' : ''}${months > 0 ? ', $months mes${months > 1 ? 'es' : ''}' : ''}';
+      return '$years año${years > 1 ? 's' : ''}, $months mes${months > 1 ? 'es' : ''} y $days día${days > 1 ? 's' : ''}';
     } else if (months > 0) {
-      return '$months mes${months > 1 ? 'es' : ''}${days > 0 ? ', $days día${days > 1 ? 's' : ''}' : ''}';
+      return '$months mes${months > 1 ? 'es' : ''} y $days día${days > 1 ? 's' : ''}';
     } else {
       return '$days día${days > 1 ? 's' : ''}';
     }
@@ -63,7 +65,8 @@ class Pet {
       'dob': dob.toIso8601String(),
       'color': color,
       'imageUrl': imageUrl,
-      'microchipNumber': microchipNumber, // NUEVO
+      'microchipNumber': microchipNumber,
+      'isNeutered': isNeutered ? 1 : 0,
     };
   }
 
@@ -76,9 +79,8 @@ class Pet {
       dob: DateTime.parse(json['dob'] as String),
       color: json['color'] as String,
       imageUrl: json['imageUrl'] as String?,
-
-      // NUEVO: lectura segura (si no existe, queda null)
       microchipNumber: json['microchipNumber'] as String?,
+      isNeutered: json['isNeutered'] == 1,
     );
   }
 

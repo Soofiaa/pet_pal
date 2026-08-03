@@ -1,4 +1,5 @@
 import 'package:pet_pal/models/pet.dart';
+import 'package:pet_pal/models/medication_intake.dart';
 
 /// Tipos de evento de [DatabaseHelper.getAllEventsForPet] que representan
 /// algo pendiente de atención (recordatorio, vencimiento, fin de
@@ -24,6 +25,7 @@ class DashboardEvent {
     required this.date,
     required this.title,
     required this.type,
+    this.isTaken = false,
   });
 
   final String petId;
@@ -32,6 +34,7 @@ class DashboardEvent {
   final DateTime date;
   final String title;
   final String type;
+  final bool isTaken;
 
   DashboardUrgency get urgency {
     final now = DateTime.now();
@@ -60,15 +63,16 @@ class DashboardEvent {
   /// descarta por superado.
   static List<DashboardEvent> fromEventMaps(
     List<Map<String, dynamic>> rawEvents,
-    Pet pet,
-  ) {
+    Pet pet, {
+    List<MedicationIntake> intakes = const [],
+  }) {
     final events = <DashboardEvent>[];
 
     final dewormingWinnerId =
         _idOfMostRecentApplication(rawEvents, 'deworming');
     final vaccinationWinnerId =
         _idOfMostRecentApplication(rawEvents, 'vaccination');
-    // 'next_vaccination' usa '${vaccination.id}_next' como id (ver
+    // 'next_vaccination' usa '${vaccination.id}_next' as id (ver
     // Vaccination.getEventsFromList), a diferencia de 'next_deworming' que
     // reutiliza el mismo id que su registro de aplicación.
     final nextVaccinationWinnerId =
@@ -92,6 +96,19 @@ class DashboardEvent {
       final date = raw['date'];
       if (date is! DateTime) continue;
 
+      // ✅ Lógica inteligente de toma
+      bool isTaken = false;
+      if (type == 'medication_end') {
+        final medName = (raw['title'] as String? ?? '')
+            .replaceFirst('Fin de medicación: ', '')
+            .replaceFirst('Fin de medicación de ${pet.name}: ', '');
+        isTaken = intakes.any((i) =>
+            i.medicationName == medName &&
+            i.intakeDateTime.year == date.year &&
+            i.intakeDateTime.month == date.month &&
+            i.intakeDateTime.day == date.day);
+      }
+
       events.add(DashboardEvent(
         petId: pet.id,
         petName: pet.name,
@@ -99,6 +116,7 @@ class DashboardEvent {
         date: date,
         title: raw['title'] as String? ?? '',
         type: type,
+        isTaken: isTaken,
       ));
     }
 

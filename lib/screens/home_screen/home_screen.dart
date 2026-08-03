@@ -6,6 +6,9 @@ import 'dart:io';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
+import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_screen.dart';
+import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
+import 'package:pet_pal/screens/deworming_products_screen/deworming_products_screen.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/utils/backup_password_dialog.dart';
@@ -208,16 +211,86 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: const Text('Mis Mascotas'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.upload),
-            onPressed: _exportData,
-            tooltip: 'Exportar datos',
-          ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: _importData,
-            tooltip: 'Importar datos',
+            icon: const Icon(Icons.contact_phone),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const EmergencyContactsScreen()),
+            ),
+            tooltip: 'Contactos de Emergencia',
           ),
         ],
+      ),
+      drawer: Drawer(
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.pets, size: 50),
+                    const SizedBox(height: 10),
+                    Text(
+                      'PetPal Manager',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Catálogo de Vacunas'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const VaccinationProductsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.medication),
+              title: const Text('Catálogo de Desparasitantes'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DewormingProductsScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Copia de Seguridad', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.upload),
+              title: const Text('Exportar Backup'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportData();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Importar Backup'),
+              onTap: () {
+                Navigator.pop(context);
+                _importData();
+              },
+            ),
+            const Spacer(),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Versión 1.0.0 (v26)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            ),
+          ],
+        ),
       ),
       body: petsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

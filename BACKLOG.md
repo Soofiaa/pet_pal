@@ -113,7 +113,7 @@ Android), crítico el día que se compile para iOS.
 
 ### 12. Modo oscuro
 Pulido general, bajo esfuerzo, no diferenciador.
-**Esfuerzo:** chico-mediano. **Impacto:** bajo.
+**Estado**: ✅ Mejorado (microchip y visibilidad corregida).
 
 ### 13. Insignias de estado en la lista de mascotas
 Ícono en la tarjeta de cada mascota en `home_screen.dart` si tiene una
@@ -124,5 +124,15 @@ el ítem 1).
 
 ---
 
-*Última actualización: julio 2026, tras la sesión de notificaciones,
-documentos, integridad de datos y calendario.*
+## Log de Mejoras Recientes (Agosto 2026)
+- ✅ **Catálogo de Desparasitantes**: Registro de productos con frecuencia y tipo. Cálculo automático de próxima dosis. Sincronización de registros antiguos.
+- ✅ **Catálogo de Vacunas**: Sistema similar al de desparasitación para automatizar periodos de refuerzo.
+- ✅ **Notificaciones Anticipadas**: Opción de elegir avisos previos (1 día, 2 días, 1 semana) para vacunas y desparasitaciones.
+- ✅ **Buscador en Documentos**: Barra de búsqueda integrada para encontrar archivos por título o notas.
+- ✅ **Directorio de Emergencia**: Gestión de contactos (Veterinarios, Urgencias) con botón de llamada directa.
+- ✅ **Calculadora de Alimento**: Utilidad para calcular la ración diaria según el peso y recomendación del fabricante.
+- ✅ **Correcciones de Estabilidad**: Solucionado error crítico `_dependents.isEmpty` en diálogos y navegación.
+
+---
+
+*Última actualización: agosto 2026, tras la gran actualización de catálogos y utilidades.*

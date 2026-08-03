@@ -1,5 +1,6 @@
 import 'package:csv/csv.dart';
 import 'package:intl/intl.dart';
+import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/models/weight_record.dart';
@@ -36,6 +37,20 @@ String generateMedicationsCsv(List<Medication> medications) {
           _dateFormat.format(m.startDate),
           m.endDate != null ? _dateFormat.format(m.endDate!) : '',
           m.notes,
+        ]),
+  ];
+  return const ListToCsvConverter().convert(rows);
+}
+
+String generateDewormingsCsv(List<Deworming> dewormings) {
+  final rows = <List<dynamic>>[
+    ['Fecha', 'Producto', 'Tipo', 'Frecuencia (meses)', 'Próxima dosis'],
+    ...dewormings.map((d) => [
+          _dateFormat.format(d.date),
+          d.product,
+          d.type ?? '',
+          d.frequencyMonths ?? '',
+          d.nextDate != null ? _dateFormat.format(d.nextDate!) : '',
         ]),
   ];
   return const ListToCsvConverter().convert(rows);

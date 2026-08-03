@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
-import 'package:pet_pal/screens/add_edit_deworming_screen/add_edit_deworming_screen.dart';
+import '../add_edit_deworming_screen/add_edit_deworming_screen.dart';
+import '../deworming_products_screen/deworming_products_screen.dart';
 import 'package:intl/intl.dart';
 
 class DewormingScreen extends ConsumerWidget {
@@ -63,6 +64,16 @@ class DewormingScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Desparasitaciones de ${pet.name}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Gestionar Productos',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DewormingProductsScreen()),
+            ),
+          ),
+        ],
       ),
       body: asyncDewormings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -103,10 +114,6 @@ class DewormingScreen extends ConsumerWidget {
                               ),
                             ),
                           );
-                          // No hace falta refrescar acá: si se guardó algo,
-                          // DewormingsNotifier.addDeworming/updateDeworming
-                          // ya refrescó el estado internamente antes de
-                          // volver; si se canceló, no hay nada que refrescar.
                         },
                       ),
                       IconButton(
@@ -129,7 +136,6 @@ class DewormingScreen extends ConsumerWidget {
               builder: (context) => AddEditDewormingScreen(pet: pet),
             ),
           );
-          // Mismo motivo que arriba: addDeworming ya refresca internamente.
         },
         child: const Icon(Icons.add),
       ),

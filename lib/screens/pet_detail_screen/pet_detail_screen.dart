@@ -19,6 +19,7 @@ import 'package:pet_pal/screens/medications_screen/medications_screen.dart';
 import 'package:pet_pal/screens/documents_screen/documents_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/screens/vital_sign_screen/vital_sign_screen.dart';
+import 'package:pet_pal/screens/food_calculator_screen/food_calculator_screen.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/services/csv_export_service.dart';
@@ -60,6 +61,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       final dewormings = await dbHelper.getDewormingsForPet(_pet.id);
       final weightRecords = await dbHelper.getWeightRecordsForPet(_pet.id);
       final documents = await dbHelper.getDocumentsForPet(_pet.id);
+      final emergencyContacts = await dbHelper.getEmergencyContacts();
+      final foodConfig = await dbHelper.getFoodConfigForPet(_pet.id);
 
       final pdfData = await PdfGenerator.generateHealthSummaryPdf(
         _pet,
@@ -68,6 +71,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         dewormings: dewormings,
         weightRecords: weightRecords,
         documents: documents,
+        emergencyContacts: emergencyContacts,
+        foodConfig: foodConfig,
       );
 
       final tempDir = await getTemporaryDirectory();
@@ -102,6 +107,9 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         break;
       case 'medications':
         result = await _csvExportService.exportMedicationHistory(_pet);
+        break;
+      case 'deworming':
+        result = await _csvExportService.exportDewormingHistory(_pet);
         break;
       default:
         return;
@@ -192,6 +200,17 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           );
         },
       },
+      {
+        'title': 'Calculadora Alimento',
+        'icon': Icons.calculate,
+        'color': Colors.brown,
+        'onTap': () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => FoodCalculatorScreen(pet: _pet)),
+          );
+        },
+      },
     ];
 
     features.sort((a, b) => (a['title'] as String).compareTo(b['title'] as String));
@@ -238,6 +257,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               PopupMenuItem(value: 'weight', child: Text('Historial de peso')),
               PopupMenuItem(value: 'vaccinations', child: Text('Historial de vacunas')),
               PopupMenuItem(value: 'medications', child: Text('Historial de medicación')),
+              PopupMenuItem(value: 'deworming', child: Text('Historial de desparasitación')),
             ],
           ),
           IconButton(
@@ -300,21 +320,37 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                     ),
                   ),
                   const Spacer(),
-                  SizedBox(
-                    height: gridItemWidth,
-                    width: gridItemWidth,
-                    child: _buildFeatureCard(
-                      context,
-                      title: 'Eventos',
-                      icon: Icons.calendar_month,
-                      color: Colors.blue,
-                      onTap: () {
-                        Navigator.push(
+                  Column(
+                    children: [
+                      SizedBox(
+                        height: gridItemWidth,
+                        width: gridItemWidth,
+                        child: _buildFeatureCard(
                           context,
-                          MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
-                        );
-                      },
-                    ),
+                          title: 'Eventos',
+                          icon: Icons.calendar_month,
+                          color: Colors.blue,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Chip(
+                        label: Text(
+                          _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                        avatar: Icon(
+                          _pet.isNeutered ? Icons.check_circle : Icons.cancel,
+                          size: 14,
+                          color: _pet.isNeutered ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -341,7 +377,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                             Text(
                               microchipText,
                               style: TextStyle(
-                                color: microchipHasValue ? Colors.black : Colors.grey,
+                                color: microchipHasValue ? null : Colors.grey,
                               ),
                             ),
                           ],

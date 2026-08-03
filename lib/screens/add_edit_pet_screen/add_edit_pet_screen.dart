@@ -28,6 +28,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
 
   // NUEVO
   final _microchipController = TextEditingController();
+  bool _isNeutered = false;
 
   DateTime _selectedDateOfBirth = DateTime.now();
   String? _imagePath;
@@ -54,6 +55,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
 
       // NUEVO
       _microchipController.text = widget.pet!.microchipNumber ?? '';
+      _isNeutered = widget.pet!.isNeutered;
     }
   }
 
@@ -205,6 +207,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
           color: _colorController.text.trim(),
           imageUrl: finalImagePath,
           microchipNumber: microchipNormalized,
+          isNeutered: _isNeutered,
         );
 
         if (_isEditing) {
@@ -349,6 +352,19 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
                   if (v.isEmpty) return null; // opcional
                   if (v.length != 15) return 'El microchip debe tener 15 dígitos';
                   return null;
+                },
+              ),
+
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('¿Está esterilizado/a?'),
+                subtitle: const Text('Ayuda al cálculo de su ración de alimento'),
+                secondary: const Icon(Icons.content_cut),
+                value: _isNeutered,
+                onChanged: (bool value) {
+                  setState(() {
+                    _isNeutered = value;
+                  });
                 },
               ),
 

@@ -11,6 +11,11 @@ import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/vital_sign_record.dart';
+import 'package:pet_pal/models/deworming_product.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
+import 'package:pet_pal/models/emergency_contact.dart';
+import 'package:pet_pal/models/pet_food_config.dart';
+import 'package:pet_pal/models/medication_intake.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -50,11 +55,17 @@ class DatabaseHelper {
     return _database!;
   }
 
+  static const String dewormingProductsTable = 'deworming_products';
+  static const String vaccinationProductsTable = 'vaccination_products';
+  static const String emergencyContactsTable = 'emergency_contacts';
+  static const String petFoodConfigsTable = 'pet_food_configs';
+  static const String medicationIntakesTable = 'medication_intakes';
+
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 18,
+      version: 26,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -79,7 +90,8 @@ class DatabaseHelper {
         dob TEXT,
         color TEXT,
         imageUrl TEXT,
-        microchipNumber TEXT
+        microchipNumber TEXT,
+        isNeutered INTEGER NOT NULL DEFAULT 0
       )
     ''');
     debugPrint('Tabla de mascotas creada');
@@ -108,6 +120,7 @@ class DatabaseHelper {
         nextDueDate TEXT,
         stickerPhotoPath TEXT,
         extraPhotoPath TEXT,
+        reminderDaysAhead INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
@@ -161,10 +174,13 @@ class DatabaseHelper {
         product TEXT,
         date TEXT,
         nextDate TEXT,
+        type TEXT,
+        frequencyMonths INTEGER,
+        reminderDaysAhead INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
-    debugPrint('Tabla de desparasitaciones creada');
+    debugPrint('Tabla de desparasitaciones creada (v22 con reminderDaysAhead)');
 
     // 8. Crear tabla de medicaciones
     await db.execute('''
@@ -210,6 +226,64 @@ class DatabaseHelper {
       )
     ''');
     debugPrint('Tabla de signos vitales creada');
+
+    // 11. Crear tabla de productos desparasitantes
+    await db.execute('''
+      CREATE TABLE $dewormingProductsTable(
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        defaultFrequencyMonths INTEGER,
+        defaultType TEXT
+      )
+    ''');
+    debugPrint('Tabla de productos desparasitantes creada');
+
+    // 12. Crear tabla de productos de vacunas
+    await db.execute('''
+      CREATE TABLE $vaccinationProductsTable(
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        defaultFrequencyMonths INTEGER
+      )
+    ''');
+    debugPrint('Tabla de productos de vacunas creada');
+
+    // 13. Crear tabla de contactos de emergencia
+    await db.execute('''
+      CREATE TABLE $emergencyContactsTable(
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        phone TEXT,
+        category TEXT,
+        notes TEXT
+      )
+    ''');
+    debugPrint('Tabla de contactos de emergencia creada');
+
+    // 14. Crear tabla de configuración de alimento
+    await db.execute('''
+      CREATE TABLE $petFoodConfigsTable(
+        petId TEXT PRIMARY KEY,
+        dailyGrams REAL,
+        portions INTEGER,
+        foodKcalPerKg REAL,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    debugPrint('Tabla de configuración de alimento creada');
+
+    // 15. Crear tabla de tomas de medicación
+    await db.execute('''
+      CREATE TABLE $medicationIntakesTable(
+        id TEXT PRIMARY KEY,
+        petId TEXT,
+        medicationId TEXT,
+        intakeDateTime TEXT,
+        medicationName TEXT,
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    debugPrint('Tabla de tomas de medicación creada');
   }
 
   Future<List<String>> getVaccineNames() async {
@@ -329,6 +403,109 @@ class DatabaseHelper {
       debugPrint('Tabla de signos vitales creada (migración v18)');
     }
 
+    // Migración a v19: agregar type y frequencyMonths a dewormings
+    if (oldVersion < 19) {
+      final hasType = await _columnExists(db, dewormingsTable, 'type');
+      if (!hasType) {
+        await db.execute('ALTER TABLE $dewormingsTable ADD COLUMN type TEXT');
+      }
+      final hasFrequency = await _columnExists(db, dewormingsTable, 'frequencyMonths');
+      if (!hasFrequency) {
+        await db.execute('ALTER TABLE $dewormingsTable ADD COLUMN frequencyMonths INTEGER');
+      }
+      debugPrint('Migración v19: Columnas type y frequencyMonths añadidas a $dewormingsTable');
+    }
+
+    // Migración a v20: nueva tabla de productos desparasitantes
+    if (oldVersion < 20) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $dewormingProductsTable(
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          defaultFrequencyMonths INTEGER,
+          defaultType TEXT
+        )
+      ''');
+      debugPrint('Tabla de productos desparasitantes creada (migración v20)');
+    }
+
+    // Migración a v21: nueva tabla de productos de vacunas
+    if (oldVersion < 21) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $vaccinationProductsTable(
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          defaultFrequencyMonths INTEGER
+        )
+      ''');
+      debugPrint('Tabla de productos de vacunas creada (migración v21)');
+    }
+
+    // Migración a v22: agregar reminderDaysAhead a vacunas y desparasitaciones
+    if (oldVersion < 22) {
+      final hasVacReminder = await _columnExists(db, vaccinationsTable, 'reminderDaysAhead');
+      if (!hasVacReminder) {
+        await db.execute('ALTER TABLE $vaccinationsTable ADD COLUMN reminderDaysAhead INTEGER NOT NULL DEFAULT 0');
+      }
+      final hasDewReminder = await _columnExists(db, dewormingsTable, 'reminderDaysAhead');
+      if (!hasDewReminder) {
+        await db.execute('ALTER TABLE $dewormingsTable ADD COLUMN reminderDaysAhead INTEGER NOT NULL DEFAULT 0');
+      }
+      debugPrint('Migración v22: Columna reminderDaysAhead añadida a vacunas y desparasitaciones');
+    }
+
+    // Migración a v23: nueva tabla de contactos de emergencia
+    if (oldVersion < 23) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $emergencyContactsTable(
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          phone TEXT,
+          category TEXT,
+          notes TEXT
+        )
+      ''');
+      debugPrint('Tabla de contactos de emergencia creada (migración v23)');
+    }
+
+    // Migración a v24: nueva tabla de configuración de alimento
+    if (oldVersion < 24) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $petFoodConfigsTable(
+          petId TEXT PRIMARY KEY,
+          dailyGrams REAL,
+          portions INTEGER,
+          foodKcalPerKg REAL,
+          FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+        )
+      ''');
+      debugPrint('Tabla de configuración de alimento creada (migración v24)');
+    }
+
+    // Migración a v25: agregar isNeutered a pets
+    if (oldVersion < 25) {
+      final hasNeutered = await _columnExists(db, petsTable, 'isNeutered');
+      if (!hasNeutered) {
+        await db.execute('ALTER TABLE $petsTable ADD COLUMN isNeutered INTEGER NOT NULL DEFAULT 0');
+      }
+      debugPrint('Migración v25: Columna isNeutered añadida a $petsTable');
+    }
+
+    // Migración a v26: nueva tabla de tomas de medicación
+    if (oldVersion < 26) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $medicationIntakesTable(
+          id TEXT PRIMARY KEY,
+          petId TEXT,
+          medicationId TEXT,
+          intakeDateTime TEXT,
+          medicationName TEXT,
+          FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+        )
+      ''');
+      debugPrint('Tabla de tomas de medicación creada (migración v26)');
+    }
+
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
     // van aquí también, respetando el patrón: if (oldVersion < X) { ... }
   }
@@ -408,7 +585,215 @@ class DatabaseHelper {
     await db.delete(medicationsTable);
     await db.delete(documentsTable);
     await db.delete(vitalSignsTable);
+    await db.delete(dewormingProductsTable);
+    await db.delete(vaccinationProductsTable);
+    await db.delete(emergencyContactsTable);
+    await db.delete(petFoodConfigsTable);
+    await db.delete(medicationIntakesTable);
     debugPrint('Todos los datos han sido eliminados de la base de datos.');
+  }
+
+  // --- Métodos para Tomas de Medicación (MedicationIntake) ---
+  Future<void> insertMedicationIntake(MedicationIntake intake) async {
+    final db = await database;
+    await db.insert(
+      medicationIntakesTable,
+      intake.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<MedicationIntake>> getIntakesForMedication(String medicationId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      medicationIntakesTable,
+      where: 'medicationId = ?',
+      whereArgs: [medicationId],
+      orderBy: 'intakeDateTime DESC',
+    );
+    return List.generate(maps.length, (i) => MedicationIntake.fromJson(maps[i]));
+  }
+
+  Future<void> deleteIntake(String id) async {
+    final db = await database;
+    await db.delete(medicationIntakesTable, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<MedicationIntake>> getAllIntakesForPet(String petId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      medicationIntakesTable,
+      where: 'petId = ?',
+      whereArgs: [petId],
+      orderBy: 'intakeDateTime DESC',
+    );
+    return List.generate(maps.length, (i) => MedicationIntake.fromJson(maps[i]));
+  }
+
+  // --- Métodos para Configuración de Alimento (PetFoodConfig) ---
+  Future<void> insertOrUpdateFoodConfig(PetFoodConfig config) async {
+    final db = await database;
+    await db.insert(
+      petFoodConfigsTable,
+      config.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<PetFoodConfig?> getFoodConfigForPet(String petId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      petFoodConfigsTable,
+      where: 'petId = ?',
+      whereArgs: [petId],
+    );
+    if (maps.isNotEmpty) {
+      return PetFoodConfig.fromJson(maps.first);
+    }
+    return null;
+  }
+
+  // --- Métodos para Contactos de Emergencia (EmergencyContacts) ---
+  Future<void> insertEmergencyContact(EmergencyContact contact) async {
+    final db = await database;
+    await db.insert(
+      emergencyContactsTable,
+      contact.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<EmergencyContact>> getEmergencyContacts() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(emergencyContactsTable, orderBy: 'name ASC');
+    return List.generate(maps.length, (i) {
+      return EmergencyContact.fromJson(maps[i]);
+    });
+  }
+
+  Future<void> deleteEmergencyContact(String id) async {
+    final db = await database;
+    await db.delete(
+      emergencyContactsTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateEmergencyContact(EmergencyContact contact) async {
+    final db = await database;
+    await db.update(
+      emergencyContactsTable,
+      contact.toJson(),
+      where: 'id = ?',
+      whereArgs: [contact.id],
+    );
+  }
+
+  // --- Métodos para Productos de Vacunas (VaccinationProducts) ---
+  Future<void> insertVaccinationProduct(VaccinationProduct product) async {
+    final db = await database;
+    await db.insert(
+      vaccinationProductsTable,
+      product.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    // Sincronizar registros existentes
+    await db.update(
+      vaccinationsTable,
+      {
+        // En vacunas solo sincronizamos el nombre si fuera necesario, 
+        // pero aquí no hay campo frequency directo en la tabla de vacunas, 
+        // se usa para calcular nextDueDate al momento de insertar.
+      },
+      where: 'vaccineName = ?',
+      whereArgs: [product.name],
+    );
+  }
+
+  Future<List<VaccinationProduct>> getVaccinationProducts() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(vaccinationProductsTable, orderBy: 'name ASC');
+    return List.generate(maps.length, (i) {
+      return VaccinationProduct.fromJson(maps[i]);
+    });
+  }
+
+  Future<void> deleteVaccinationProduct(String id) async {
+    final db = await database;
+    await db.delete(
+      vaccinationProductsTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateVaccinationProduct(VaccinationProduct product) async {
+    final db = await database;
+    await db.update(
+      vaccinationProductsTable,
+      product.toJson(),
+      where: 'id = ?',
+      whereArgs: [product.id],
+    );
+  }
+
+  // --- Métodos para Productos Desparasitantes (DewormingProducts) ---
+  Future<void> insertDewormingProduct(DewormingProduct product) async {
+    final db = await database;
+    await db.insert(
+      dewormingProductsTable,
+      product.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    // ✅ Sincronizar registros existentes: si hay desparasitaciones con este nombre,
+    // actualizamos su tipo y frecuencia para que coincidan con el catálogo.
+    await db.update(
+      dewormingsTable,
+      {
+        'type': product.defaultType,
+        'frequencyMonths': product.defaultFrequencyMonths,
+      },
+      where: 'product = ?',
+      whereArgs: [product.name],
+    );
+  }
+
+  Future<List<DewormingProduct>> getDewormingProducts() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(dewormingProductsTable, orderBy: 'name ASC');
+    return List.generate(maps.length, (i) {
+      return DewormingProduct.fromJson(maps[i]);
+    });
+  }
+
+  Future<void> deleteDewormingProduct(String id) async {
+    final db = await database;
+    await db.delete(
+      dewormingProductsTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateDewormingProduct(DewormingProduct product) async {
+    final db = await database;
+    await db.update(
+      dewormingProductsTable,
+      product.toJson(),
+      where: 'id = ?',
+      whereArgs: [product.id],
+    );
+    // ✅ Sincronizar también al editar el producto del catálogo
+    await db.update(
+      dewormingsTable,
+      {
+        'type': product.defaultType,
+        'frequencyMonths': product.defaultFrequencyMonths,
+      },
+      where: 'product = ?',
+      whereArgs: [product.name],
+    );
   }
 
   // --- Métodos para Mascotas (Pets) ---

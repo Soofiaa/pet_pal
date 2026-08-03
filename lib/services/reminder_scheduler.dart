@@ -193,11 +193,17 @@ class ReminderScheduler {
   static Future<void> scheduleVaccinationReminder(Vaccination vaccination) async {
     if (vaccination.nextDueDate == null) return;
 
+    final DateTime notifyAt = _atReminderHour(
+      vaccination.nextDueDate!.subtract(Duration(days: vaccination.reminderDaysAhead)),
+    );
+
     await NotificationService().scheduleNotificationOnce(
       id: _vaccinationNextId(vaccination.id),
       title: 'Próxima vacuna: ${vaccination.vaccineName}',
-      body: 'Hoy corresponde la próxima dosis de ${vaccination.vaccineName}.',
-      scheduledDateTime: _atReminderHour(vaccination.nextDueDate!),
+      body: vaccination.reminderDaysAhead > 0
+          ? 'Faltan ${vaccination.reminderDaysAhead} días para la próxima dosis de ${vaccination.vaccineName}.'
+          : 'Hoy corresponde la próxima dosis de ${vaccination.vaccineName}.',
+      scheduledDateTime: notifyAt,
       payload: vaccination.id,
     );
   }
@@ -214,11 +220,17 @@ class ReminderScheduler {
   static Future<void> scheduleDewormingReminder(Deworming deworming) async {
     if (deworming.id == null || deworming.nextDate == null) return;
 
+    final DateTime notifyAt = _atReminderHour(
+      deworming.nextDate!.subtract(Duration(days: deworming.reminderDaysAhead)),
+    );
+
     await NotificationService().scheduleNotificationOnce(
       id: _dewormingNextId(deworming.id!),
       title: 'Próxima desparasitación: ${deworming.product}',
-      body: 'Hoy corresponde la próxima desparasitación con ${deworming.product}.',
-      scheduledDateTime: _atReminderHour(deworming.nextDate!),
+      body: deworming.reminderDaysAhead > 0
+          ? 'Faltan ${deworming.reminderDaysAhead} días para la próxima desparasitación con ${deworming.product}.'
+          : 'Hoy corresponde la próxima desparasitación con ${deworming.product}.',
+      scheduledDateTime: notifyAt,
       payload: deworming.id,
     );
   }
@@ -244,6 +256,24 @@ class ReminderScheduler {
       body: '${record.value}${config.unit} está fuera del rango normal '
           '(${config.normalMin}–${config.normalMax}${config.unit}).',
     );
+  }
+
+  static Future<void> cancelAllRemindersForPet(String petId) async {
+    final dbHelper = DatabaseHelper();
+    
+    final vaccinations = await dbHelper.getVaccinationsForPet(petId);
+    for (final v in vaccinations) await cancelVaccinationReminder(v);
+
+    final dewormings = await dbHelper.getDewormingsForPet(petId);
+    for (final d in dewormings) await cancelDewormingReminder(d);
+
+    final medications = await dbHelper.getMedicationsForPet(petId);
+    for (final m in medications) await cancelMedicationReminders(m);
+
+    final appointments = await dbHelper.getAppointmentsForPet(petId);
+    for (final a in appointments) {
+      await NotificationService().cancelNotification(a.id.hashCode);
+    }
   }
 
   /// Recorre todas las mascotas y vuelve a programar los recordatorios

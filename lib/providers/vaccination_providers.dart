@@ -1,13 +1,50 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/database_providers.dart';
 import 'package:pet_pal/repositories/vaccination_repository.dart';
+import 'package:pet_pal/repositories/vaccination_product_repository.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/services/reminder_scheduler.dart';
 
 final vaccinationRepositoryProvider = Provider<VaccinationRepository>((ref) {
   return VaccinationRepository(ref.watch(databaseHelperProvider));
 });
+
+final vaccinationProductRepositoryProvider = Provider<VaccinationProductRepository>((ref) {
+  return VaccinationProductRepository(ref.watch(databaseHelperProvider));
+});
+
+final vaccinationProductsProvider = AsyncNotifierProvider<VaccinationProductsNotifier, List<VaccinationProduct>>(
+  VaccinationProductsNotifier.new,
+);
+
+class VaccinationProductsNotifier extends AsyncNotifier<List<VaccinationProduct>> {
+  @override
+  Future<List<VaccinationProduct>> build() async {
+    return ref.watch(vaccinationProductRepositoryProvider).getProducts();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => build());
+  }
+
+  Future<void> addProduct(VaccinationProduct product) async {
+    await ref.read(vaccinationProductRepositoryProvider).insertProduct(product);
+    await refresh();
+  }
+
+  Future<void> updateProduct(VaccinationProduct product) async {
+    await ref.read(vaccinationProductRepositoryProvider).updateProduct(product);
+    await refresh();
+  }
+
+  Future<void> deleteProduct(String id) async {
+    await ref.read(vaccinationProductRepositoryProvider).deleteProduct(id);
+    await refresh();
+  }
+}
 
 /// Reemplaza los antiguos campos _vaccinations/_isLoading manejados a mano
 /// en vaccinations_screen.dart. Igual que DewormingsNotifier, es la única

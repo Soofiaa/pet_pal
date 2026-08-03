@@ -10,6 +10,8 @@ import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/weight_record.dart';
 import 'package:pet_pal/models/document.dart';
+import 'package:pet_pal/models/pet_food_config.dart';
+import 'package:pet_pal/models/emergency_contact.dart';
 
 Future<Uint8List> generateNotesPdf(Pet pet, List<Note> notes) async {
   final pdf = pw.Document();
@@ -105,6 +107,8 @@ Future<Uint8List> generateHealthSummaryPdf(
   required List<Deworming> dewormings,
   required List<WeightRecord> weightRecords,
   required List<Document> documents,
+  PetFoodConfig? foodConfig,
+  List<EmergencyContact>? emergencyContacts,
 }) async {
   final pdf = pw.Document();
   final DateTime now = DateTime.now();
@@ -132,6 +136,32 @@ Future<Uint8List> generateHealthSummaryPdf(
       },
       build: (pw.Context context) {
         return [
+          _buildPdfSectionTitle('Información General'),
+          _buildPdfInfoBox([
+            pw.Text('Nombre: ${pet.name}', style: const pw.TextStyle(fontSize: 11)),
+            pw.Text('Especie: ${pet.species}', style: const pw.TextStyle(fontSize: 11)),
+            pw.Text('Raza: ${pet.breed}', style: const pw.TextStyle(fontSize: 11)),
+            pw.Text('Color: ${pet.color}', style: const pw.TextStyle(fontSize: 11)),
+            pw.Text('Nacimiento: ${pet.formattedDob}', style: const pw.TextStyle(fontSize: 11)),
+            pw.Text('Edad: ${pet.detailedAge}', style: const pw.TextStyle(fontSize: 11)),
+            if (pet.microchipNumber != null)
+              pw.Text('Microchip: ${pet.microchipNumber}', style: const pw.TextStyle(fontSize: 11)),
+            pw.Text('Esterilizado/a: ${pet.isNeutered ? "Sí" : "No"}', style: const pw.TextStyle(fontSize: 11)),
+            if (foodConfig != null)
+              pw.Text('Ración Diaria: ${foodConfig.dailyGrams.toStringAsFixed(0)}g repartidos en ${foodConfig.portions} tomas', style: const pw.TextStyle(fontSize: 11)),
+          ]),
+          pw.SizedBox(height: 12),
+
+          if (emergencyContacts != null && emergencyContacts.isNotEmpty) ...[
+            _buildPdfSectionTitle('Contactos de Emergencia'),
+            for (final contact in emergencyContacts)
+              _buildPdfInfoBox([
+                pw.Text('${contact.name} (${contact.category ?? "Otros"})', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                pw.Text('Tel: ${contact.phone}', style: const pw.TextStyle(fontSize: 11)),
+              ]),
+            pw.SizedBox(height: 12),
+          ],
+
           _buildPdfSectionTitle('Vacunas'),
           if (vaccinations.isEmpty)
             _buildPdfEmptySection()
@@ -282,9 +312,14 @@ pw.Widget _buildDewormingBox(Deworming deworming, DateTime now) {
     ),
   );
 
+  String typeLabel = '';
+  if (deworming.type != null) {
+    typeLabel = ' (${deworming.type![0].toUpperCase()}${deworming.type!.substring(1)})';
+  }
+
   return _buildPdfInfoBox([
     pw.Text(
-      deworming.product,
+      '${deworming.product}$typeLabel',
       style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13),
     ),
     pw.SizedBox(height: 3),
@@ -292,6 +327,11 @@ pw.Widget _buildDewormingBox(Deworming deworming, DateTime now) {
       'Fecha aplicada: ${DateFormat('dd/MM/yyyy').format(deworming.date)}',
       style: const pw.TextStyle(fontSize: 11),
     ),
+    if (deworming.frequencyMonths != null)
+      pw.Text(
+        'Frecuencia: cada ${deworming.frequencyMonths} mes${deworming.frequencyMonths! > 1 ? 'es' : ''}',
+        style: const pw.TextStyle(fontSize: 11),
+      ),
     pw.Text(
       deworming.nextDate != null
           ? 'Próxima aplicación: ${DateFormat('dd/MM/yyyy').format(deworming.nextDate!)}'
@@ -299,9 +339,6 @@ pw.Widget _buildDewormingBox(Deworming deworming, DateTime now) {
       style: const pw.TextStyle(fontSize: 11),
     ),
     pw.SizedBox(height: 3),
-    // La etiqueta "Vencida" se destaca con un fondo, ya que es información
-    // accionable (requiere agendar una nueva dosis), a diferencia de las
-    // otras dos que son solo informativas.
     if (isOverdue)
       pw.Container(
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
