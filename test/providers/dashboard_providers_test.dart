@@ -151,25 +151,27 @@ void main() {
     });
 
     test(
-        'con múltiples desparasitaciones históricas, solo expone la próxima '
-        'del registro con fecha de aplicación más reciente', () async {
+        'con múltiples aplicaciones históricas del MISMO producto, solo '
+        'expone la próxima del registro con fecha de aplicación más '
+        'reciente', () async {
       final dbHelper = DatabaseHelper();
       final pet = await _insertPet(dbHelper, 'Firulais');
 
-      // Registro viejo: su "próxima" ya quedó en el pasado (vencida).
+      // Registro viejo: ya fue superado por una aplicación más nueva del
+      // mismo producto, su "próxima" quedó obsoleta.
       await dbHelper.insertDeworming(Deworming(
-        id: 'deworming-antiguo',
+        id: 'deworming-viejo',
         petId: pet.id,
-        product: 'Antiguo',
+        product: 'Drontal',
         date: DateTime.now().subtract(const Duration(days: 60)),
         nextDate: DateTime.now().subtract(const Duration(days: 30)),
       ));
-      // Registro más reciente (fecha de aplicación más nueva): su
-      // "próxima" es la que debería sobrevivir, aunque sea a futuro.
+      // Registro más reciente (fecha de aplicación más nueva) del mismo
+      // producto: su "próxima" es la que debería sobrevivir.
       await dbHelper.insertDeworming(Deworming(
-        id: 'deworming-reciente',
+        id: 'deworming-nuevo',
         petId: pet.id,
-        product: 'Reciente',
+        product: 'Drontal',
         date: DateTime.now().subtract(const Duration(days: 10)),
         nextDate: DateTime.now().add(const Duration(days: 20)),
       ));
@@ -182,7 +184,46 @@ void main() {
       final nextDewormingEvents =
           events.where((e) => e.type == 'next_deworming').toList();
       expect(nextDewormingEvents, hasLength(1));
-      expect(nextDewormingEvents.first.title, 'Próxima desparasitación: Reciente');
+      expect(nextDewormingEvents.first.title, 'Próxima desparasitación: Drontal');
+    });
+
+    test(
+        'con vacunas de nombres DISTINTOS, cada una expone su propia '
+        'próxima dosis en vez de que la más recientemente aplicada tape a '
+        'las demás', () async {
+      final dbHelper = DatabaseHelper();
+      final pet = await _insertPet(dbHelper, 'Firulais');
+
+      // Rabia: aplicada hace tiempo, pero su próxima dosis es la más
+      // cercana (ej. este mes). Debe seguir siendo visible aunque exista
+      // una vacuna distinta aplicada más recientemente.
+      await dbHelper.insertVaccination(Vaccination(
+        petId: pet.id,
+        vaccineName: 'Rabia',
+        date: DateTime.now().subtract(const Duration(days: 300)),
+        nextDueDate: DateTime.now().add(const Duration(days: 10)),
+      ));
+      // Polivalente: aplicada más recientemente, pero su próxima dosis
+      // está mucho más lejos en el tiempo.
+      await dbHelper.insertVaccination(Vaccination(
+        petId: pet.id,
+        vaccineName: 'Polivalente',
+        date: DateTime.now().subtract(const Duration(days: 5)),
+        nextDueDate: DateTime.now().add(const Duration(days: 365)),
+      ));
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final events = await container.read(todayDashboardProvider.future);
+
+      final nextVaccinationEvents =
+          events.where((e) => e.type == 'next_vaccination').toList();
+      expect(nextVaccinationEvents, hasLength(2));
+      expect(
+        nextVaccinationEvents.map((e) => e.title).toSet(),
+        {'Próxima Dosis: Rabia', 'Próxima Dosis: Polivalente'},
+      );
     });
   });
 }

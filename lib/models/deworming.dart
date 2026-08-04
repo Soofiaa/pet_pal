@@ -81,6 +81,7 @@ class Deworming {
         'type': 'deworming',
         'title': 'Desparasitación$typeSuffix: ${deworming.product}',
         'date': deworming.date,
+        'name': deworming.product,
       });
       if (deworming.nextDate != null) {
         events.add({
@@ -89,6 +90,7 @@ class Deworming {
           'type': 'next_deworming',
           'title': 'Próxima desparasitación$typeSuffix: ${deworming.product}',
           'date': deworming.nextDate!,
+          'name': deworming.product,
         });
       }
     }

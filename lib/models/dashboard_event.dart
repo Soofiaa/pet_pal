@@ -57,10 +57,16 @@ class DashboardEvent {
   /// `Deworming`/`Vaccination.getEventsFromList()` generan un evento
   /// 'next_X' por cada registro histórico que tenga fecha secundaria, no
   /// solo por el más reciente (correcto para el calendario, que quiere ver
-  /// todo el historial). Acá se deduplica a UN solo 'next_deworming' y UN
-  /// solo 'next_vaccination' por mascota: el correspondiente al registro
-  /// con la fecha de aplicación ('date') más reciente. El resto se
-  /// descarta por superado.
+  /// todo el historial). Acá se deduplica a UN 'next_deworming' y UN
+  /// 'next_vaccination' POR NOMBRE de producto/vacuna: el correspondiente
+  /// al registro con la fecha de aplicación ('date') más reciente de ESE
+  /// nombre. El resto (aplicaciones viejas ya superadas por una más nueva
+  /// del mismo producto) se descarta.
+  ///
+  /// Importante: la dedup es por nombre, no un único ganador para toda la
+  /// mascota — una mascota puede tener varias vacunas/productos distintos
+  /// en paralelo (ej. rabia vencida en agosto y polivalente vencida el año
+  /// que viene), y cada uno necesita su propio "próxima dosis" visible.
   static List<DashboardEvent> fromEventMaps(
     List<Map<String, dynamic>> rawEvents,
     Pet pet, {
@@ -68,15 +74,15 @@ class DashboardEvent {
   }) {
     final events = <DashboardEvent>[];
 
-    final dewormingWinnerId =
-        _idOfMostRecentApplication(rawEvents, 'deworming');
-    final vaccinationWinnerId =
-        _idOfMostRecentApplication(rawEvents, 'vaccination');
+    final dewormingWinnerIds =
+        _idsOfMostRecentApplicationPerName(rawEvents, 'deworming');
+    final vaccinationWinnerIds =
+        _idsOfMostRecentApplicationPerName(rawEvents, 'vaccination');
     // 'next_vaccination' usa '${vaccination.id}_next' as id (ver
     // Vaccination.getEventsFromList), a diferencia de 'next_deworming' que
     // reutiliza el mismo id que su registro de aplicación.
-    final nextVaccinationWinnerId =
-        vaccinationWinnerId == null ? null : '${vaccinationWinnerId}_next';
+    final nextVaccinationWinnerIds =
+        vaccinationWinnerIds.map((id) => '${id}_next').toSet();
 
     for (final raw in rawEvents) {
       final type = raw['type'] as String?;
@@ -86,10 +92,11 @@ class DashboardEvent {
       if (type == 'appointment' && raw['isCompleted'] == true) {
         continue;
       }
-      if (type == 'next_deworming' && raw['id'] != dewormingWinnerId) {
+      if (type == 'next_deworming' && !dewormingWinnerIds.contains(raw['id'])) {
         continue;
       }
-      if (type == 'next_vaccination' && raw['id'] != nextVaccinationWinnerId) {
+      if (type == 'next_vaccination' &&
+          !nextVaccinationWinnerIds.contains(raw['id'])) {
         continue;
       }
 
@@ -123,23 +130,27 @@ class DashboardEvent {
     return events;
   }
 
-  /// Id del registro de tipo [applicationType] ('deworming' o
-  /// 'vaccination') con la fecha de aplicación más reciente, o `null` si no
-  /// hay ninguno.
-  static dynamic _idOfMostRecentApplication(
+  /// Para cada nombre distinto de producto/vacuna entre los registros de
+  /// tipo [applicationType] ('deworming' o 'vaccination'), el id del
+  /// registro con la fecha de aplicación más reciente. Agrupar por nombre
+  /// es lo que permite que dos vacunas distintas (ej. "Rabia" y
+  /// "Polivalente") tengan cada una su propia "próxima dosis" vigente, en
+  /// vez de que la más recientemente aplicada tape a las demás.
+  static Set<dynamic> _idsOfMostRecentApplicationPerName(
     List<Map<String, dynamic>> rawEvents,
     String applicationType,
   ) {
-    Map<String, dynamic>? latest;
+    final latestByName = <String, Map<String, dynamic>>{};
     for (final raw in rawEvents) {
       if (raw['type'] != applicationType) continue;
       final date = raw['date'];
       if (date is! DateTime) continue;
-      final latestDate = latest?['date'] as DateTime?;
-      if (latestDate == null || date.isAfter(latestDate)) {
-        latest = raw;
+      final name = raw['name'] as String? ?? '';
+      final currentLatestDate = latestByName[name]?['date'] as DateTime?;
+      if (currentLatestDate == null || date.isAfter(currentLatestDate)) {
+        latestByName[name] = raw;
       }
     }
-    return latest?['id'];
+    return latestByName.values.map((raw) => raw['id']).toSet();
   }
 }

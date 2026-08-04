@@ -83,6 +83,7 @@ class Vaccination {
         'date': vaccination.date,
         'title': 'Vacunación: ${vaccination.vaccineName}',
         'type': 'vaccination',
+        'name': vaccination.vaccineName,
       });
 
       if (vaccination.nextDueDate != null) {
@@ -92,6 +93,7 @@ class Vaccination {
           'date': vaccination.nextDueDate,
           'title': 'Próxima Dosis: ${vaccination.vaccineName}',
           'type': 'next_vaccination',
+          'name': vaccination.vaccineName,
         });
       }
     }
