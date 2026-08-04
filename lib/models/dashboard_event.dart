@@ -57,16 +57,21 @@ class DashboardEvent {
   /// `Deworming`/`Vaccination.getEventsFromList()` generan un evento
   /// 'next_X' por cada registro histórico que tenga fecha secundaria, no
   /// solo por el más reciente (correcto para el calendario, que quiere ver
-  /// todo el historial). Acá se deduplica a UN 'next_deworming' y UN
-  /// 'next_vaccination' POR NOMBRE de producto/vacuna: el correspondiente
-  /// al registro con la fecha de aplicación ('date') más reciente de ESE
-  /// nombre. El resto (aplicaciones viejas ya superadas por una más nueva
-  /// del mismo producto) se descarta.
+  /// todo el historial). Acá se aplican dos reducciones antes de llegar al
+  /// panel "Hoy":
   ///
-  /// Importante: la dedup es por nombre, no un único ganador para toda la
-  /// mascota — una mascota puede tener varias vacunas/productos distintos
-  /// en paralelo (ej. rabia vencida en agosto y polivalente vencida el año
-  /// que viene), y cada uno necesita su propio "próxima dosis" visible.
+  /// 1. Por NOMBRE de producto/vacuna, nos quedamos con el registro cuya
+  ///    fecha de aplicación ('date') es la más reciente de ESE nombre — el
+  ///    resto son aplicaciones viejas del MISMO producto ya superadas por
+  ///    una más nueva.
+  /// 2. Por TIPO de evento (appointment / next_vaccination /
+  ///    next_deworming / medication_end), nos quedamos con uno solo por
+  ///    mascota: el de fecha más próxima a futuro (o la menos vencida, si
+  ///    todas las de ese tipo ya pasaron). El panel "Hoy" es un resumen de
+  ///    qué es lo más urgente de cada tipo, no un timeline completo — si
+  ///    hay varias citas o varias vacunas pendientes, solo se ve la más
+  ///    próxima; a medida que se resuelve, la siguiente pasa a ocupar su
+  ///    lugar.
   static List<DashboardEvent> fromEventMaps(
     List<Map<String, dynamic>> rawEvents,
     Pet pet, {
@@ -127,7 +132,31 @@ class DashboardEvent {
       ));
     }
 
-    return events;
+    return _keepSoonestPerType(events);
+  }
+
+  /// Se queda con un único evento por tipo: el de fecha más próxima a
+  /// futuro (hoy cuenta como futuro) o, si todos los de ese tipo ya están
+  /// vencidos, el menos vencido (el que pasó más recientemente) — así una
+  /// tarea atrasada sigue siendo visible en vez de desaparecer del panel.
+  static List<DashboardEvent> _keepSoonestPerType(
+    List<DashboardEvent> events,
+  ) {
+    final winnerByType = <String, DashboardEvent>{};
+    for (final event in events) {
+      final current = winnerByType[event.type];
+      if (current == null || _isSoonerForPanel(event, current)) {
+        winnerByType[event.type] = event;
+      }
+    }
+    return winnerByType.values.toList();
+  }
+
+  static bool _isSoonerForPanel(DashboardEvent a, DashboardEvent b) {
+    final aOverdue = a.urgency == DashboardUrgency.overdue;
+    final bOverdue = b.urgency == DashboardUrgency.overdue;
+    if (aOverdue != bOverdue) return !aOverdue;
+    return aOverdue ? a.date.isAfter(b.date) : a.date.isBefore(b.date);
   }
 
   /// Para cada nombre distinto de producto/vacuna entre los registros de
