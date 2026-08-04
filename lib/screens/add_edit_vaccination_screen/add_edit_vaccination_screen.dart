@@ -301,10 +301,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
   }
 
   void _saveVaccination() async {
-    if (_isSaving) {
-      debugPrint('[VACC_DEBUG] _saveVaccination ignorado: ya hay un guardado en curso.');
-      return;
-    }
+    if (_isSaving) return;
 
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
@@ -312,23 +309,18 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
       final String id = _isEditing ? widget.vaccination!.id : const Uuid().v4();
 
       try {
-        debugPrint('[VACC_DEBUG] Antes de guardar foto de adhesivo. path=$_stickerPhotoPath');
         final String? finalStickerPhotoPath =
             await ImageStorageService.saveImageIfNeeded(
           _stickerPhotoPath,
           'vaccinations',
         );
-        debugPrint('[VACC_DEBUG] Después de guardar foto de adhesivo. finalPath=$finalStickerPhotoPath');
 
-        debugPrint('[VACC_DEBUG] Antes de guardar foto extra. path=$_extraPhotoPath');
         final String? finalExtraPhotoPath =
             await ImageStorageService.saveImageIfNeeded(
           _extraPhotoPath,
           'vaccinations',
         );
-        debugPrint('[VACC_DEBUG] Después de guardar foto extra. finalPath=$finalExtraPhotoPath');
 
-        debugPrint('[VACC_DEBUG] Antes de construir objeto Vaccination. id=$id');
         final newVaccination = Vaccination(
           id: id,
           petId: widget.petId,
@@ -339,17 +331,14 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           extraPhotoPath: finalExtraPhotoPath,
           reminderDaysAhead: _reminderDaysAhead,
         );
-        debugPrint('[VACC_DEBUG] Después de construir objeto Vaccination. id=${newVaccination.id} petId=${newVaccination.petId} vaccineName=${newVaccination.vaccineName}');
 
         final notifier = ref.read(vaccinationsProvider(widget.petId).notifier);
 
-        debugPrint('[VACC_DEBUG] Antes de llamar al notifier (${_isEditing ? "updateVaccination" : "addVaccination"}).');
         if (_isEditing) {
           await notifier.updateVaccination(widget.vaccination!, newVaccination);
         } else {
           await notifier.addVaccination(newVaccination);
         }
-        debugPrint('[VACC_DEBUG] Después de llamar al notifier.');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/models/vaccination_product.dart';
@@ -78,17 +77,9 @@ class VaccinationsNotifier
   /// antes de llamar acá, ya que picking/cropping son inherentemente UI-,
   /// así que no hay nada que limpiar en un alta.
   Future<void> addVaccination(Vaccination vaccination) async {
-    debugPrint('[VACC_DEBUG] addVaccination: antes de scheduleVaccinationReminder. id=${vaccination.id}');
     await ReminderScheduler.scheduleVaccinationReminder(vaccination);
-    debugPrint('[VACC_DEBUG] addVaccination: después de scheduleVaccinationReminder.');
-
-    debugPrint('[VACC_DEBUG] addVaccination: antes de insertVaccination.');
     await ref.read(vaccinationRepositoryProvider).insertVaccination(vaccination);
-    debugPrint('[VACC_DEBUG] addVaccination: después de insertVaccination.');
-
-    debugPrint('[VACC_DEBUG] addVaccination: antes de refresh().');
     await refresh();
-    debugPrint('[VACC_DEBUG] addVaccination: después de refresh().');
   }
 
   /// Actualiza una vacunación existente: cancela el recordatorio anterior
