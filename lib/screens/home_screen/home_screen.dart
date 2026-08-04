@@ -232,7 +232,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.pets, size: 50),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Text(
                       'PetPal Manager',
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),

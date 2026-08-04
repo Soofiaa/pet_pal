@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
-import 'package:pet_pal/models/medication_intake.dart';
 import 'package:pet_pal/providers/database_providers.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
 

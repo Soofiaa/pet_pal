@@ -17,8 +17,6 @@ class _FoodCalculatorScreenState extends State<FoodCalculatorScreen> {
   final _kcalController = TextEditingController(text: '3500'); // Valor promedio
   int _portions = 2;
   double? _gramsPerPortion;
-  bool _isAdvancedMode = false;
-  double _weightForScientific = 0;
   String _selectedActivityFactor = '1.6'; // Adulto esterilizado
 
   final Map<String, String> _factors = {
@@ -92,12 +90,6 @@ class _FoodCalculatorScreenState extends State<FoodCalculatorScreen> {
     }
   }
 
-  void _calculateScientific() {
-    final weight = double.tryParse(widget.pet.id.isNotEmpty ? "0" : ""); // Placeholder
-    // Usaremos el peso del formulario si se añade, o el último registrado. 
-    // Por simplicidad, pidamos el peso en el formulario científico.
-  }
-
   void _showScientificDialog() {
     final weightController = TextEditingController();
     showDialog(
@@ -118,7 +110,7 @@ class _FoodCalculatorScreenState extends State<FoodCalculatorScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedActivityFactor,
+                  initialValue: _selectedActivityFactor,
                   decoration: const InputDecoration(labelText: 'Nivel de actividad / Estado', border: OutlineInputBorder()),
                   items: _factors.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 12)))).toList(),
                   onChanged: (val) => setDialogState(() => _selectedActivityFactor = val!),

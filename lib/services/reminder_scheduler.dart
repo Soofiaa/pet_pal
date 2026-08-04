@@ -262,13 +262,19 @@ class ReminderScheduler {
     final dbHelper = DatabaseHelper();
     
     final vaccinations = await dbHelper.getVaccinationsForPet(petId);
-    for (final v in vaccinations) await cancelVaccinationReminder(v);
+    for (final v in vaccinations) {
+      await cancelVaccinationReminder(v);
+    }
 
     final dewormings = await dbHelper.getDewormingsForPet(petId);
-    for (final d in dewormings) await cancelDewormingReminder(d);
+    for (final d in dewormings) {
+      await cancelDewormingReminder(d);
+    }
 
     final medications = await dbHelper.getMedicationsForPet(petId);
-    for (final m in medications) await cancelMedicationReminders(m);
+    for (final m in medications) {
+      await cancelMedicationReminders(m);
+    }
 
     final appointments = await dbHelper.getAppointmentsForPet(petId);
     for (final a in appointments) {
