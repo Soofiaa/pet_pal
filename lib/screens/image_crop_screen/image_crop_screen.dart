@@ -21,9 +21,6 @@ class ImageCropScreen extends StatelessWidget {
         onImageEditingComplete: (Uint8List bytes) async {
           Navigator.of(context).pop(bytes);
         },
-        onCloseEditor: (EditorMode mode) {
-          Navigator.of(context).pop();
-        },
       ),
     );
   }
