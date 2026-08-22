@@ -25,6 +25,7 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
   late String _categoria;
   DateTime _fecha = DateTime.now();
   String? _filePath;
+  bool _isSaving = false;
 
   bool get _isEditing => widget.document != null;
 
@@ -75,6 +76,8 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
   }
 
   Future<void> _saveDocument() async {
+    if (_isSaving) return;
+
     if (!_formKey.currentState!.validate()) return;
 
     if (_filePath == null || _filePath!.trim().isEmpty) {
@@ -83,6 +86,8 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
       );
       return;
     }
+
+    setState(() => _isSaving = true);
 
     try {
       final String? savedPath =
@@ -123,6 +128,10 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al guardar el documento: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -199,8 +208,14 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
               ),
               const SizedBox(height: 32.0),
               ElevatedButton.icon(
-                onPressed: _saveDocument,
-                icon: const Icon(Icons.save),
+                onPressed: _isSaving ? null : _saveDocument,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
                 label: Text(_isEditing ? 'Actualizar' : 'Guardar'),
               ),
             ],

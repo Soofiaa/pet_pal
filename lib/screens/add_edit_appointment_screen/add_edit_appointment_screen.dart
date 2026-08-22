@@ -22,6 +22,7 @@ class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
   final _locationController = TextEditingController();
   final _typeController = TextEditingController();
   late DateTime _selectedDateTime;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -122,7 +123,11 @@ class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
   }
 
   Future<void> _saveAppointment() async {
+    if (_isSaving) return;
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       final dbHelper = DatabaseHelper();
       final String id = widget.appointment?.id ?? const Uuid().v4();
       final bool isCompleted = widget.appointment?.isCompleted ?? false;
@@ -183,6 +188,10 @@ class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al guardar la cita: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
         }
       }
     }
@@ -284,8 +293,14 @@ class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
               ),
               const SizedBox(height: 24.0),
               ElevatedButton.icon(
-                onPressed: _saveAppointment,
-                icon: const Icon(Icons.save),
+                onPressed: _isSaving ? null : _saveAppointment,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
                 label: Text(widget.appointment == null ? 'Guardar Cita' : 'Actualizar Cita'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12.0),

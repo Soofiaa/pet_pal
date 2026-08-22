@@ -24,6 +24,7 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
   final _contentController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   List<String> _photoPaths = [];
+  bool _isSaving = false;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -121,7 +122,11 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
   }
 
   void _saveNote() async {
+    if (_isSaving) return;
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       final dbHelper = DatabaseHelper();
       final String id = widget.note?.id ?? const Uuid().v4();
 
@@ -162,6 +167,10 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al guardar la nota: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
         }
       }
     }
@@ -285,8 +294,14 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _saveNote,
-                  icon: const Icon(Icons.save),
+                  onPressed: _isSaving ? null : _saveNote,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
                   label: Text(_isEditing ? 'Actualizar Nota' : 'Guardar Nota'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 15),

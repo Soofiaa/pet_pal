@@ -18,6 +18,7 @@ class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordS
   final _formKey = GlobalKey<FormState>();
   final _weightController = TextEditingController();
   DateTime _date = DateTime.now();
+  bool _isSaving = false;
 
   bool get _isEditing => widget.weightRecord != null;
 
@@ -51,7 +52,11 @@ class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordS
   }
 
   void _saveWeightRecord() async {
+    if (_isSaving) return;
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       final repository = ref.read(weightRecordRepositoryProvider);
       final int? id = _isEditing ? widget.weightRecord!.id : null; // <-- CORREGIDO: Ahora el ID es opcional (nullable)
 
@@ -78,6 +83,10 @@ class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordS
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al guardar el registro de peso: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
         }
       }
     }
@@ -122,8 +131,14 @@ class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordS
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _saveWeightRecord,
-                icon: const Icon(Icons.save),
+                onPressed: _isSaving ? null : _saveWeightRecord,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
                 label: Text(_isEditing ? 'Actualizar Peso' : 'Guardar Peso'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),

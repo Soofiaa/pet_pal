@@ -30,6 +30,7 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
 
   int _timesPerDay = 1;
   List<String> _reminderTimes = ['09:00'];
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -110,7 +111,11 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
   }
 
   Future<void> _saveMedication() async {
+    if (_isSaving) return;
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       _formKey.currentState!.save();
 
       // Si la fecha de fin es anterior a la de inicio, ajusta el orden.
@@ -162,6 +167,10 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al guardar la medicación: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
         }
       }
     }
@@ -265,8 +274,14 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
               }),
               const SizedBox(height: 32.0),
               ElevatedButton.icon(
-                onPressed: _saveMedication,
-                icon: const Icon(Icons.save),
+                onPressed: _isSaving ? null : _saveMedication,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
                 label: Text(widget.medication == null ? 'Guardar' : 'Actualizar'),
               ),
             ],

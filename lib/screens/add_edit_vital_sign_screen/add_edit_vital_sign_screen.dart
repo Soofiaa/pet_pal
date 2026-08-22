@@ -29,6 +29,7 @@ class _AddEditVitalSignScreenState
   final _formKey = GlobalKey<FormState>();
   final _valueController = TextEditingController();
   DateTime _date = DateTime.now();
+  bool _isSaving = false;
 
   bool get _isEditing => widget.vitalSignRecord != null;
 
@@ -64,7 +65,11 @@ class _AddEditVitalSignScreenState
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+
     if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
 
     final notifier =
         ref.read(vitalSignRecordsProvider(widget.petId).notifier);
@@ -92,6 +97,10 @@ class _AddEditVitalSignScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al guardar el registro de ${_config.label.toLowerCase()}: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -136,8 +145,14 @@ class _AddEditVitalSignScreenState
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.save),
+                onPressed: _isSaving ? null : _save,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
                 label: Text(_isEditing ? 'Actualizar' : 'Guardar'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),

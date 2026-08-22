@@ -35,6 +35,7 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
   String? _selectedType;
   int? _selectedFrequency;
   int _reminderDaysAhead = 0;
+  bool _isSaving = false;
 
   final List<Map<String, dynamic>> _frequencyOptions = [
     {'label': 'Manual', 'value': null},
@@ -109,7 +110,11 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
   }
 
   Future<void> _saveDeworming() async {
+    if (_isSaving) return;
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       final newDeworming = Deworming(
         id: _currentDeworming?.id ?? const Uuid().v4(),
         petId: widget.pet.id,
@@ -151,6 +156,10 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al guardar la desparasitación: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
         }
       }
     }
@@ -359,8 +368,14 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _saveDeworming,
-                icon: const Icon(Icons.save),
+                onPressed: _isSaving ? null : _saveDeworming,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
                 label: Text(widget.deworming == null ? 'Guardar' : 'Actualizar'),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),

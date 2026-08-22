@@ -21,6 +21,7 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
   final _formKey = GlobalKey<FormState>();
   final _allergyController = TextEditingController();
   late DateTime _selectedDate;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -56,7 +57,11 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
   }
 
   Future<void> _saveAllergy() async {
+    if (_isSaving) return;
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       final dbHelper = DatabaseHelper();
       final newAllergy = FoodAllergy(
         id: widget.foodAllergy?.id, // Conserva el ID si es una edición
@@ -93,6 +98,10 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al guardar la alergia alimentaria: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
         }
       }
     }
@@ -140,8 +149,14 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
               ),
               const SizedBox(height: 24.0),
               ElevatedButton.icon(
-                onPressed: _saveAllergy,
-                icon: const Icon(Icons.save),
+                onPressed: _isSaving ? null : _saveAllergy,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
                 label: Text(widget.foodAllergy == null ? 'Guardar Alergia' : 'Actualizar Alergia'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12.0),

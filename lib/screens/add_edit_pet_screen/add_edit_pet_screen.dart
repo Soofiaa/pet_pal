@@ -32,6 +32,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
 
   DateTime _selectedDateOfBirth = DateTime.now();
   String? _imagePath;
+  bool _isSaving = false;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -187,7 +188,11 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
   }
 
   void _savePet() async {
+    if (_isSaving) return;
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       final dbHelper = DatabaseHelper();
       final String id = widget.pet?.id ?? const Uuid().v4();
 
@@ -234,6 +239,10 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error al guardar la mascota: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
         }
       }
     }
@@ -372,8 +381,14 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _savePet,
-                  icon: const Icon(Icons.save),
+                  onPressed: _isSaving ? null : _savePet,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
                   label: Text(_isEditing ? 'Actualizar Mascota' : 'Guardar Mascota'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 15),
