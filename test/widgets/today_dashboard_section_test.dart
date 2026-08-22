@@ -1,15 +1,23 @@
 // Primer widget test del repo (ver BACKLOG.md ítem 2 / Fase 5 del plan de
 // implementación): pumpea TodayDashboardSection con todayDashboardProvider
 // sobreescrito, sin tocar SQLite real ni providers intermedios.
+//
+// TodayDashboardSection también observa petsProvider (para showPetName), así
+// que también se sobreescribe petRepositoryProvider con un fake en memoria
+// -mismo patrón que pets_providers_test.dart-, para que PetsNotifier
+// resuelva sin tocar sqflite real.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/providers/dashboard_providers.dart';
+import 'package:pet_pal/providers/pets_providers.dart';
+import 'package:pet_pal/repositories/pet_repository.dart';
 import 'package:pet_pal/screens/appointments_screen/appointments_screen.dart';
 import 'package:pet_pal/screens/deworming_screen/deworming_screen.dart';
 import 'package:pet_pal/screens/medications_screen/medications_screen.dart';
@@ -17,6 +25,37 @@ import 'package:pet_pal/screens/vaccinations_screen/vaccinations_screen.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
 import '../helpers/pump_app.dart';
+
+class _FakePetRepository implements PetRepository {
+  _FakePetRepository(this.pets);
+
+  final List<Pet> pets;
+
+  @override
+  Future<List<Pet>> getPets() async => List.of(pets);
+
+  @override
+  Future<void> insertPet(Pet pet) async => pets.add(pet);
+
+  @override
+  Future<void> updatePet(Pet pet) async {
+    final index = pets.indexWhere((p) => p.id == pet.id);
+    if (index != -1) pets[index] = pet;
+  }
+
+  @override
+  Future<void> deletePet(String id) async {
+    pets.removeWhere((p) => p.id == id);
+  }
+}
+
+/// Un único pet fake: mantiene showPetName en false (como antes de que
+/// TodayDashboardSection empezara a depender de petsProvider), así los
+/// asserts de texto existentes no necesitan saber sobre encabezados de
+/// mascota.
+List<Override> _fakePetsOverride() => [
+      petRepositoryProvider.overrideWithValue(_FakePetRepository([_pet()])),
+    ];
 
 DashboardEvent _event({
   required String title,
@@ -42,6 +81,16 @@ Pet _pet() => Pet(
       color: 'Marrón',
     );
 
+/// Replica la transformación de título que DashboardEventTile aplica a los
+/// eventos de tipo 'appointment' (el default de _event()) cuando
+/// showPetName es false -mismo caso de estos tests, un único pet fake-:
+/// le quita el prefijo "Cita: " si ya lo trae y le agrega la fecha.
+/// Ver lib/widgets/today_dashboard_section.dart, DashboardEventTile.build.
+String _appointmentDisplayTitle(String title, DateTime date) {
+  final pureTitle = title.startsWith('Cita: ') ? title.substring(6) : title;
+  return 'Cita: $pureTitle - ${DateFormat('dd/MM/yyyy').format(date)}';
+}
+
 void main() {
   testWidgets('muestra un indicador de carga mientras el provider resuelve', (tester) async {
     await pumpApp(
@@ -49,6 +98,7 @@ void main() {
       const TodayDashboardSection(),
       overrides: [
         todayDashboardProvider.overrideWith((ref) => Completer<List<DashboardEvent>>().future),
+        ..._fakePetsOverride(),
       ],
     );
 
@@ -61,6 +111,7 @@ void main() {
       const TodayDashboardSection(),
       overrides: [
         todayDashboardProvider.overrideWith((ref) async => <DashboardEvent>[]),
+        ..._fakePetsOverride(),
       ],
     );
     await tester.pumpAndSettle();
@@ -69,38 +120,46 @@ void main() {
   });
 
   testWidgets('muestra el título "Hoy" y los eventos cuando hay datos', (tester) async {
+    final vencidoDate = DateTime.now().subtract(const Duration(days: 2));
+    final futuroDate = DateTime.now().add(const Duration(days: 10));
+
     await pumpApp(
       tester,
       const TodayDashboardSection(),
       overrides: [
         todayDashboardProvider.overrideWith((ref) async => [
-              _event(title: 'Cita: Control vencido', date: DateTime.now().subtract(const Duration(days: 2))),
-              _event(title: 'Cita: Control futuro', date: DateTime.now().add(const Duration(days: 10))),
+              _event(title: 'Cita: Control vencido', date: vencidoDate),
+              _event(title: 'Cita: Control futuro', date: futuroDate),
             ]),
+        ..._fakePetsOverride(),
       ],
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Hoy'), findsOneWidget);
-    expect(find.text('Cita: Control vencido'), findsOneWidget);
-    expect(find.text('Cita: Control futuro'), findsOneWidget);
+    expect(find.text(_appointmentDisplayTitle('Cita: Control vencido', vencidoDate)), findsOneWidget);
+    expect(find.text(_appointmentDisplayTitle('Cita: Control futuro', futuroDate)), findsOneWidget);
   });
 
   testWidgets('el evento vencido se renderiza antes que el futuro', (tester) async {
+    final vencidoDate = DateTime.now().subtract(const Duration(days: 2));
+    final futuroDate = DateTime.now().add(const Duration(days: 10));
+
     await pumpApp(
       tester,
       const TodayDashboardSection(),
       overrides: [
         todayDashboardProvider.overrideWith((ref) async => [
-              _event(title: 'Vencido', date: DateTime.now().subtract(const Duration(days: 2))),
-              _event(title: 'Futuro', date: DateTime.now().add(const Duration(days: 10))),
+              _event(title: 'Vencido', date: vencidoDate),
+              _event(title: 'Futuro', date: futuroDate),
             ]),
+        ..._fakePetsOverride(),
       ],
     );
     await tester.pumpAndSettle();
 
-    final vencidoOffset = tester.getTopLeft(find.text('Vencido')).dy;
-    final futuroOffset = tester.getTopLeft(find.text('Futuro')).dy;
+    final vencidoOffset = tester.getTopLeft(find.text(_appointmentDisplayTitle('Vencido', vencidoDate))).dy;
+    final futuroOffset = tester.getTopLeft(find.text(_appointmentDisplayTitle('Futuro', futuroDate))).dy;
     expect(vencidoOffset, lessThan(futuroOffset));
   });
 
@@ -110,6 +169,7 @@ void main() {
       const TodayDashboardSection(),
       overrides: [
         todayDashboardProvider.overrideWith((ref) async => throw Exception('fallo de red')),
+        ..._fakePetsOverride(),
       ],
     );
     await tester.pumpAndSettle();
@@ -128,21 +188,24 @@ void main() {
       const TodayDashboardSection(),
       overrides: [
         todayDashboardProvider.overrideWith((ref) async => events),
+        ..._fakePetsOverride(),
       ],
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('y 2 más...'), findsOneWidget);
+    // El texto del botón cambió de "y N más..." a "Ver todo (N más)" en
+    // c3d050b, sin actualizar este test en su momento.
+    expect(find.text('Ver todo (2 más)'), findsOneWidget);
     // El sexto y séptimo evento están recortados en la sección resumida.
     expect(find.text('Evento 5'), findsNothing);
     expect(find.text('Evento 6'), findsNothing);
 
-    await tester.tap(find.text('y 2 más...'));
+    await tester.tap(find.text('Ver todo (2 más)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Eventos de hoy'), findsOneWidget);
     for (final event in events) {
-      expect(find.text(event.title), findsOneWidget);
+      expect(find.text(_appointmentDisplayTitle(event.title, event.date)), findsOneWidget);
     }
   });
 
