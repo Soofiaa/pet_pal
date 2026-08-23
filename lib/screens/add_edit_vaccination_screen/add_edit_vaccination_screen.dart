@@ -358,6 +358,10 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           setState(() => _isSaving = false);
         }
       }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
+      );
     }
   }
 
@@ -508,17 +512,12 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
               ),
               const SizedBox(height: 16),
 
-              // Sección de foto del adhesivo con validación
-              Text('Foto del adhesivo:', style: Theme.of(context).textTheme.titleMedium),
+              // Sección de foto del adhesivo (opcional)
+              Text('Foto del adhesivo (opcional):', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
 
               FormField<String>(
-                validator: (value) {
-                  if (_stickerPhotoPath == null || _stickerPhotoPath!.isEmpty) {
-                    return 'Debes subir una foto del adhesivo de la vacuna.';
-                  }
-                  return null;
-                },
+                validator: (value) => null,
                 builder: (FormFieldState<String> state) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

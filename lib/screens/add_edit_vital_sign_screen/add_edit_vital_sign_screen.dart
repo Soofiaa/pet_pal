@@ -67,7 +67,12 @@ class _AddEditVitalSignScreenState
   Future<void> _save() async {
     if (_isSaving) return;
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
 

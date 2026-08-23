@@ -89,6 +89,10 @@ class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordS
           setState(() => _isSaving = false);
         }
       }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
+      );
     }
   }
 

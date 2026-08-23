@@ -78,7 +78,12 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
   Future<void> _saveDocument() async {
     if (_isSaving) return;
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
+      );
+      return;
+    }
 
     if (_filePath == null || _filePath!.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

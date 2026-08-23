@@ -173,6 +173,10 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
           setState(() => _isSaving = false);
         }
       }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
+      );
     }
   }
 
