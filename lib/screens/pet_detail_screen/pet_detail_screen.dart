@@ -23,6 +23,7 @@ import 'package:pet_pal/screens/food_calculator_screen/food_calculator_screen.da
 import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/services/csv_export_service.dart';
+import 'package:pet_pal/utils/entity_colors.dart';
 
 class PetDetailScreen extends StatefulWidget {
   final Pet pet;
@@ -126,7 +127,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Alergias',
         'icon': Icons.warning_amber,
-        'color': Colors.amber,
+        'color': entityColorFor('food_allergy'),
+        'group': 'Salud',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => FoodAllergyScreen(pet: _pet)));
         },
@@ -134,7 +136,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Citas',
         'icon': Icons.event,
-        'color': Colors.deepOrange,
+        'color': entityColorFor('appointment'),
+        'group': 'Otros',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => AppointmentsScreen(pet: _pet)));
         },
@@ -142,7 +145,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Documentos',
         'icon': Icons.folder_shared,
-        'color': Colors.indigo,
+        'color': entityColorFor('document'),
+        'group': 'Historial',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => DocumentsScreen(pet: _pet)));
         },
@@ -150,7 +154,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Desparasitaciones',
         'icon': Icons.medication,
-        'color': Colors.orange,
+        'color': entityColorFor('deworming'),
+        'group': 'Salud',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => DewormingScreen(pet: _pet)));
         },
@@ -158,7 +163,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Medicación',
         'icon': Icons.medication_liquid,
-        'color': Colors.blueGrey,
+        'color': entityColorFor('medication'),
+        'group': 'Salud',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => MedicationsScreen(pet: _pet)));
         },
@@ -166,7 +172,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Notas',
         'icon': Icons.note,
-        'color': Colors.teal,
+        'color': entityColorFor('note'),
+        'group': 'Historial',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => NotesScreen(pet: _pet)));
         },
@@ -174,7 +181,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Peso',
         'icon': Icons.monitor_weight,
-        'color': Colors.purple,
+        'color': entityColorFor('weight'),
+        'group': 'Historial',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => WeightRecordScreen(pet: _pet)));
         },
@@ -182,7 +190,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Vacunas',
         'icon': Icons.vaccines,
-        'color': Colors.green,
+        'color': entityColorFor('vaccination'),
+        'group': 'Salud',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => VaccinationsScreen(pet: _pet)));
         },
@@ -190,7 +199,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Signos Vitales',
         'icon': Icons.thermostat,
-        'color': Colors.orange,
+        'color': entityColorFor('vital_sign'),
+        'group': 'Salud',
         'onTap': () {
           Navigator.push(
             context,
@@ -203,7 +213,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       {
         'title': 'Calculadora Alimento',
         'icon': Icons.calculate,
-        'color': Colors.brown,
+        'color': entityColorFor('food_calculator'),
+        'group': 'Otros',
         'onTap': () {
           Navigator.push(
             context,
@@ -214,6 +225,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     ];
 
     features.sort((a, b) => (a['title'] as String).compareTo(b['title'] as String));
+
+    const List<String> featureGroupOrder = ['Salud', 'Historial', 'Otros'];
 
     const int crossAxisCount = 3;
     const double crossAxisSpacing = 10;
@@ -401,25 +414,39 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             ),
 
             const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: GridView.count(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: crossAxisSpacing,
-                mainAxisSpacing: mainAxisSpacing,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: features.map((feature) {
-                  return _buildFeatureCard(
-                    context,
-                    title: feature['title'],
-                    icon: feature['icon'],
-                    color: feature['color'],
-                    onTap: feature['onTap'],
-                  );
-                }).toList(),
-              ),
-            ),
+            for (final group in featureGroupOrder)
+              if (features.any((feature) => feature['group'] == group))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12.0, bottom: 8.0, left: 4.0),
+                        child: Text(
+                          group,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      GridView.count(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: crossAxisSpacing,
+                        mainAxisSpacing: mainAxisSpacing,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: features.where((feature) => feature['group'] == group).map((feature) {
+                          return _buildFeatureCard(
+                            context,
+                            title: feature['title'],
+                            icon: feature['icon'],
+                            color: feature['color'],
+                            onTap: feature['onTap'],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
             const SizedBox(height: 16.0),
           ],
         ),
