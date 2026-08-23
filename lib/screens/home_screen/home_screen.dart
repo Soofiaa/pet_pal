@@ -45,18 +45,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     if (confirm == true) {
-      // Los documentos guardan archivos en disco (PDFs/imágenes) que SQLite
-      // nunca borra por sí solo. Hay que leerlos y borrar sus archivos ANTES
-      // de eliminar la mascota: una vez que deletePet() corre, el cascade
-      // borra las filas de documents y ya no habría forma de saber qué
-      // archivos correspondían a esta mascota.
+      // Documentos y notas guardan archivos en disco (PDFs/imágenes/fotos)
+      // que SQLite nunca borra por sí solo. Hay que leerlos y borrar sus
+      // archivos ANTES de eliminar la mascota: una vez que deletePet()
+      // corre, el cascade borra esas filas y ya no habría forma de saber
+      // qué archivos correspondían a esta mascota.
       final documents = await DatabaseHelper().getDocumentsForPet(petId);
       for (final document in documents) {
         await ImageStorageService.deleteFileIfExist(document.filePath);
       }
 
-      await DatabaseHelper().deletePet(petId);
-      await ref.read(petsProvider.notifier).refresh();
+      final notes = await DatabaseHelper().getNotesForPet(petId);
+      for (final note in notes) {
+        await ImageStorageService.deleteFilesIfExist(note.photoPaths);
+      }
+
+      // petsProvider.notifier.deletePet (nunca DatabaseHelper().deletePet
+      // directo) para que PetRepository.deletePet cancele antes todos los
+      // recordatorios pendientes de la mascota.
+      await ref.read(petsProvider.notifier).deletePet(petId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$petName eliminada con éxito.')),

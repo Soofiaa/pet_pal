@@ -111,5 +111,24 @@ void main() {
       expect(result, hasLength(1));
       expect(result.first.id, 'pet-2');
     });
+
+    test('deletePet quita la mascota del estado tras refrescar', () async {
+      final fakePets = <Pet>[_makePet('pet-1', 'Firulais'), _makePet('pet-2', 'Michi')];
+
+      final container = ProviderContainer(
+        overrides: [
+          petRepositoryProvider.overrideWithValue(_FakePetRepository(fakePets)),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(petsProvider.future);
+
+      await container.read(petsProvider.notifier).deletePet('pet-1');
+
+      final result = container.read(petsProvider).value!;
+      expect(result, hasLength(1));
+      expect(result.first.id, 'pet-2');
+    });
   });
 }

@@ -27,4 +27,13 @@ class PetsNotifier extends AsyncNotifier<List<Pet>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => build());
   }
+
+  /// Elimina una mascota. Pasa siempre por PetRepository.deletePet (nunca
+  /// DatabaseHelper directo) para que se cancelen sus recordatorios
+  /// pendientes antes de borrar el registro — ver el comentario de
+  /// PetRepository.deletePet.
+  Future<void> deletePet(String id) async {
+    await ref.read(petRepositoryProvider).deletePet(id);
+    await refresh();
+  }
 }
