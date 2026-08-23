@@ -9,6 +9,7 @@ import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
 import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_screen.dart';
 import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/screens/deworming_products_screen/deworming_products_screen.dart';
+import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/utils/backup_password_dialog.dart';
@@ -260,6 +261,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const DewormingProductsScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.settings_backup_restore),
+              title: const Text('Notificaciones y Respaldo'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BackupSettingsScreen()),
                 );
               },
             ),
