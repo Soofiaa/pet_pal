@@ -218,10 +218,11 @@ class ReminderScheduler {
   }
 
   static Future<void> scheduleDewormingReminder(Deworming deworming) async {
-    if (deworming.id == null || deworming.nextDate == null) return;
+    final DateTime? effectiveNextDate = deworming.effectiveNextDate();
+    if (deworming.id == null || effectiveNextDate == null) return;
 
     final DateTime notifyAt = _atReminderHour(
-      deworming.nextDate!.subtract(Duration(days: deworming.reminderDaysAhead)),
+      effectiveNextDate.subtract(Duration(days: deworming.reminderDaysAhead)),
     );
 
     await NotificationService().scheduleNotificationOnce(
@@ -344,8 +345,12 @@ class ReminderScheduler {
       final List<Deworming> dewormings =
           await dbHelper.getDewormingsForPet(pet.id);
       for (final deworming in dewormings) {
-        if (deworming.nextDate == null) continue;
-        if (deworming.nextDate!.isBefore(now)) continue;
+        // effectiveNextDate ya avanza los registros recurrentes hasta la
+        // próxima ocurrencia futura; si no es recurrente, es nextDate tal
+        // cual (mismo comportamiento de siempre: se saltea si ya venció).
+        final effectiveNextDate = deworming.effectiveNextDate(now: now);
+        if (effectiveNextDate == null) continue;
+        if (effectiveNextDate.isBefore(now)) continue;
         await scheduleDewormingReminder(deworming);
       }
     }

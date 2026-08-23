@@ -7,6 +7,10 @@ class Deworming {
   final String? type; // 'interna', 'externa', 'ambas'
   final int? frequencyMonths;
   final int reminderDaysAhead;
+  /// Si es true, el recordatorio de este registro se auto-perpetúa cada
+  /// [frequencyMonths] sin necesitar un registro nuevo por ciclo (ver
+  /// [effectiveNextDate]). No aplica sin [frequencyMonths].
+  final bool isRecurring;
 
   Deworming({
     this.id,
@@ -17,6 +21,7 @@ class Deworming {
     this.type,
     this.frequencyMonths,
     this.reminderDaysAhead = 0,
+    this.isRecurring = false,
   });
 
   Deworming copyWith({
@@ -28,6 +33,7 @@ class Deworming {
     String? type,
     int? frequencyMonths,
     int? reminderDaysAhead,
+    bool? isRecurring,
   }) {
     return Deworming(
       id: id ?? this.id,
@@ -38,6 +44,7 @@ class Deworming {
       type: type ?? this.type,
       frequencyMonths: frequencyMonths ?? this.frequencyMonths,
       reminderDaysAhead: reminderDaysAhead ?? this.reminderDaysAhead,
+      isRecurring: isRecurring ?? this.isRecurring,
     );
   }
 
@@ -51,6 +58,7 @@ class Deworming {
       'type': type,
       'frequencyMonths': frequencyMonths,
       'reminderDaysAhead': reminderDaysAhead,
+      'isRecurring': isRecurring ? 1 : 0,
     };
   }
 
@@ -64,7 +72,32 @@ class Deworming {
       type: json['type'] as String?,
       frequencyMonths: json['frequencyMonths'] as int?,
       reminderDaysAhead: json['reminderDaysAhead'] as int? ?? 0,
+      isRecurring: json['isRecurring'] == 1,
     );
+  }
+
+  /// Fecha efectiva de "próxima desparasitación". Si [isRecurring] está
+  /// activo y hay [frequencyMonths] configurado, avanza [nextDate] en
+  /// múltiplos de esa frecuencia hasta que sea igual o posterior a [now]
+  /// (por defecto `DateTime.now()`) -así el recordatorio nunca se ve
+  /// "vencido para siempre" solo porque no se creó un registro nuevo en el
+  /// ciclo anterior-. Si no es recurrente, devuelve [nextDate] tal cual
+  /// (comportamiento sin cambios). Es la única función que calcula este
+  /// avance: la usan ReminderScheduler, getEventsFromList (dashboard y
+  /// calendario) y las pantallas de desparasitación, para no duplicar la
+  /// lógica ni divergir entre ellas. Puro: nunca escribe en la base de datos.
+  DateTime? effectiveNextDate({DateTime? now}) {
+    if (nextDate == null) return null;
+    if (!isRecurring || frequencyMonths == null || frequencyMonths! <= 0) {
+      return nextDate;
+    }
+
+    final DateTime reference = now ?? DateTime.now();
+    DateTime candidate = nextDate!;
+    while (candidate.isBefore(reference)) {
+      candidate = DateTime(candidate.year, candidate.month + frequencyMonths!, candidate.day);
+    }
+    return candidate;
   }
 
   static List<Map<String, dynamic>> getEventsFromList(List<Deworming> dewormings) {
@@ -83,13 +116,14 @@ class Deworming {
         'date': deworming.date,
         'name': deworming.product,
       });
-      if (deworming.nextDate != null) {
+      final effectiveNextDate = deworming.effectiveNextDate();
+      if (effectiveNextDate != null) {
         events.add({
           'id': deworming.id,
           'petId': deworming.petId,
           'type': 'next_deworming',
           'title': 'Próxima desparasitación$typeSuffix: ${deworming.product}',
-          'date': deworming.nextDate!,
+          'date': effectiveNextDate,
           'name': deworming.product,
         });
       }

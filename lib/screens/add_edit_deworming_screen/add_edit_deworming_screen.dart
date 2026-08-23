@@ -36,6 +36,7 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
   int? _selectedFrequency;
   int _reminderDaysAhead = 0;
   bool _isSaving = false;
+  bool _isRecurring = false;
 
   final List<Map<String, dynamic>> _frequencyOptions = [
     {'label': 'Manual', 'value': null},
@@ -56,15 +57,20 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
           ? DateFormat('dd/MM/yyyy').format(_currentDeworming!.date)
           : DateFormat('dd/MM/yyyy').format(DateTime.now()),
     );
+    // effectiveNextDate() en vez de nextDate crudo: si el registro es
+    // recurrente y su ciclo original ya pasó, esto muestra la próxima
+    // fecha realmente vigente (la misma que ya está usando el recordatorio
+    // programado), no una fecha vencida hace meses.
     _nextDateController = TextEditingController(
-      text: _currentDeworming?.nextDate != null
-          ? DateFormat('dd/MM/yyyy').format(_currentDeworming!.nextDate!)
+      text: _currentDeworming?.effectiveNextDate() != null
+          ? DateFormat('dd/MM/yyyy').format(_currentDeworming!.effectiveNextDate()!)
           : '',
     );
 
     _selectedType = _currentDeworming?.type;
     _selectedFrequency = _currentDeworming?.frequencyMonths;
     _reminderDaysAhead = _currentDeworming?.reminderDaysAhead ?? 0;
+    _isRecurring = _currentDeworming?.isRecurring ?? false;
 
     _loadProductSuggestions();
   }
@@ -126,6 +132,9 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
         type: _selectedType,
         frequencyMonths: _selectedFrequency,
         reminderDaysAhead: _reminderDaysAhead,
+        // Defensivo: no puede ser recurrente sin una frecuencia elegida,
+        // aunque el switch haya quedado en true de una selección anterior.
+        isRecurring: _selectedFrequency != null && _isRecurring,
       );
 
       final notifier = ref.read(dewormingsProvider(widget.pet.id).notifier);
@@ -326,10 +335,21 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
                 onChanged: (value) {
                   setState(() {
                     _selectedFrequency = value;
+                    if (value == null) _isRecurring = false;
                     _calculateNextDate();
                   });
                 },
               ),
+              if (_selectedFrequency != null)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Recordarme automáticamente'),
+                  subtitle: Text(
+                    'Repite el recordatorio cada $_selectedFrequency ${_selectedFrequency == 1 ? 'mes' : 'meses'} sin tener que cargar un registro nuevo cada vez.',
+                  ),
+                  value: _isRecurring,
+                  onChanged: (value) => setState(() => _isRecurring = value),
+                ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _nextDateController,

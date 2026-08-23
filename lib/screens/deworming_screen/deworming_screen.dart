@@ -90,13 +90,26 @@ class DewormingScreen extends ConsumerWidget {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 child: ListTile(
-                  title: Text(deworming.product, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Row(
+                    children: [
+                      Flexible(
+                        child: Text(deworming.product, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      if (deworming.isRecurring) ...[
+                        const SizedBox(width: 6),
+                        const Tooltip(
+                          message: 'Recordatorio automático recurrente',
+                          child: Icon(Icons.repeat, size: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ],
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Fecha: ${DateFormat('dd/MM/yyyy').format(deworming.date)}'),
-                      if (deworming.nextDate != null)
-                        Text('Próxima fecha: ${DateFormat('dd/MM/yyyy').format(deworming.nextDate!)}'),
+                      if (deworming.effectiveNextDate() != null)
+                        Text('Próxima fecha: ${DateFormat('dd/MM/yyyy').format(deworming.effectiveNextDate()!)}'),
                     ],
                   ),
                   trailing: Row(

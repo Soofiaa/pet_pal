@@ -65,7 +65,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 26,
+      version: 27,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -177,10 +177,11 @@ class DatabaseHelper {
         type TEXT,
         frequencyMonths INTEGER,
         reminderDaysAhead INTEGER NOT NULL DEFAULT 0,
+        isRecurring INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
-    debugPrint('Tabla de desparasitaciones creada (v22 con reminderDaysAhead)');
+    debugPrint('Tabla de desparasitaciones creada (v27 con isRecurring)');
 
     // 8. Crear tabla de medicaciones
     await db.execute('''
@@ -504,6 +505,16 @@ class DatabaseHelper {
         )
       ''');
       debugPrint('Tabla de tomas de medicación creada (migración v26)');
+    }
+
+    // Migración a v27: agregar isRecurring a desparasitaciones (recordatorio
+    // recurrente sin necesitar un registro nuevo cada ciclo).
+    if (oldVersion < 27) {
+      final hasRecurring = await _columnExists(db, dewormingsTable, 'isRecurring');
+      if (!hasRecurring) {
+        await db.execute('ALTER TABLE $dewormingsTable ADD COLUMN isRecurring INTEGER NOT NULL DEFAULT 0');
+      }
+      debugPrint('Migración v27: Columna isRecurring añadida a $dewormingsTable');
     }
 
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,

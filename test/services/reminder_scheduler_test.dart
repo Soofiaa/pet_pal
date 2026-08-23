@@ -54,6 +54,11 @@ void main() {
       .map((c) => c.arguments['id'] as int)
       .toList();
 
+  List<DateTime> scheduledDateTimes() => calls
+      .where((c) => c.method == 'zonedSchedule')
+      .map((c) => DateTime.parse(c.arguments['scheduledDateTime'] as String))
+      .toList();
+
   group('ReminderScheduler - IDs sin colisión', () {
     test(
       'una medicación con varios horarios y rango de días agenda exactamente '
@@ -203,6 +208,65 @@ void main() {
               'reprogramar la misma medicación sin cambios debería reusar '
               'exactamente los mismos ids (idempotente), no generar otros nuevos',
         );
+      },
+    );
+  });
+
+  group('ReminderScheduler - desparasitación recurrente', () {
+    test(
+      'un registro recurrente vencido hace meses se programa en la próxima '
+      'ocurrencia futura, no en la fecha vieja guardada',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        // nextDate vencido hace ~4 meses, ciclo de 1 mes: la próxima
+        // ocurrencia futura real cae bastante después de nextDate.
+        final DateTime staleNextDate =
+            DateTime.now().subtract(const Duration(days: 120));
+
+        await ReminderScheduler.scheduleDewormingReminder(Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'ProductoRecurrente',
+          date: staleNextDate.subtract(const Duration(days: 30)),
+          nextDate: staleNextDate,
+          frequencyMonths: 1,
+          isRecurring: true,
+        ));
+
+        final dateTimes = scheduledDateTimes();
+        expect(dateTimes, hasLength(1));
+        expect(
+          dateTimes.single.isAfter(DateTime.now()),
+          isTrue,
+          reason: 'debe reprogramarse a futuro, no quedarse en la fecha vencida',
+        );
+      },
+    );
+
+    test(
+      'un registro NO recurrente vencido no se programa (comportamiento sin '
+      'cambios: NotificationService ya evita agendar en el pasado; sin '
+      'isRecurring, effectiveNextDate no avanza la fecha vieja)',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        final DateTime staleNextDate =
+            DateTime.now().subtract(const Duration(days: 120));
+
+        await ReminderScheduler.scheduleDewormingReminder(Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'ProductoUnico',
+          date: staleNextDate.subtract(const Duration(days: 30)),
+          nextDate: staleNextDate,
+          frequencyMonths: 1,
+          isRecurring: false,
+        ));
+
+        expect(scheduledDateTimes(), isEmpty);
       },
     );
   });
