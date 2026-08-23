@@ -36,6 +36,8 @@ class _FoodCalculatorScreenState extends State<FoodCalculatorScreen> {
 
   Future<void> _loadConfig() async {
     final config = await DatabaseHelper().getFoodConfigForPet(widget.pet.id);
+    if (!mounted) return;
+
     if (config != null) {
       setState(() {
         _totalDailyGramsController.text = config.dailyGrams.toStringAsFixed(0);
@@ -57,7 +59,12 @@ class _FoodCalculatorScreenState extends State<FoodCalculatorScreen> {
 
   Future<void> _saveConfig() async {
     final grams = double.tryParse(_totalDailyGramsController.text);
-    if (grams == null) return;
+    if (grams == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Introduce una cantidad válida de gramos antes de guardar.')),
+      );
+      return;
+    }
 
     final config = PetFoodConfig(
       petId: widget.pet.id,
@@ -130,19 +137,24 @@ class _FoodCalculatorScreenState extends State<FoodCalculatorScreen> {
               onPressed: () {
                 final w = double.tryParse(weightController.text);
                 final k = double.tryParse(_kcalController.text);
-                if (w != null && k != null) {
-                  // Fórmula RER: 70 * (peso ^ 0.75)
-                  final rer = 70 * pow(w, 0.75);
-                  final factor = double.parse(_selectedActivityFactor);
-                  final der = rer * factor; // Daily Energy Requirement
-                  final totalGrams = (der / k) * 1000;
-                  
-                  setState(() {
-                    _totalDailyGramsController.text = totalGrams.toStringAsFixed(0);
-                    _calculate();
-                  });
-                  Navigator.pop(context);
+                if (w == null || w <= 0 || k == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Introduce un peso mayor a cero y kcal válidas antes de calcular.')),
+                  );
+                  return;
                 }
+
+                // Fórmula RER: 70 * (peso ^ 0.75)
+                final rer = 70 * pow(w, 0.75);
+                final factor = double.parse(_selectedActivityFactor);
+                final der = rer * factor; // Daily Energy Requirement
+                final totalGrams = (der / k) * 1000;
+
+                setState(() {
+                  _totalDailyGramsController.text = totalGrams.toStringAsFixed(0);
+                  _calculate();
+                });
+                Navigator.pop(context);
               },
               child: const Text('Aplicar'),
             ),

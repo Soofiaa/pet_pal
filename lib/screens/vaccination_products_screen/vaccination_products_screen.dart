@@ -166,7 +166,12 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final freq = int.tryParse(_frequencyController.text) ?? 12;
-    if (name.isEmpty) return;
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Introduce un nombre antes de guardar.')),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
 

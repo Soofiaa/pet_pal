@@ -212,7 +212,12 @@ class __AddEditContactDialogState extends ConsumerState<_AddEditContactDialog> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
-    if (name.isEmpty || phone.isEmpty) return;
+    if (name.isEmpty || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Completa el nombre y el teléfono antes de guardar.')),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
     try {

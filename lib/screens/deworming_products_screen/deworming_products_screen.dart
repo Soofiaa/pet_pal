@@ -182,7 +182,12 @@ class __AddEditDewormingProductDialogState extends ConsumerState<_AddEditDewormi
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final freq = int.tryParse(_frequencyController.text) ?? 1;
-    if (name.isEmpty) return;
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Introduce un nombre antes de guardar.')),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
 
