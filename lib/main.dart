@@ -6,6 +6,7 @@ import 'package:pet_pal/screens/home_screen/home_screen.dart'; // Asegúrate de 
 import 'package:pet_pal/services/notification_service.dart'; // Importar el servicio de notificaciones
 import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:pet_pal/services/orphan_cleanup_service.dart';
+import 'package:pet_pal/providers/theme_mode_provider.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Necesario para el tipo NotificationResponse
 import 'package:intl/date_symbol_data_local.dart'; // Importación necesaria
@@ -81,14 +82,14 @@ void handleNotificationPayload(String payload) async {
   );
 }
 
-class PetPalApp extends StatefulWidget {
+class PetPalApp extends ConsumerStatefulWidget {
   const PetPalApp({super.key});
 
   @override
-  State<PetPalApp> createState() => _PetPalAppState();
+  ConsumerState<PetPalApp> createState() => _PetPalAppState();
 }
 
-class _PetPalAppState extends State<PetPalApp> {
+class _PetPalAppState extends ConsumerState<PetPalApp> {
   @override
   void initState() {
     super.initState();
@@ -201,10 +202,7 @@ class _PetPalAppState extends State<PetPalApp> {
           floatingLabelStyle: const TextStyle(color: Color(0xFF86B6F6)),
         ),
       ),
-      // Sigue la preferencia del sistema operativo; no hay toggle manual
-      // (evita agregar shared_preferences solo para persistir esta única
-      // preferencia -no es dependencia hoy del proyecto-).
-      themeMode: ThemeMode.system,
+      themeMode: ref.watch(themeModeProvider),
       home: const HomeScreen(), // Tu pantalla principal
     );
   }

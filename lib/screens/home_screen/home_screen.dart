@@ -10,9 +10,8 @@ import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_scr
 import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/screens/deworming_products_screen/deworming_products_screen.dart';
 import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.dart';
-import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
-import 'package:pet_pal/utils/backup_password_dialog.dart';
+import 'package:pet_pal/providers/theme_mode_provider.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -23,8 +22,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final DataBackupService _backupService = DataBackupService();
-
   Future<bool?> _deletePet(String petId, String petName) async {
     final bool? confirm = await showDialog(
       context: context,
@@ -77,72 +74,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return File(imagePath).existsSync();
   }
 
-  Future<void> _exportData() async {
-    final String? password = await promptForBackupPassword(
-      context,
-      title: 'Contraseña del respaldo',
-      confirmLabel: 'Exportar',
-      requireConfirmation: true,
-    );
-    if (password == null || !mounted) return;
-
-    try {
-      final String result = await _backupService.exportAllData(password);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
-      }
-    } catch (e) {
-      debugPrint('Error al exportar datos: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar datos: $e')),
-        );
-      }
+  String _themeModeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'Claro';
+      case ThemeMode.dark:
+        return 'Oscuro';
+      case ThemeMode.system:
+        return 'Sistema';
     }
   }
 
-  Future<void> _importData() async {
-    final bool? confirm = await showDialog<bool>(
+  void _showThemeModeDialog(BuildContext context) {
+    final current = ref.read(themeModeProvider);
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Importar Datos'),
-        content: const Text('¿Estás seguro de que quieres importar datos? Esto sobrescribirá los datos actuales.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Apariencia'),
+        content: RadioGroup<ThemeMode>(
+          groupValue: current,
+          onChanged: (value) {
+            if (value != null) {
+              ref.read(themeModeProvider.notifier).setThemeMode(value);
+            }
+            Navigator.of(dialogContext).pop();
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: ThemeMode.values.map((mode) {
+              return RadioListTile<ThemeMode>(
+                title: Text(_themeModeLabel(mode)),
+                value: mode,
+              );
+            }).toList(),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Importar'),
-          ),
-        ],
+        ),
       ),
     );
-
-    if (confirm != true || !mounted) return;
-
-    final String? password = await promptForBackupPassword(
-      context,
-      title: 'Contraseña del respaldo',
-      confirmLabel: 'Importar',
-    );
-    if (password == null || !mounted) return;
-
-    try {
-      final String result = await _backupService.importAllData(password: password);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
-        await ref.read(petsProvider.notifier).refresh();
-      }
-    } catch (e) {
-      debugPrint('Error al importar datos: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al importar datos: $e')),
-        );
-      }
-    }
   }
 
   Widget _buildPetCard(Pet pet) {
@@ -243,6 +211,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.dark_mode),
+              title: const Text('Apariencia'),
+              subtitle: Text(_themeModeLabel(ref.watch(themeModeProvider))),
+              onTap: () => _showThemeModeDialog(context),
+            ),
+            const Divider(),
+            ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('Catálogo de Vacunas'),
               onTap: () {
@@ -274,27 +249,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   context,
                   MaterialPageRoute(builder: (context) => const BackupSettingsScreen()),
                 );
-              },
-            ),
-            const Divider(),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('Copia de Seguridad', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.upload),
-              title: const Text('Exportar Backup'),
-              onTap: () {
-                Navigator.pop(context);
-                _exportData();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Importar Backup'),
-              onTap: () {
-                Navigator.pop(context);
-                _importData();
               },
             ),
             const Spacer(),
