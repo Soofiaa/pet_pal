@@ -13,41 +13,16 @@ Future<String?> promptForBackupPassword(
   required String title,
   required String confirmLabel,
   bool requireConfirmation = false,
-}) async {
-  final passwordController = TextEditingController();
-  final confirmController = TextEditingController();
-  final formKey = GlobalKey<FormState>();
+}) {
+  final contentKey = GlobalKey<_BackupPasswordDialogContentState>();
 
-  final password = await showDialog<String>(
+  return showDialog<String>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text(title),
-      content: Form(
-        key: formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: passwordController,
-              obscureText: true,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Contraseña'),
-              validator: (value) =>
-                  (value == null || value.isEmpty) ? 'Ingresa una contraseña.' : null,
-            ),
-            if (requireConfirmation) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: confirmController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
-                validator: (value) => value != passwordController.text
-                    ? 'Las contraseñas no coinciden.'
-                    : null,
-              ),
-            ],
-          ],
-        ),
+      content: _BackupPasswordDialogContent(
+        key: contentKey,
+        requireConfirmation: requireConfirmation,
       ),
       actions: [
         TextButton(
@@ -56,8 +31,9 @@ Future<String?> promptForBackupPassword(
         ),
         ElevatedButton(
           onPressed: () {
-            if (formKey.currentState!.validate()) {
-              Navigator.of(dialogContext).pop(passwordController.text);
+            final password = contentKey.currentState?.validateAndGetPassword();
+            if (password != null) {
+              Navigator.of(dialogContext).pop(password);
             }
           },
           child: Text(confirmLabel),
@@ -65,8 +41,75 @@ Future<String?> promptForBackupPassword(
       ],
     ),
   );
+}
 
-  passwordController.dispose();
-  confirmController.dispose();
-  return password;
+/// Contenido con estado propio del diálogo: sus TextEditingController y su
+/// `GlobalKey<FormState>` son campos de instancia descartados en [dispose],
+/// para que el framework los libere en sincronía con el desmontaje real del
+/// widget (tras la animación de cierre) en vez de que `promptForBackupPassword`
+/// los descarte manualmente justo después de que `showDialog` retorna, antes
+/// de que el árbol termine de desmontarse.
+class _BackupPasswordDialogContent extends StatefulWidget {
+  const _BackupPasswordDialogContent({
+    super.key,
+    required this.requireConfirmation,
+  });
+
+  final bool requireConfirmation;
+
+  @override
+  State<_BackupPasswordDialogContent> createState() => _BackupPasswordDialogContentState();
+}
+
+class _BackupPasswordDialogContentState extends State<_BackupPasswordDialogContent> {
+  final passwordController = TextEditingController();
+  final confirmController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  /// Valida el formulario y devuelve la contraseña ingresada, o `null` si la
+  /// validación falla. Invocado por el botón de confirmar en las acciones
+  /// del AlertDialog, fuera de este widget.
+  String? validateAndGetPassword() {
+    if (formKey.currentState!.validate()) {
+      return passwordController.text;
+    }
+    return null;
+  }
+
+  @override
+  void dispose() {
+    passwordController.dispose();
+    confirmController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormField(
+            controller: passwordController,
+            obscureText: true,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Contraseña'),
+            validator: (value) =>
+                (value == null || value.isEmpty) ? 'Ingresa una contraseña.' : null,
+          ),
+          if (widget.requireConfirmation) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: confirmController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
+              validator: (value) =>
+                  value != passwordController.text ? 'Las contraseñas no coinciden.' : null,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
