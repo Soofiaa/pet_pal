@@ -26,6 +26,38 @@ import 'package:pet_pal/models/deworming_product.dart';
 import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/models/emergency_contact.dart';
 
+/// Resumen de un backup ya descifrado y validado, previo a reemplazar los
+/// datos actuales -para que la UI pueda mostrarle al usuario de qué
+/// respaldo se trata antes de confirmar el paso destructivo.
+class BackupRestorePreview {
+  const BackupRestorePreview({
+    required this.restoredData,
+    required this.timestamp,
+    required this.petCount,
+  });
+
+  /// Datos ya procesados (con los paths de archivos adjuntos restaurados a
+  /// disco), listos para pasar a [DataBackupService.applyRestoredBackup].
+  final Map<String, dynamic> restoredData;
+
+  /// Momento en que se generó el backup (campo `timestamp` de backup.json).
+  /// `null` si el backup es de un formato anterior que no lo incluía.
+  final DateTime? timestamp;
+
+  final int petCount;
+}
+
+/// Resultado de [DataBackupService.loadBackupForRestore]: o bien [preview]
+/// (éxito) o bien [error] (mensaje para mostrarle al usuario), nunca ambos.
+class BackupLoadResult {
+  const BackupLoadResult.success(this.preview) : error = null;
+
+  const BackupLoadResult.failure(this.error) : preview = null;
+
+  final BackupRestorePreview? preview;
+  final String? error;
+}
+
 class DataBackupService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
 
@@ -132,7 +164,25 @@ class DataBackupService {
     }
   }
 
+  /// Restaura un backup de punta a punta sin mostrar una previsualización
+  /// intermedia -combina [loadBackupForRestore] + [applyRestoredBackup].
+  /// Usado por callers que no necesitan confirmar con el usuario antes del
+  /// reemplazo (p. ej. tests); backup_settings_screen.dart usa las dos
+  /// fases por separado para mostrar la fecha del respaldo antes de aplicar.
   Future<String> importAllData({required String password}) async {
+    final BackupLoadResult loadResult = await loadBackupForRestore(password: password);
+    if (loadResult.error != null) {
+      return loadResult.error!;
+    }
+    return applyRestoredBackup(loadResult.preview!.restoredData);
+  }
+
+  /// Lee, descifra y valida el ZIP elegido por el usuario, y restaura sus
+  /// archivos adjuntos a disco -pero sin tocar la base de datos todavía-.
+  /// Separado de [applyRestoredBackup] para que la UI pueda mostrar de qué
+  /// respaldo se trata (fecha, cantidad de mascotas) antes del paso
+  /// destructivo real de reemplazar todos los datos actuales.
+  Future<BackupLoadResult> loadBackupForRestore({required String password}) async {
     try {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -140,7 +190,7 @@ class DataBackupService {
       );
 
       if (result == null || result.files.single.path == null) {
-        return 'Importación cancelada.';
+        return const BackupLoadResult.failure('Importación cancelada.');
       }
 
       final File zipFile = File(result.files.single.path!);
@@ -155,7 +205,9 @@ class DataBackupService {
         // adelante en el pipeline de restauración.
         archive = ZipDecoder().decodeBytes(zipBytes, password: password, verify: true);
       } catch (e) {
-        return 'No se pudo abrir el respaldo. Verifica que la contraseña sea correcta.';
+        return const BackupLoadResult.failure(
+          'No se pudo abrir el respaldo. Verifica que la contraseña sea correcta.',
+        );
       }
 
       final ArchiveFile? backupJsonFile = archive.files
@@ -164,19 +216,39 @@ class DataBackupService {
           .firstOrNull;
 
       if (backupJsonFile == null) {
-        return 'El respaldo no contiene backup.json.';
+        return const BackupLoadResult.failure('El respaldo no contiene backup.json.');
       }
 
       final String jsonString = utf8.decode(backupJsonFile.content as List<int>);
       final Map<String, dynamic> allData = jsonDecode(jsonString);
 
       if (allData['pets'] == null || allData['pets'] is! List) {
-        return 'Formato de archivo de copia de seguridad inválido.';
+        return const BackupLoadResult.failure('Formato de archivo de copia de seguridad inválido.');
       }
 
       final Map<String, dynamic> restoredData =
           await _restoreBackupFilesToLocalPaths(allData, archive);
 
+      final rawTimestamp = allData['timestamp'];
+      final DateTime? timestamp = rawTimestamp is String ? DateTime.tryParse(rawTimestamp) : null;
+
+      return BackupLoadResult.success(
+        BackupRestorePreview(
+          restoredData: restoredData,
+          timestamp: timestamp,
+          petCount: (restoredData['pets'] as List).length,
+        ),
+      );
+    } catch (e) {
+      return BackupLoadResult.failure('Error al leer el respaldo: $e');
+    }
+  }
+
+  /// Reemplaza todos los datos actuales por los de [restoredData] -salida de
+  /// [loadBackupForRestore]-. Paso destructivo e irreversible: la UI debe
+  /// haber confirmado con el usuario antes de llamarlo.
+  Future<String> applyRestoredBackup(Map<String, dynamic> restoredData) async {
+    try {
       await _dbHelper.deleteAllData();
 
       final List<dynamic> petsJson = restoredData['pets'];

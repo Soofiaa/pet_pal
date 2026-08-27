@@ -1,5 +1,6 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/notification_service.dart';
 import 'package:pet_pal/utils/backup_password_dialog.dart';
@@ -90,13 +91,52 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen>
   }
 
   Future<void> _importBackup() async {
+    // La contraseña se pide primero porque hace falta descifrar el ZIP para
+    // poder mostrarle al usuario de qué respaldo se trata (fecha, cantidad
+    // de mascotas) antes de pedirle que confirme el reemplazo destructivo.
+    final String? password = await promptForBackupPassword(
+      context,
+      title: 'Contraseña del respaldo',
+      confirmLabel: 'Continuar',
+    );
+    if (password == null || !mounted) return;
+
+    setState(() {
+      _isWorking = true;
+      _lastMessage = null;
+    });
+
+    final BackupLoadResult loadResult =
+        await _backupService.loadBackupForRestore(password: password);
+
+    if (!mounted) return;
+    setState(() {
+      _isWorking = false;
+    });
+
+    if (loadResult.error != null) {
+      setState(() {
+        _lastMessage = loadResult.error;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loadResult.error!)));
+      return;
+    }
+
+    final BackupRestorePreview preview = loadResult.preview!;
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
+        final String backupDescription = preview.timestamp != null
+            ? 'Respaldo del ${DateFormat('dd/MM/yyyy HH:mm').format(preview.timestamp!.toLocal())}, '
+                'con ${preview.petCount} mascota${preview.petCount == 1 ? '' : 's'}.'
+            : 'Este respaldo tiene ${preview.petCount} mascota${preview.petCount == 1 ? '' : 's'} '
+                '(no incluye fecha, es de un formato anterior).';
+
         return AlertDialog(
           title: const Text('Restaurar respaldo'),
-          content: const Text(
-            'Esto reemplazará toda la información actual de PetPal por la información del respaldo seleccionado. Esta acción no se puede deshacer. ¿Deseas continuar?',
+          content: Text(
+            '$backupDescription\n\n'
+            'Esto reemplazará toda la información actual de PetPal por la información de este respaldo. Esta acción no se puede deshacer. ¿Deseas continuar?',
           ),
           actions: [
             TextButton(
@@ -115,19 +155,11 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen>
 
     if (confirm != true || !mounted) return;
 
-    final String? password = await promptForBackupPassword(
-      context,
-      title: 'Contraseña del respaldo',
-      confirmLabel: 'Importar',
-    );
-    if (password == null || !mounted) return;
-
     setState(() {
       _isWorking = true;
-      _lastMessage = null;
     });
 
-    final String result = await _backupService.importAllData(password: password);
+    final String result = await _backupService.applyRestoredBackup(preview.restoredData);
 
     if (!mounted) return;
     setState(() {
