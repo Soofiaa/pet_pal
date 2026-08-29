@@ -7,6 +7,7 @@ import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/models/vital_sign_record.dart';
 import 'package:pet_pal/providers/vital_sign_providers.dart';
 import 'package:pet_pal/screens/add_edit_vital_sign_screen/add_edit_vital_sign_screen.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 
 /// Generalización de weight_record_screen.dart: mismo patrón de gráfico
 /// (días desde el primer registro) y lista, parametrizado por
@@ -215,15 +216,10 @@ class VitalSignScreen extends ConsumerWidget {
           final records = allRecords.where((r) => r.type == type).toList();
 
           if (records.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Text(
-                  'No hay registros de ${_config.label.toLowerCase()} para esta mascota.',
-                  style: const TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            return EmptyState(
+              icon: _config.icon,
+              message: 'Aún no hay registros de ${_config.label.toLowerCase()} para ${pet.name}.',
+              actionHint: 'Presiona "+" para añadir uno nuevo.',
             );
           }
 

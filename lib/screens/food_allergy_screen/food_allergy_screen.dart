@@ -3,6 +3,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/data/database_helper.dart'; // Asegúrate de que esta es la única importación de DatabaseHelper
 import 'package:pet_pal/screens/add_edit_food_allergy_screen/add_edit_food_allergy_screen.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:intl/intl.dart';
 
 class FoodAllergyScreen extends StatefulWidget {
@@ -89,15 +90,10 @@ class _FoodAllergyScreenState extends State<FoodAllergyScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _foodAllergies.isEmpty
-          ? const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'No hay alergias alimentarias registradas para esta mascota.',
-            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
-        ),
+          ? EmptyState(
+        icon: Icons.warning_amber_rounded,
+        message: 'Aún no hay alergias alimentarias registradas para ${widget.pet.name}.',
+        actionHint: 'Presiona "+" para añadir una nueva.',
       )
           : ListView.builder(
         itemCount: _foodAllergies.length,

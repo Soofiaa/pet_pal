@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/utils/event_type_details.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
@@ -81,7 +82,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No hay eventos registrados para esta mascota.'));
+            return EmptyState(
+              icon: Icons.event_busy,
+              message: 'Aún no hay eventos registrados para ${widget.pet.name}.',
+            );
           } else {
             final allEvents = snapshot.data!;
             final monthlyEvents = _getMonthlyEvents(allEvents, _focusedDay);
@@ -142,7 +146,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         const SizedBox(height: 8),
                         Expanded(
                           child: monthlyEvents.isEmpty
-                              ? const Center(child: Text('No hay eventos en este mes.'))
+                              ? const EmptyState(
+                                  icon: Icons.event_busy,
+                                  message: 'No hay eventos en este mes.',
+                                )
                               : ListView.builder(
                             itemCount: monthlyEvents.length,
                             itemBuilder: (context, index) {

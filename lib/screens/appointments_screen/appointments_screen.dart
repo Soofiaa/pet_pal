@@ -4,6 +4,7 @@ import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/screens/add_edit_appointment_screen/add_edit_appointment_screen.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:intl/intl.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -106,15 +107,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _appointments.isEmpty
-          ? const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'No hay citas registradas para esta mascota.',
-            style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
-        ),
+          ? EmptyState(
+        icon: Icons.event_note,
+        message: 'Aún no hay citas registradas para ${widget.pet.name}.',
+        actionHint: 'Presiona "+" para añadir una nueva.',
       )
           : ListView.builder(
         itemCount: _appointments.length,

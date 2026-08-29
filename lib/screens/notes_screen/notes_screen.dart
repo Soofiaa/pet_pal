@@ -9,6 +9,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/screens/add_edit_note_screen/add_edit_note_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:share_plus/share_plus.dart';
 
 // ignore: library_prefixes
@@ -219,15 +220,10 @@ class _NotesScreenState extends State<NotesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notes.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24.0),
-                    child: Text(
-                      'No hay notas registradas para esta mascota.\nPresiona "+" para añadir una nueva.',
-                      style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+              ? EmptyState(
+                  icon: Icons.note_alt_outlined,
+                  message: 'Aún no hay notas registradas para ${widget.pet.name}.',
+                  actionHint: 'Presiona "+" para añadir una nueva.',
                 )
               : ListView.builder(
                   itemCount: _notes.length,

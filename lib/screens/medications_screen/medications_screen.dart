@@ -4,6 +4,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/providers/medication_providers.dart';
 import 'package:pet_pal/screens/add_edit_medications_screen/add_edit_medications_screen.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:intl/intl.dart';
 
 class MedicationsScreen extends ConsumerWidget {
@@ -67,7 +68,11 @@ class MedicationsScreen extends ConsumerWidget {
         error: (error, stackTrace) => Center(child: Text('Error: $error')),
         data: (medicationList) {
           if (medicationList.isEmpty) {
-            return const Center(child: Text('No hay medicaciones registradas.'));
+            return EmptyState(
+              icon: Icons.medication,
+              message: 'Aún no hay medicaciones registradas para ${pet.name}.',
+              actionHint: 'Presiona "+" para añadir una nueva.',
+            );
           }
 
           return ListView.builder(

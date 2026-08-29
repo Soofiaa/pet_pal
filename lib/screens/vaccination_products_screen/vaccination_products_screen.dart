@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 
 class VaccinationProductsScreen extends ConsumerWidget {
   const VaccinationProductsScreen({super.key});
@@ -16,24 +17,10 @@ class VaccinationProductsScreen extends ConsumerWidget {
       ),
       body: productsAsync.when(
         data: (products) => products.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.vaccines_outlined, size: 80, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'No hay vacunas en el catálogo',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Guarda las vacunas frecuentes\npara calcular refuerzos automáticamente.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
+            ? const EmptyState(
+                icon: Icons.vaccines_outlined,
+                message: 'Aún no hay vacunas registradas en el catálogo.',
+                actionHint: 'Presiona "+" para añadir una nueva.',
               )
             : ListView.builder(
                 itemCount: products.length,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import '../add_edit_deworming_screen/add_edit_deworming_screen.dart';
 import '../deworming_products_screen/deworming_products_screen.dart';
 import 'package:intl/intl.dart';
@@ -80,7 +81,11 @@ class DewormingScreen extends ConsumerWidget {
         error: (error, stackTrace) => Center(child: Text('Error: $error')),
         data: (dewormingList) {
           if (dewormingList.isEmpty) {
-            return const Center(child: Text('No hay desparasitaciones registradas.'));
+            return EmptyState(
+              icon: Icons.healing,
+              message: 'Aún no hay desparasitaciones registradas para ${pet.name}.',
+              actionHint: 'Presiona "+" para añadir una nueva.',
+            );
           }
 
           return ListView.builder(

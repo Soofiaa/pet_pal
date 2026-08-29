@@ -7,6 +7,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/screens/add_edit_document_screen/add_edit_document_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 
 class DocumentsScreen extends StatefulWidget {
   final Pet pet;
@@ -191,31 +192,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredDocuments.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.folder_open_outlined, size: 80, color: Colors.grey[400]),
-                              const SizedBox(height: 16),
-                              Text(
-                                _searchQuery.isNotEmpty 
-                                    ? 'No se encontraron resultados' 
-                                    : 'Sin documentos',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _searchQuery.isNotEmpty
-                                    ? 'Prueba con otra palabra clave.'
-                                    : 'Guarda recetas, exámenes o carnets\nen formato PDF o imagen.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
+                    ? EmptyState(
+                        icon: Icons.folder_open_outlined,
+                        message: _searchQuery.isNotEmpty
+                            ? 'No se encontraron resultados.'
+                            : 'Aún no hay documentos registrados para ${widget.pet.name}.',
+                        actionHint: _searchQuery.isNotEmpty
+                            ? 'Prueba con otra palabra clave.'
+                            : 'Presiona "+" para añadir uno nuevo.',
                       )
                     : ListView.builder(
                         itemCount: _filteredDocuments.length,

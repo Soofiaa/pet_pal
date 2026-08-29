@@ -6,6 +6,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/weight_record.dart';
 import 'package:pet_pal/providers/weight_record_providers.dart';
 import 'package:pet_pal/screens/add_edit_weight_record_screen/add_edit_weight_record_screen.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 
 class WeightRecordScreen extends ConsumerWidget {
   final Pet pet;
@@ -179,15 +180,10 @@ class WeightRecordScreen extends ConsumerWidget {
         error: (error, stackTrace) => Center(child: Text('Error: $error')),
         data: (weightRecords) {
           if (weightRecords.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'No hay registros de peso para esta mascota.',
-                  style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            return EmptyState(
+              icon: Icons.monitor_weight,
+              message: 'Aún no hay registros de peso para ${pet.name}.',
+              actionHint: 'Presiona "+" para añadir uno nuevo.',
             );
           }
 

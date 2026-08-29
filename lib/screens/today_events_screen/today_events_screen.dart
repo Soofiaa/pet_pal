@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/providers/dashboard_providers.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
 /// Vista completa de los eventos accionables de "Hoy", sin el recorte a
@@ -24,7 +25,10 @@ class TodayEventsScreen extends ConsumerWidget {
         ),
         data: (events) {
           if (events.isEmpty) {
-            return const Center(child: Text('No hay eventos pendientes.'));
+            return const EmptyState(
+              icon: Icons.event_available,
+              message: 'No hay eventos pendientes para hoy.',
+            );
           }
 
           final petsCount = petsAsync.value?.length ?? 0;

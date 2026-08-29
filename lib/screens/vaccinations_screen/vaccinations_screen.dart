@@ -9,6 +9,7 @@ import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/screens/add_edit_vaccination_screen/add_edit_vaccination_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 
 class VaccinationsScreen extends ConsumerWidget {
   final Pet pet;
@@ -242,18 +243,10 @@ class VaccinationsScreen extends ConsumerWidget {
         error: (error, stackTrace) => Center(child: Text('Error: $error')),
         data: (vaccinations) {
           if (vaccinations.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'No hay vacunaciones registradas para esta mascota.',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            return EmptyState(
+              icon: Icons.vaccines,
+              message: 'Aún no hay vacunaciones registradas para ${pet.name}.',
+              actionHint: 'Presiona "+" para añadir una nueva.',
             );
           }
 
