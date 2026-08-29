@@ -1,45 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/food_allergy.dart';
-import 'package:pet_pal/data/database_helper.dart'; // Asegúrate de que esta es la única importación de DatabaseHelper
+import 'package:pet_pal/providers/food_allergy_providers.dart';
 import 'package:pet_pal/screens/add_edit_food_allergy_screen/add_edit_food_allergy_screen.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:intl/intl.dart';
 
-class FoodAllergyScreen extends StatefulWidget {
+class FoodAllergyScreen extends ConsumerWidget {
   final Pet pet;
 
   const FoodAllergyScreen({super.key, required this.pet});
 
-  @override
-  State<FoodAllergyScreen> createState() => _FoodAllergyScreenState();
-}
-
-class _FoodAllergyScreenState extends State<FoodAllergyScreen> {
-  List<FoodAllergy> _foodAllergies = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFoodAllergies();
-  }
-
-  Future<void> _loadFoodAllergies() async {
-    setState(() {
-      _isLoading = true;
-    });
-    // CORREGIDO: Uso correcto del singleton DatabaseHelper
-    final allergies = await DatabaseHelper().getFoodAllergiesForPet(widget.pet.id);
-    allergies.sort((a, b) => b.dateRecorded.compareTo(a.dateRecorded));
-    setState(() {
-      _foodAllergies = allergies;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _deleteFoodAllergy(FoodAllergy foodAllergy) async {
-    final bool? confirm = await showDialog(
+  Future<void> _deleteFoodAllergy(
+    BuildContext context,
+    WidgetRef ref,
+    FoodAllergy foodAllergy,
+  ) async {
+    final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -60,84 +38,92 @@ class _FoodAllergyScreenState extends State<FoodAllergyScreen> {
       },
     );
 
-    if (confirm == true) {
-      try {
-        // CORREGIDO: Uso correcto del singleton DatabaseHelper
-        await DatabaseHelper().deleteFoodAllergy(foodAllergy.id!);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Alergia alimentaria eliminada con éxito.')),
-          );
-        }
-        _loadFoodAllergies();
-      } catch (e) {
-        debugPrint('Error al eliminar la alergia alimentaria: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar la alergia alimentaria: $e')),
-          );
-        }
-      }
+    if (confirm != true) return;
+
+    try {
+      await ref.read(foodAllergiesProvider(pet.id).notifier).deleteFoodAllergy(foodAllergy.id!);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Alergia alimentaria eliminada con éxito.')),
+      );
+    } catch (e) {
+      debugPrint('Error al eliminar la alergia alimentaria: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar la alergia alimentaria: $e')),
+      );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final foodAllergiesAsync = ref.watch(foodAllergiesProvider(pet.id));
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Alergias de ${widget.pet.name}'),
+        title: Text('Alergias de ${pet.name}'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _foodAllergies.isEmpty
-          ? EmptyState(
-        icon: Icons.warning_amber_rounded,
-        message: 'Aún no hay alergias alimentarias registradas para ${widget.pet.name}.',
-        actionHint: 'Presiona "+" para añadir una nueva.',
-      )
-          : ListView.builder(
-        itemCount: _foodAllergies.length,
-        itemBuilder: (context, index) {
-          final allergy = _foodAllergies[index];
-          return Dismissible(
-            key: Key(allergy.id.toString()),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            confirmDismiss: (direction) async {
-              await _deleteFoodAllergy(allergy);
-              return null;
-            },
-            child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: ListTile(
-                leading: const Icon(Icons.warning_amber, color: Colors.amber),
-                title: Text(
-                  allergy.food,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+      body: foodAllergiesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Center(child: Text('Error: $error')),
+        data: (foodAllergies) {
+          if (foodAllergies.isEmpty) {
+            return EmptyState(
+              icon: Icons.warning_amber_rounded,
+              message: 'Aún no hay alergias alimentarias registradas para ${pet.name}.',
+              actionHint: 'Presiona "+" para añadir una nueva.',
+            );
+          }
+
+          return ListView.builder(
+            itemCount: foodAllergies.length,
+            itemBuilder: (context, index) {
+              final allergy = foodAllergies[index];
+              return Dismissible(
+                key: Key(allergy.id.toString()),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                subtitle: Text(
-                  'Registrada el ${DateFormat('dd/MM/yyyy').format(allergy.dateRecorded)}',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddEditFoodAllergyScreen(
-                        petId: widget.pet.id,
-                        foodAllergy: allergy,
-                      ),
-                    ),
-                  );
-                  _loadFoodAllergies();
+                confirmDismiss: (direction) async {
+                  await _deleteFoodAllergy(context, ref, allergy);
+                  return null;
                 },
-              ),
-            ),
+                child: Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: ListTile(
+                    leading: const Icon(Icons.warning_amber, color: Colors.amber),
+                    title: Text(
+                      allergy.food,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      'Registrada el ${DateFormat('dd/MM/yyyy').format(allergy.dateRecorded)}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddEditFoodAllergyScreen(
+                            petId: pet.id,
+                            foodAllergy: allergy,
+                          ),
+                        ),
+                      );
+                      // No hace falta refrescar acá: si se guardó algo,
+                      // FoodAllergiesNotifier.addFoodAllergy/
+                      // updateFoodAllergy ya refrescó el estado
+                      // internamente antes de volver; si se canceló, no
+                      // hay nada que refrescar.
+                    },
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -146,10 +132,9 @@ class _FoodAllergyScreenState extends State<FoodAllergyScreen> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddEditFoodAllergyScreen(petId: widget.pet.id),
+              builder: (context) => AddEditFoodAllergyScreen(petId: pet.id),
             ),
           );
-          _loadFoodAllergies();
         },
         child: const Icon(Icons.add),
       ),

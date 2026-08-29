@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/food_allergy.dart';
-import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/providers/food_allergy_providers.dart';
 import 'package:intl/intl.dart';
 
-class AddEditFoodAllergyScreen extends StatefulWidget {
+class AddEditFoodAllergyScreen extends ConsumerStatefulWidget {
   final String petId;
   final FoodAllergy? foodAllergy;
 
@@ -14,19 +15,21 @@ class AddEditFoodAllergyScreen extends StatefulWidget {
   });
 
   @override
-  State<AddEditFoodAllergyScreen> createState() => _AddEditFoodAllergyScreenState();
+  ConsumerState<AddEditFoodAllergyScreen> createState() => _AddEditFoodAllergyScreenState();
 }
 
-class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
+class _AddEditFoodAllergyScreenState extends ConsumerState<AddEditFoodAllergyScreen> {
   final _formKey = GlobalKey<FormState>();
   final _allergyController = TextEditingController();
   late DateTime _selectedDate;
   bool _isSaving = false;
 
+  bool get _isEditing => widget.foodAllergy != null;
+
   @override
   void initState() {
     super.initState();
-    if (widget.foodAllergy != null) {
+    if (_isEditing) {
       // Modo de edición: precarga los datos existentes
       _allergyController.text = widget.foodAllergy!.food;
       _selectedDate = widget.foodAllergy!.dateRecorded;
@@ -59,10 +62,17 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
   Future<void> _saveAllergy() async {
     if (_isSaving) return;
 
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isSaving = true);
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
+      );
+      return;
+    }
 
-      final dbHelper = DatabaseHelper();
+    setState(() => _isSaving = true);
+
+    try {
+      final notifier = ref.read(foodAllergiesProvider(widget.petId).notifier);
       final newAllergy = FoodAllergy(
         id: widget.foodAllergy?.id, // Conserva el ID si es una edición
         petId: widget.petId,
@@ -70,44 +80,36 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
         dateRecorded: _selectedDate,
       );
 
-      try {
-        if (widget.foodAllergy == null) {
-          // Añadir nueva alergia
-          await dbHelper.insertFoodAllergy(newAllergy);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Alergia alimentaria añadida con éxito.')),
-            );
-          }
-        } else {
-          // Actualizar alergia existente
-          await dbHelper.updateFoodAllergy(newAllergy);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Alergia alimentaria actualizada con éxito.')),
-            );
-          }
-        }
-
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      } catch (e) {
-        debugPrint('Error al guardar la alergia alimentaria: $e');
+      if (_isEditing) {
+        await notifier.updateFoodAllergy(newAllergy);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al guardar la alergia alimentaria: $e')),
+            const SnackBar(content: Text('Alergia alimentaria actualizada con éxito.')),
           );
         }
-      } finally {
+      } else {
+        await notifier.addFoodAllergy(newAllergy);
         if (mounted) {
-          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Alergia alimentaria añadida con éxito.')),
+          );
         }
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
-      );
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      debugPrint('Error al guardar la alergia alimentaria: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar la alergia alimentaria: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -115,7 +117,7 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.foodAllergy == null ? 'Añadir Alergia' : 'Editar Alergia'),
+        title: Text(_isEditing ? 'Editar Alergia' : 'Añadir Alergia'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -161,7 +163,7 @@ class _AddEditFoodAllergyScreenState extends State<AddEditFoodAllergyScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save),
-                label: Text(widget.foodAllergy == null ? 'Guardar Alergia' : 'Actualizar Alergia'),
+                label: Text(_isEditing ? 'Actualizar Alergia' : 'Guardar Alergia'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12.0),
                   textStyle: const TextStyle(fontSize: 18),
