@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 class ImageStorageService {
   static Future<String> saveImage(
@@ -19,8 +20,13 @@ class ImageStorageService {
     }
 
     final String extension = p.extension(imageFile.path);
+    // El timestamp por sí solo no alcanza: dos archivos guardados en el
+    // mismo milisegundo (posible en saveImagesIfNeeded al guardar varias
+    // fotos en sucesión rápida) generarían el mismo nombre y File.copy
+    // pisaría uno en silencio. El uuid es lo único acá que garantiza
+    // unicidad real, sin importar tamaño ni timing.
     final String fileName =
-        '${DateTime.now().millisecondsSinceEpoch}_${imageFile.lengthSync()}$extension';
+        '${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}$extension';
 
     final File savedImage = await imageFile.copy(
       p.join(targetDir.path, fileName),
