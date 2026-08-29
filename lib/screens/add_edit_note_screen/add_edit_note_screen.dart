@@ -1,24 +1,24 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
-import 'package:pet_pal/data/database_helper.dart';
-import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/providers/note_providers.dart';
 import 'dart:io';
 
-class AddEditNoteScreen extends StatefulWidget {
+class AddEditNoteScreen extends ConsumerStatefulWidget {
   final Pet pet;
   final Note? note;
 
   const AddEditNoteScreen({super.key, required this.pet, this.note});
 
   @override
-  State<AddEditNoteScreen> createState() => _AddEditNoteScreenState();
+  ConsumerState<AddEditNoteScreen> createState() => _AddEditNoteScreenState();
 }
 
-class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
+class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
@@ -26,9 +26,22 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
   List<String> _photoPaths = [];
   bool _isSaving = false;
 
+  // Snapshot para detectar cambios sin guardar al salir (ver _isDirty).
+  late String _initialTitle;
+  late String _initialContent;
+  late DateTime _initialDate;
+  late List<String> _initialPhotoPaths;
+
   final ImagePicker _picker = ImagePicker();
 
   bool get _isEditing => widget.note != null;
+
+  bool get _isDirty {
+    return _titleController.text != _initialTitle ||
+        _contentController.text != _initialContent ||
+        _selectedDate != _initialDate ||
+        !listEquals(_photoPaths, _initialPhotoPaths);
+  }
 
   @override
   void initState() {
@@ -37,8 +50,25 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
       _titleController.text = widget.note!.title;
       _contentController.text = widget.note!.content;
       _selectedDate = widget.note!.date;
-      _photoPaths = widget.note!.photoPaths;
+      // Copia, no referencia: widget.note!.photoPaths es la misma lista que
+      // vive en el objeto Note de notes_screen.dart. Mutarla acá (agregar o
+      // sacar fotos) sin copiarla primero dejaba ese estado en memoria
+      // desincronizado de la base si el usuario salía sin guardar.
+      _photoPaths = List.of(widget.note!.photoPaths);
     }
+
+    _markSaved();
+  }
+
+  /// Actualiza el snapshot "guardado" a los valores actuales: usarlo tanto
+  /// al abrir la pantalla (nada sin guardar todavía) como después de un
+  /// guardado exitoso (para que la confirmación de salida no se dispare
+  /// justo cuando se hace el pop programático tras guardar).
+  void _markSaved() {
+    _initialTitle = _titleController.text;
+    _initialContent = _contentController.text;
+    _initialDate = _selectedDate;
+    _initialPhotoPaths = List.of(_photoPaths);
   }
 
   @override
@@ -121,202 +151,238 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
     });
   }
 
-  void _saveNote() async {
+  Future<bool> _confirmDiscardChanges() async {
+    final bool? discard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Descartar cambios?'),
+        content: const Text('Tenés cambios sin guardar. Si salís ahora, se perderán.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Seguir editando'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Descartar'),
+          ),
+        ],
+      ),
+    );
+    return discard ?? false;
+  }
+
+  Future<void> _saveNote() async {
     if (_isSaving) return;
 
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isSaving = true);
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
+      );
+      return;
+    }
 
-      final dbHelper = DatabaseHelper();
-      final String id = widget.note?.id ?? const Uuid().v4();
+    setState(() => _isSaving = true);
 
-      try {
-        final List<String> savedPhotoPaths =
-            await ImageStorageService.saveImagesIfNeeded(_photoPaths, 'notes');
+    try {
+      final notifier = ref.read(notesProvider(widget.pet.id).notifier);
 
-        final newNote = Note(
-          id: id,
+      if (_isEditing) {
+        final Note draft = Note(
+          id: widget.note!.id,
           petId: widget.pet.id,
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
           date: _selectedDate,
-          photoPaths: savedPhotoPaths,
+          photoPaths: _photoPaths,
         );
-
-        if (_isEditing) {
-          await dbHelper.updateNote(newNote);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Nota actualizada con éxito.')),
-            );
-          }
-        } else {
-          await dbHelper.insertNote(newNote);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Nota guardada con éxito.')),
-            );
-          }
-        }
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      } catch (e) {
-        debugPrint('Error al guardar la nota: $e');
+        await notifier.updateNote(widget.note!, draft);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al guardar la nota: $e')),
+            const SnackBar(content: Text('Nota actualizada con éxito.')),
           );
         }
-      } finally {
+      } else {
+        await notifier.addNote(
+          petId: widget.pet.id,
+          title: _titleController.text.trim(),
+          content: _contentController.text.trim(),
+          date: _selectedDate,
+          rawPhotoPaths: _photoPaths,
+        );
         if (mounted) {
-          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nota guardada con éxito.')),
+          );
         }
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
-      );
+
+      _markSaved();
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      debugPrint('Error al guardar la nota: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar la nota: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Editar Nota' : 'Añadir Nueva Nota'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Título de la Nota',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.title),
+    return PopScope<Object?>(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        final bool shouldDiscard = await _confirmDiscardChanges();
+        if (shouldDiscard && mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEditing ? 'Editar Nota' : 'Añadir Nueva Nota'),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Título de la Nota',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.title),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, introduce un título';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, introduce un título';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _contentController,
-                decoration: const InputDecoration(
-                  labelText: 'Contenido',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.edit_note),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _contentController,
+                  decoration: const InputDecoration(
+                    labelText: 'Contenido',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.edit_note),
+                  ),
+                  maxLines: 5,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, introduce el contenido de la nota';
+                    }
+                    return null;
+                  },
                 ),
-                maxLines: 5,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, introduce el contenido de la nota';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                title: Text('Fecha: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () => _selectDate(context),
-              ),
-              const SizedBox(height: 16),
-              Text('Fotos (opcional):', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: [
-                  ..._photoPaths.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final photoPath = entry.value;
-                    return Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: File(photoPath).existsSync()
-                              ? Image.file(
-                                  File(photoPath),
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(
-                                  width: 100,
-                                  height: 100,
-                                  color: Colors.grey[200],
-                                  child: const Icon(
-                                    Icons.broken_image,
-                                    color: Colors.grey,
+                const SizedBox(height: 16),
+                ListTile(
+                  title: Text('Fecha: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () => _selectDate(context),
+                ),
+                const SizedBox(height: 16),
+                Text('Fotos (opcional):', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: [
+                    ..._photoPaths.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final photoPath = entry.value;
+                      return Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: File(photoPath).existsSync()
+                                ? Image.file(
+                                    File(photoPath),
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    width: 100,
+                                    height: 100,
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      color: Colors.grey,
+                                    ),
                                   ),
+                          ),
+                          Positioned(
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () => _removePhoto(index),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                        ),
-                        Positioned(
-                          right: 0,
-                          child: GestureDetector(
-                            onTap: () => _removePhoto(index),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 18,
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
                               ),
                             ),
                           ),
+                        ],
+                      );
+                    }),
+                    GestureDetector(
+                      onTap: _showImageSourceDialog, // Llama al nuevo diálogo
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                      ],
-                    );
-                  }),
-                  GestureDetector(
-                    onTap: _showImageSourceDialog, // Llama al nuevo diálogo
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        child: const Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isSaving ? null : _saveNote,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save),
+                    label: Text(_isEditing ? 'Actualizar Nota' : 'Guardar Nota'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      textStyle: const TextStyle(fontSize: 18),
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _saveNote,
-                  icon: _isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save),
-                  label: Text(_isEditing ? 'Actualizar Nota' : 'Guardar Nota'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    textStyle: const TextStyle(fontSize: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

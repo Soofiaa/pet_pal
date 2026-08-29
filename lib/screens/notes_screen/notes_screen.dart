@@ -2,10 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
+import 'package:pet_pal/providers/note_providers.dart';
 import 'package:pet_pal/screens/add_edit_note_screen/add_edit_note_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
@@ -15,37 +16,18 @@ import 'package:share_plus/share_plus.dart';
 // ignore: library_prefixes
 import '../../utils/pdf_generator.dart' as PdfGenerator;
 
-class NotesScreen extends StatefulWidget {
+class NotesScreen extends ConsumerStatefulWidget {
   final Pet pet;
 
   const NotesScreen({super.key, required this.pet});
 
   @override
-  State<NotesScreen> createState() => _NotesScreenState();
+  ConsumerState<NotesScreen> createState() => _NotesScreenState();
 }
 
-class _NotesScreenState extends State<NotesScreen> {
-  List<Note> _notes = [];
-  bool _isLoading = true;
+class _NotesScreenState extends ConsumerState<NotesScreen> {
   bool _isSelectionMode = false;
   final Set<String> _selectedNoteIds = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _loadNotes();
-  }
-
-  Future<void> _loadNotes() async {
-    setState(() => _isLoading = true);
-    final notes = await DatabaseHelper().getNotesForPet(widget.pet.id);
-    notes.sort((a, b) => b.date.compareTo(a.date));
-    if (!mounted) return;
-    setState(() {
-      _notes = notes;
-      _isLoading = false;
-    });
-  }
 
   void _openImage(String imagePath, String title) {
     Navigator.push(
@@ -76,7 +58,7 @@ class _NotesScreenState extends State<NotesScreen> {
     });
   }
 
-  Future<void> _deleteSelectedNotes() async {
+  Future<void> _deleteSelectedNotes(List<Note> notes) async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -102,23 +84,25 @@ class _NotesScreenState extends State<NotesScreen> {
 
     if (confirm != true) return;
 
-    final dbHelper = DatabaseHelper();
-    final notesToDelete = _notes.where((note) => _selectedNoteIds.contains(note.id)).toList();
+    final notesToDelete = notes.where((note) => _selectedNoteIds.contains(note.id)).toList();
 
     try {
-      for (final note in notesToDelete) {
-        await ImageStorageService.deleteFilesIfExist(note.photoPaths);
-        await dbHelper.deleteNote(note.id);
-      }
+      final List<Note> failed =
+          await ref.read(notesProvider(widget.pet.id).notifier).deleteNotes(notesToDelete);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${notesToDelete.length} nota(s) eliminada(s) con éxito.')),
-      );
 
-      _selectedNoteIds.clear();
-      _isSelectionMode = false;
-      await _loadNotes();
+      final int deletedCount = notesToDelete.length - failed.length;
+      final String message = failed.isEmpty
+          ? '$deletedCount nota(s) eliminada(s) con éxito.'
+          : '$deletedCount de ${notesToDelete.length} nota(s) eliminada(s); ${failed.length} fallaron.';
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+
+      setState(() {
+        _selectedNoteIds.clear();
+        _isSelectionMode = false;
+      });
     } catch (e) {
       debugPrint('Error al eliminar las notas: $e');
       if (!mounted) return;
@@ -128,7 +112,7 @@ class _NotesScreenState extends State<NotesScreen> {
     }
   }
 
-  Future<void> _exportNotesToPdf() async {
+  Future<void> _exportNotesToPdf(List<Note> notes) async {
     if (_selectedNoteIds.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -137,7 +121,7 @@ class _NotesScreenState extends State<NotesScreen> {
       return;
     }
 
-    final selectedNotes = _notes.where((note) => _selectedNoteIds.contains(note.id)).toList();
+    final selectedNotes = notes.where((note) => _selectedNoteIds.contains(note.id)).toList();
 
     try {
       final Uint8List pdfData = await PdfGenerator.generateNotesPdf(widget.pet, selectedNotes);
@@ -163,7 +147,6 @@ class _NotesScreenState extends State<NotesScreen> {
   Widget _buildNoteThumbnail(Note note) {
     final validPath = note.photoPaths
         .where((path) => ImageStorageService.isValidLocalFile(path))
-        .cast<String?>()
         .firstOrNull;
 
     if (validPath == null) {
@@ -187,20 +170,23 @@ class _NotesScreenState extends State<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final notesAsync = ref.watch(notesProvider(widget.pet.id));
+    final List<Note> notes = notesAsync.valueOrNull ?? [];
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Notas de ${widget.pet.name}'),
         actions: [
-          if (_notes.isNotEmpty)
+          if (notes.isNotEmpty)
             if (_isSelectionMode) ...[
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf),
-                onPressed: _exportNotesToPdf,
+                onPressed: () => _exportNotesToPdf(notes),
                 tooltip: 'Exportar a PDF',
               ),
               IconButton(
                 icon: const Icon(Icons.delete),
-                onPressed: _deleteSelectedNotes,
+                onPressed: () => _deleteSelectedNotes(notes),
                 tooltip: 'Eliminar seleccionadas',
               ),
               IconButton(
@@ -217,75 +203,84 @@ class _NotesScreenState extends State<NotesScreen> {
             ],
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _notes.isEmpty
-              ? EmptyState(
-                  icon: Icons.note_alt_outlined,
-                  message: 'Aún no hay notas registradas para ${widget.pet.name}.',
-                  actionHint: 'Presiona "+" para añadir una nueva.',
-                )
-              : ListView.builder(
-                  itemCount: _notes.length,
-                  itemBuilder: (context, index) {
-                    final note = _notes[index];
-                    final isSelected = _selectedNoteIds.contains(note.id);
+      body: notesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Center(child: Text('Error: $error')),
+        data: (notes) {
+          if (notes.isEmpty) {
+            return EmptyState(
+              icon: Icons.note_alt_outlined,
+              message: 'Aún no hay notas registradas para ${widget.pet.name}.',
+              actionHint: 'Presiona "+" para añadir una nueva.',
+            );
+          }
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      color: isSelected ? Colors.blue.shade50 : null,
-                      child: ListTile(
-                        leading: _isSelectionMode
-                            ? Icon(
-                                isSelected ? Icons.check_circle : Icons.circle_outlined,
-                                color: isSelected ? Colors.blue : Colors.grey,
-                              )
-                            : _buildNoteThumbnail(note),
-                        title: Text(
-                          note.title,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              note.content,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (note.photoPaths.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4.0),
-                                child: Text(
-                                  '${note.photoPaths.length} imagen(es)',
-                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: _isSelectionMode ? null : const Icon(Icons.chevron_right),
-                        onTap: () async {
-                          if (_isSelectionMode) {
-                            _toggleNoteSelection(note.id);
-                          } else {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddEditNoteScreen(pet: widget.pet, note: note),
-                              ),
-                            );
-                            await _loadNotes();
-                          }
-                        },
-                        onLongPress: () {
-                          _toggleSelectionMode();
-                          _toggleNoteSelection(note.id);
-                        },
+          return ListView.builder(
+            itemCount: notes.length,
+            itemBuilder: (context, index) {
+              final note = notes[index];
+              final isSelected = _selectedNoteIds.contains(note.id);
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                color: isSelected ? Colors.blue.shade50 : null,
+                child: ListTile(
+                  leading: _isSelectionMode
+                      ? Icon(
+                          isSelected ? Icons.check_circle : Icons.circle_outlined,
+                          color: isSelected ? Colors.blue : Colors.grey,
+                        )
+                      : _buildNoteThumbnail(note),
+                  title: Text(
+                    note.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        note.content,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    );
+                      if (note.photoPaths.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            '${note.photoPaths.length} imagen(es)',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                          ),
+                        ),
+                    ],
+                  ),
+                  trailing: _isSelectionMode ? null : const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    if (_isSelectionMode) {
+                      _toggleNoteSelection(note.id);
+                    } else {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddEditNoteScreen(pet: widget.pet, note: note),
+                        ),
+                      );
+                      // No hace falta refrescar acá: si se guardó algo,
+                      // NotesNotifier.addNote/updateNote ya refrescó el
+                      // estado internamente antes de volver; si se
+                      // canceló, no hay nada que refrescar.
+                    }
+                  },
+                  onLongPress: () {
+                    _toggleSelectionMode();
+                    _toggleNoteSelection(note.id);
                   },
                 ),
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: _isSelectionMode
           ? null
           : FloatingActionButton(
@@ -296,7 +291,6 @@ class _NotesScreenState extends State<NotesScreen> {
                     builder: (context) => AddEditNoteScreen(pet: widget.pet),
                   ),
                 );
-                await _loadNotes();
               },
               child: const Icon(Icons.add),
             ),
