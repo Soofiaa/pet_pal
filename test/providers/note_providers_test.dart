@@ -116,8 +116,8 @@ void main() {
     test(
       'guarda las fotos crudas en almacenamiento permanente y persiste el registro con las rutas finales',
       () async {
-        final raw1 = makeRawFile('foto1.jpg', 'contenido1');
-        final raw2 = makeRawFile('foto2.jpg', 'contenido2');
+        final raw1 = makeRawFile('foto1.jpg', 'contenido-uno');
+        final raw2 = makeRawFile('foto2.jpg', 'contenido-dos-mas-largo');
         final records = <Note>[];
         final container = buildContainer(records);
 
@@ -202,8 +202,8 @@ void main() {
       final container = buildContainer([]);
       final notifier = container.read(notesProvider('pet-1').notifier);
 
-      final raw1 = makeRawFile('foto1.jpg', 'f1');
-      final raw2 = makeRawFile('foto2.jpg', 'f2');
+      final raw1 = makeRawFile('foto1.jpg', 'foto-uno');
+      final raw2 = makeRawFile('foto2.jpg', 'foto-dos-mas-larga');
       await notifier.addNote(
         petId: 'pet-1',
         title: 'Nota',
@@ -342,8 +342,8 @@ void main() {
       final container = buildContainer([]);
       final notifier = container.read(notesProvider('pet-1').notifier);
 
-      final raw1 = makeRawFile('foto1.jpg', 'f1');
-      final raw2 = makeRawFile('foto2.jpg', 'f2');
+      final raw1 = makeRawFile('foto1.jpg', 'foto-uno');
+      final raw2 = makeRawFile('foto2.jpg', 'foto-dos-mas-larga');
       await notifier.addNote(
         petId: 'pet-1',
         title: 'Nota 1',
