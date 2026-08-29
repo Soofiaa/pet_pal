@@ -26,18 +26,25 @@ class AppointmentsNotifier extends FamilyAsyncNotifier<List<Appointment>, String
     // Mismo comportamiento que _loadAppointments() tenía en
     // appointments_screen.dart antes de esta migración: marca como
     // completadas las citas vencidas y no completadas todavía, cada vez
-    // que se (re)carga la lista.
+    // que se (re)carga la lista. Una sola lectura: los objetos actualizados
+    // se arman en memoria (copyWith) en el mismo lugar donde se persisten,
+    // en vez de volver a golpear la base de datos con una segunda lectura
+    // completa después del loop de escritura.
     final appointments = await repository.getAppointmentsForPet(petId);
     final DateTime now = DateTime.now();
+    final List<Appointment> result = [];
     for (final appointment in appointments) {
       if (!appointment.isCompleted && appointment.dateTime.isBefore(now)) {
-        await repository.updateAppointment(appointment.copyWith(isCompleted: true));
+        final completed = appointment.copyWith(isCompleted: true);
+        await repository.updateAppointment(completed);
+        result.add(completed);
+      } else {
+        result.add(appointment);
       }
     }
 
-    final refreshed = await repository.getAppointmentsForPet(petId);
-    refreshed.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-    return refreshed;
+    result.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    return result;
   }
 
   Future<void> refresh() async {
