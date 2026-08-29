@@ -236,6 +236,43 @@ class ReminderScheduler {
     );
   }
 
+  static int _appointmentReminderId(String appointmentId) =>
+      appointmentId.hashCode;
+
+  /// Cancela el recordatorio "un día antes" de una cita. Nunca falla si no
+  /// había nada agendado con ese id -mismo comportamiento no-op seguro que
+  /// el resto de los cancel* de esta clase-.
+  static Future<void> cancelAppointmentReminder(Appointment appointment) async {
+    await NotificationService()
+        .cancelNotification(_appointmentReminderId(appointment.id));
+  }
+
+  /// Agenda el recordatorio "un día antes" de la cita. No agenda nada si la
+  /// cita ya está marcada como completada, incluso si su fecha quedara en
+  /// el futuro por algún motivo -antes de esta migración,
+  /// add_edit_appointment_screen.dart no chequeaba esto y rescheduleAllPending
+  /// sí, una inconsistencia entre las dos implementaciones duplicadas-.
+  ///
+  /// No hace falta chequear acá si el horario resultante ya pasó:
+  /// NotificationService.scheduleNotificationOnce ya se niega a agendar en
+  /// el pasado, con el mismo criterio (`isBefore(now)`) que se adopta como
+  /// canónico acá.
+  static Future<void> scheduleAppointmentReminder(Appointment appointment) async {
+    if (appointment.isCompleted) return;
+
+    final DateTime notifyAt =
+        appointment.dateTime.subtract(const Duration(days: 1));
+
+    await NotificationService().scheduleNotificationOnce(
+      id: _appointmentReminderId(appointment.id),
+      title: 'Recordatorio de Cita: ${appointment.title}',
+      body:
+          'Tu cita es mañana a las ${DateFormat('HH:mm').format(appointment.dateTime)}.',
+      scheduledDateTime: notifyAt,
+      payload: appointment.id,
+    );
+  }
+
   static int _vitalSignAlertId(String recordId) =>
       '${recordId}_alert'.hashCode;
 
@@ -279,7 +316,7 @@ class ReminderScheduler {
 
     final appointments = await dbHelper.getAppointmentsForPet(petId);
     for (final a in appointments) {
-      await NotificationService().cancelNotification(a.id.hashCode);
+      await cancelAppointmentReminder(a);
     }
   }
 
@@ -299,19 +336,7 @@ class ReminderScheduler {
       final List<Appointment> appointments =
           await dbHelper.getAppointmentsForPet(pet.id);
       for (final appointment in appointments) {
-        if (appointment.isCompleted) continue;
-        final DateTime notifyAt =
-            appointment.dateTime.subtract(const Duration(days: 1));
-        if (notifyAt.isBefore(now)) continue;
-
-        await NotificationService().scheduleNotificationOnce(
-          id: appointment.id.hashCode,
-          title: 'Recordatorio de Cita: ${appointment.title}',
-          body:
-              'Tu cita es mañana a las ${DateFormat('HH:mm').format(appointment.dateTime)}.',
-          scheduledDateTime: notifyAt,
-          payload: appointment.id,
-        );
+        await scheduleAppointmentReminder(appointment);
       }
 
       final List<Medication> medications =

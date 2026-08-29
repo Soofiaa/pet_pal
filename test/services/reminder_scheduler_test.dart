@@ -7,6 +7,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/vaccination.dart';
@@ -58,6 +59,9 @@ void main() {
       .where((c) => c.method == 'zonedSchedule')
       .map((c) => DateTime.parse(c.arguments['scheduledDateTime'] as String))
       .toList();
+
+  List<int> canceledIds() =>
+      calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id'] as int).toList();
 
   group('ReminderScheduler - IDs sin colisión', () {
     test(
@@ -269,5 +273,159 @@ void main() {
         expect(scheduledDateTimes(), isEmpty);
       },
     );
+  });
+
+  group('ReminderScheduler - Cita (centralización de Fase 3)', () {
+    test(
+      'scheduleAppointmentReminder agenda con id == appointment.id.hashCode '
+      '(fórmula que ya usaban los tres lugares duplicados antes de centralizar)',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        final String appointmentId = const Uuid().v4();
+        final appointment = Appointment(
+          id: appointmentId,
+          petId: 'pet-1',
+          dateTime: DateTime.now().add(const Duration(days: 5)),
+          title: 'Control anual',
+        );
+
+        await ReminderScheduler.scheduleAppointmentReminder(appointment);
+
+        final ids = scheduledIds();
+        expect(ids, hasLength(1));
+        // Valor calculado a mano, no reutilizando la implementación: si
+        // scheduleAppointmentReminder cambiara de fórmula, este test debe
+        // fallar aunque el código de producción "se mueva junto".
+        expect(ids.single, appointmentId.hashCode);
+      },
+    );
+
+    test(
+      'scheduleAppointmentReminder agenda exactamente un día antes de la '
+      'cita, a la misma hora (sin ajustar a una hora fija)',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        // Se compara la DIFERENCIA entre dos citas, no un valor absoluto
+        // contra dateTime.subtract(1 día): tz.local no está inicializado en
+        // el entorno de test ("Error al configurar la zona horaria" arriba),
+        // así que TZDateTime.from aplica un corrimiento fijo al serializar
+        // el argumento de zonedSchedule. Ese corrimiento se cancela al
+        // restar dos scheduledDateTime entre sí, así que la diferencia sigue
+        // probando la aritmética real de scheduleAppointmentReminder sin
+        // depender de que el entorno de test tenga tz configurado.
+        final DateTime dateTimeA = DateTime(2030, 3, 15, 14, 30);
+        final DateTime dateTimeB = dateTimeA.add(const Duration(days: 3));
+
+        await ReminderScheduler.scheduleAppointmentReminder(Appointment(
+          petId: 'pet-1',
+          dateTime: dateTimeA,
+          title: 'Cita A',
+        ));
+        await ReminderScheduler.scheduleAppointmentReminder(Appointment(
+          petId: 'pet-1',
+          dateTime: dateTimeB,
+          title: 'Cita B',
+        ));
+
+        final times = scheduledDateTimes();
+        expect(times, hasLength(2));
+        expect(
+          times[1].difference(times[0]),
+          dateTimeB.difference(dateTimeA),
+          reason: 'el recordatorio de B debe seguir siendo exactamente '
+              '3 días después que el de A, igual que sus citas',
+        );
+      },
+    );
+
+    test(
+      'cancelAppointmentReminder usa el mismo id que scheduleAppointmentReminder '
+      '(round-trip: agendar y cancelar la misma cita)',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        final appointment = Appointment(
+          petId: 'pet-1',
+          dateTime: DateTime.now().add(const Duration(days: 5)),
+          title: 'Control anual',
+        );
+
+        await ReminderScheduler.scheduleAppointmentReminder(appointment);
+        final int scheduleId = scheduledIds().single;
+        calls.clear();
+
+        await ReminderScheduler.cancelAppointmentReminder(appointment);
+        final int cancelId = canceledIds().single;
+
+        expect(
+          cancelId,
+          scheduleId,
+          reason: 'agendar y cancelar la misma cita deben usar exactamente el mismo id',
+        );
+      },
+    );
+
+    test(
+      'una cita marcada isCompleted no se agenda aunque su fecha sea futura '
+      '(decisión adoptada: el criterio de rescheduleAllPending, no el que '
+      'tenía add_edit_appointment_screen.dart antes de centralizar)',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        final appointment = Appointment(
+          petId: 'pet-1',
+          dateTime: DateTime.now().add(const Duration(days: 5)),
+          title: 'Control anual',
+          isCompleted: true,
+        );
+
+        await ReminderScheduler.scheduleAppointmentReminder(appointment);
+
+        expect(scheduledIds(), isEmpty);
+      },
+    );
+
+    test(
+      'una cita cuyo recordatorio ("un día antes") ya pasó no se agenda',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        // dateTime dentro de las próximas horas: "un día antes" ya pasó.
+        final appointment = Appointment(
+          petId: 'pet-1',
+          dateTime: DateTime.now().add(const Duration(hours: 2)),
+          title: 'Control anual',
+        );
+
+        await ReminderScheduler.scheduleAppointmentReminder(appointment);
+
+        expect(scheduledIds(), isEmpty);
+      },
+    );
+
+    test('muchas citas distintas no colisionan entre sí', () async {
+      await NotificationService().init();
+      calls.clear();
+
+      for (int i = 0; i < 20; i++) {
+        await ReminderScheduler.scheduleAppointmentReminder(Appointment(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          dateTime: DateTime.now().add(Duration(days: 5 + i)),
+          title: 'Cita $i',
+        ));
+      }
+
+      final ids = scheduledIds();
+      expect(ids, hasLength(20));
+      expect(ids.toSet().length, ids.length, reason: 'ids repetidos entre citas distintas');
+    });
   });
 }

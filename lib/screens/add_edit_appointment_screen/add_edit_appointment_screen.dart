@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/appointment.dart';
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:intl/intl.dart';
-import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/providers/appointment_providers.dart';
 
-class AddEditAppointmentScreen extends StatefulWidget {
+class AddEditAppointmentScreen extends ConsumerStatefulWidget {
   final String petId;
   final Appointment? appointment;
 
   const AddEditAppointmentScreen({super.key, required this.petId, this.appointment});
 
   @override
-  State<AddEditAppointmentScreen> createState() => _AddEditAppointmentScreenState();
+  ConsumerState<AddEditAppointmentScreen> createState() => _AddEditAppointmentScreenState();
 }
 
-class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
+class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -125,79 +124,78 @@ class _AddEditAppointmentScreenState extends State<AddEditAppointmentScreen> {
   Future<void> _saveAppointment() async {
     if (_isSaving) return;
 
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isSaving = true);
-
-      final dbHelper = DatabaseHelper();
-      final String id = widget.appointment?.id ?? const Uuid().v4();
-      final bool isCompleted = widget.appointment?.isCompleted ?? false;
-
-      final newAppointment = Appointment(
-        id: id,
-        petId: widget.petId,
-        dateTime: _selectedDateTime,
-        title: _titleController.text,
-        description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        location: _locationController.text.isEmpty ? null : _locationController.text,
-        type: _typeController.text.isEmpty ? null : _typeController.text,
-        isCompleted: isCompleted, // Se mantiene el estado de completado si se está editando
-      );
-
-      // Lógica para programar notificación un día antes
-      final notificationDateTime = _selectedDateTime.subtract(const Duration(days: 1));
-
-      try {
-        // Si se está editando una cita, cancela la notificación anterior
-        if (widget.appointment != null) {
-          await NotificationService().cancelNotification(widget.appointment!.id.hashCode);
-        }
-
-        // Si la fecha de la notificación no está en el pasado, la programamos.
-        if (notificationDateTime.isAfter(DateTime.now())) {
-          await NotificationService().scheduleNotificationOnce(
-          id: id.hashCode,
-            title: 'Recordatorio de Cita: ${_titleController.text}',
-            body: 'Tu cita es mañana a las ${DateFormat('HH:mm').format(_selectedDateTime)}.',
-            scheduledDateTime: notificationDateTime,
-            payload: id,
-          );
-        }
-
-        if (widget.appointment == null) {
-          await dbHelper.insertAppointment(newAppointment);
-          if(mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Cita añadida con éxito.')),
-            );
-          }
-        } else {
-          await dbHelper.updateAppointment(newAppointment);
-          if(mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Cita actualizada con éxito.')),
-            );
-          }
-        }
-
-        if(mounted) {
-          Navigator.of(context).pop();
-        }
-      } catch (e) {
-        debugPrint('Error al guardar la cita: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al guardar la cita: $e')),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isSaving = false);
-        }
-      }
-    } else {
+    if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Revisa los campos marcados en rojo antes de guardar.')),
       );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final notifier = ref.read(appointmentsProvider(widget.petId).notifier);
+      // Se recalcula siempre contra la fecha/hora elegida, en vez de
+      // preservar el valor viejo: isCompleted no tiene otro toggle manual
+      // en esta app, es puramente "esta cita ya pasó" -el mismo criterio
+      // que aplica el auto-completado al cargar la lista-. Preservar el
+      // valor viejo sin recalcularlo era el bug: editar una cita marcada
+      // completada (por vencida) y ponerle una fecha futura la dejaba
+      // "completada" para siempre, tachada en la lista y sin volver a
+      // agendarse en el próximo reinicio del dispositivo (ver
+      // ReminderScheduler.scheduleAppointmentReminder, que sí respeta
+      // isCompleted).
+      final bool isCompleted = _selectedDateTime.isBefore(DateTime.now());
+
+      if (widget.appointment != null) {
+        final Appointment draft = Appointment(
+          id: widget.appointment!.id,
+          petId: widget.petId,
+          dateTime: _selectedDateTime,
+          title: _titleController.text,
+          description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+          location: _locationController.text.isEmpty ? null : _locationController.text,
+          type: _typeController.text.isEmpty ? null : _typeController.text,
+          isCompleted: isCompleted,
+        );
+        await notifier.updateAppointment(widget.appointment!, draft);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cita actualizada con éxito.')),
+          );
+        }
+      } else {
+        final Appointment newAppointment = Appointment(
+          petId: widget.petId,
+          dateTime: _selectedDateTime,
+          title: _titleController.text,
+          description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+          location: _locationController.text.isEmpty ? null : _locationController.text,
+          type: _typeController.text.isEmpty ? null : _typeController.text,
+          isCompleted: isCompleted,
+        );
+        await notifier.addAppointment(newAppointment);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cita añadida con éxito.')),
+          );
+        }
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      debugPrint('Error al guardar la cita: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar la cita: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 

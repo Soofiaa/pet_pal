@@ -1,62 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/appointment.dart';
-import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/providers/appointment_providers.dart';
 import 'package:pet_pal/screens/add_edit_appointment_screen/add_edit_appointment_screen.dart';
-import 'package:pet_pal/services/notification_service.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:intl/intl.dart';
 
-class AppointmentsScreen extends StatefulWidget {
+class AppointmentsScreen extends ConsumerWidget {
   final Pet pet;
 
   const AppointmentsScreen({super.key, required this.pet});
 
-  @override
-  State<AppointmentsScreen> createState() => _AppointmentsScreenState();
-}
-
-class _AppointmentsScreenState extends State<AppointmentsScreen> {
-  List<Appointment> _appointments = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAppointments();
-  }
-
-  Future<void> _loadAppointments() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final dbHelper = DatabaseHelper();
-    final appointments = await dbHelper.getAppointmentsForPet(widget.pet.id);
-
-    // NUEVA LÓGICA: Marcar citas pasadas como completadas
-    final now = DateTime.now();
-    for (var appointment in appointments) {
-      if (!appointment.isCompleted && appointment.dateTime.isBefore(now)) {
-        final completedAppointment = appointment.copyWith(isCompleted: true);
-        await dbHelper.updateAppointment(completedAppointment);
-      }
-    }
-
-    // Volver a cargar la lista después de actualizar
-    final updatedAppointments = await dbHelper.getAppointmentsForPet(widget.pet.id);
-
-    // Ordenar citas para mostrar las próximas primero
-    updatedAppointments.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-
-    setState(() {
-      _appointments = updatedAppointments;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _deleteAppointment(Appointment appointment) async {
-    final bool? confirm = await showDialog(
+  Future<void> _deleteAppointment(
+    BuildContext context,
+    WidgetRef ref,
+    Appointment appointment,
+  ) async {
+    final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -77,107 +38,114 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       },
     );
 
-    if (confirm == true) {
-      try {
-        await NotificationService().cancelNotification(appointment.id.hashCode);
-        await DatabaseHelper().deleteAppointment(appointment.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cita eliminada con éxito.')),
-          );
-        }
-        _loadAppointments();
-      } catch (e) {
-        debugPrint('Error al eliminar la cita: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar la cita: $e')),
-          );
-        }
-      }
+    if (confirm != true) return;
+
+    try {
+      await ref.read(appointmentsProvider(pet.id).notifier).deleteAppointment(appointment);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cita eliminada con éxito.')),
+      );
+    } catch (e) {
+      debugPrint('Error al eliminar la cita: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar la cita: $e')),
+      );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appointmentsAsync = ref.watch(appointmentsProvider(pet.id));
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Citas de ${widget.pet.name}'),
+        title: Text('Citas de ${pet.name}'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _appointments.isEmpty
-          ? EmptyState(
-        icon: Icons.event_note,
-        message: 'Aún no hay citas registradas para ${widget.pet.name}.',
-        actionHint: 'Presiona "+" para añadir una nueva.',
-      )
-          : ListView.builder(
-        itemCount: _appointments.length,
-        itemBuilder: (context, index) {
-          final appointment = _appointments[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: ListTile(
-              leading: const Icon(Icons.calendar_today, color: Colors.blueAccent),
-              title: Text(
-                appointment.title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  decoration: appointment.isCompleted // Si está completada, se tacha el texto
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                ),
-              ),
-              subtitle: Text(
-                '${DateFormat('dd/MM/yyyy HH:mm').format(appointment.dateTime)}\n'
-                    '${appointment.location ?? 'Sin lugar'}',
-                style: TextStyle(
-                  color: Colors.grey,
-                  decoration: appointment.isCompleted // Si está completada, se tacha el texto
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                ),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (appointment.isCompleted)
-                    const Icon(Icons.check_circle, color: Colors.green),
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddEditAppointmentScreen(
-                            petId: widget.pet.id,
-                            appointment: appointment,
-                          ),
-                        ),
-                      );
-                      _loadAppointments();
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteAppointment(appointment),
-                  ),
-                ],
-              ),
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddEditAppointmentScreen(
-                      petId: widget.pet.id,
-                      appointment: appointment,
+      body: appointmentsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Center(child: Text('Error: $error')),
+        data: (appointments) {
+          if (appointments.isEmpty) {
+            return EmptyState(
+              icon: Icons.event_note,
+              message: 'Aún no hay citas registradas para ${pet.name}.',
+              actionHint: 'Presiona "+" para añadir una nueva.',
+            );
+          }
+
+          return ListView.builder(
+            itemCount: appointments.length,
+            itemBuilder: (context, index) {
+              final appointment = appointments[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: ListTile(
+                  leading: const Icon(Icons.calendar_today, color: Colors.blueAccent),
+                  title: Text(
+                    appointment.title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      decoration: appointment.isCompleted
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
                     ),
                   ),
-                );
-                _loadAppointments();
-              },
-            ),
+                  subtitle: Text(
+                    '${DateFormat('dd/MM/yyyy HH:mm').format(appointment.dateTime)}\n'
+                    '${appointment.location ?? 'Sin lugar'}',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      decoration: appointment.isCompleted
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (appointment.isCompleted)
+                        const Icon(Icons.check_circle, color: Colors.green),
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AddEditAppointmentScreen(
+                                petId: pet.id,
+                                appointment: appointment,
+                              ),
+                            ),
+                          );
+                          // No hace falta refrescar acá: si se guardó algo,
+                          // AppointmentsNotifier.addAppointment/
+                          // updateAppointment ya refrescó el estado
+                          // internamente antes de volver; si se canceló, no
+                          // hay nada que refrescar.
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _deleteAppointment(context, ref, appointment),
+                      ),
+                    ],
+                  ),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddEditAppointmentScreen(
+                          petId: pet.id,
+                          appointment: appointment,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           );
         },
       ),
@@ -186,10 +154,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddEditAppointmentScreen(petId: widget.pet.id),
+              builder: (context) => AddEditAppointmentScreen(petId: pet.id),
             ),
           );
-          _loadAppointments();
         },
         child: const Icon(Icons.add),
       ),
