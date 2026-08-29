@@ -10,6 +10,7 @@ import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_scr
 import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/screens/deworming_products_screen/deworming_products_screen.dart';
 import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.dart';
+import 'package:pet_pal/screens/search_screen/search_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
@@ -186,6 +187,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('Mis Mascotas'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SearchScreen()),
+            ),
+            tooltip: 'Buscar',
+          ),
           IconButton(
             icon: const Icon(Icons.contact_phone),
             onPressed: () => Navigator.push(
