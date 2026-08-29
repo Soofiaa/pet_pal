@@ -1,38 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/pet.dart';
+import 'package:pet_pal/providers/document_providers.dart';
 import 'package:pet_pal/screens/add_edit_document_screen/add_edit_document_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
 
-class DocumentsScreen extends StatefulWidget {
+class DocumentsScreen extends ConsumerStatefulWidget {
   final Pet pet;
 
   const DocumentsScreen({super.key, required this.pet});
 
   @override
-  State<DocumentsScreen> createState() => _DocumentsScreenState();
+  ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
 }
 
-class _DocumentsScreenState extends State<DocumentsScreen> {
+class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   static const String _allCategoriesLabel = 'Todas';
 
-  List<Document> _documents = [];
-  bool _isLoading = true;
   String _selectedCategory = _allCategoriesLabel;
   String _searchQuery = '';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDocuments();
-  }
 
   @override
   void dispose() {
@@ -40,18 +33,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadDocuments() async {
-    setState(() => _isLoading = true);
-    final documents = await DatabaseHelper().getDocumentsForPet(widget.pet.id);
-    if (!mounted) return;
-    setState(() {
-      _documents = documents;
-      _isLoading = false;
-    });
-  }
-
-  List<Document> get _filteredDocuments {
-    return _documents.where((document) {
+  List<Document> _filterDocuments(List<Document> documents) {
+    return documents.where((document) {
       final matchesCategory = _selectedCategory == _allCategoriesLabel ||
           document.categoria == _selectedCategory;
       final matchesSearch = document.titulo
@@ -114,13 +97,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
     if (shouldDelete == true) {
       try {
-        await ImageStorageService.deleteFileIfExist(document.filePath);
-        await DatabaseHelper().deleteDocument(document.id);
+        await ref.read(documentsProvider(widget.pet.id).notifier).deleteDocument(document);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Documento eliminado correctamente.')),
         );
-        _loadDocuments();
       } catch (e) {
         debugPrint('Error al eliminar el documento: $e');
         if (!mounted) return;
@@ -134,6 +115,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     final List<String> categories = [_allCategoriesLabel, ...kDocumentCategories];
+    final documentsAsync = ref.watch(documentsProvider(widget.pet.id));
 
     return Scaffold(
       appBar: AppBar(
@@ -189,66 +171,78 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredDocuments.isEmpty
-                    ? EmptyState(
-                        icon: Icons.folder_open_outlined,
-                        message: _searchQuery.isNotEmpty
-                            ? 'No se encontraron resultados.'
-                            : 'Aún no hay documentos registrados para ${widget.pet.name}.',
-                        actionHint: _searchQuery.isNotEmpty
-                            ? 'Prueba con otra palabra clave.'
-                            : 'Presiona "+" para añadir uno nuevo.',
-                      )
-                    : ListView.builder(
-                        itemCount: _filteredDocuments.length,
-                        itemBuilder: (context, index) {
-                          final Document document = _filteredDocuments[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            child: ListTile(
-                              leading: Icon(
-                                document.isPdf ? Icons.picture_as_pdf : Icons.image,
-                                color: document.isPdf ? Colors.red : Colors.blue,
-                                size: 36,
-                              ),
-                              title: Text(
-                                document.titulo,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text(
-                                '${document.categoria} · ${DateFormat('dd/MM/yyyy').format(document.fecha)}',
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue),
-                                    onPressed: () async {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => AddEditDocumentScreen(
-                                            pet: widget.pet,
-                                            document: document,
-                                          ),
-                                        ),
-                                      );
-                                      _loadDocuments();
-                                    },
+            child: documentsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stackTrace) => Center(child: Text('Error: $error')),
+              data: (documents) {
+                final filteredDocuments = _filterDocuments(documents);
+
+                if (filteredDocuments.isEmpty) {
+                  return EmptyState(
+                    icon: Icons.folder_open_outlined,
+                    message: _searchQuery.isNotEmpty
+                        ? 'No se encontraron resultados.'
+                        : 'Aún no hay documentos registrados para ${widget.pet.name}.',
+                    actionHint: _searchQuery.isNotEmpty
+                        ? 'Prueba con otra palabra clave.'
+                        : 'Presiona "+" para añadir uno nuevo.',
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredDocuments.length,
+                  itemBuilder: (context, index) {
+                    final Document document = filteredDocuments[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: ListTile(
+                        leading: Icon(
+                          document.isPdf ? Icons.picture_as_pdf : Icons.image,
+                          color: document.isPdf ? Colors.red : Colors.blue,
+                          size: 36,
+                        ),
+                        title: Text(
+                          document.titulo,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          '${document.categoria} · ${DateFormat('dd/MM/yyyy').format(document.fecha)}',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AddEditDocumentScreen(
+                                      pet: widget.pet,
+                                      document: document,
+                                    ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => _confirmDelete(document),
-                                  ),
-                                ],
-                              ),
-                              onTap: () => _openDocument(document),
+                                );
+                                // No hace falta refrescar acá: si se guardó
+                                // algo, DocumentsNotifier.addDocument/
+                                // updateDocument ya refrescó el estado
+                                // internamente antes de volver; si se
+                                // canceló, no hay nada que refrescar.
+                              },
                             ),
-                          );
-                        },
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _confirmDelete(document),
+                            ),
+                          ],
+                        ),
+                        onTap: () => _openDocument(document),
                       ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -260,7 +254,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               builder: (context) => AddEditDocumentScreen(pet: widget.pet),
             ),
           );
-          _loadDocuments();
+          // Mismo motivo que arriba: addDocument ya refresca internamente.
         },
         child: const Icon(Icons.add),
       ),

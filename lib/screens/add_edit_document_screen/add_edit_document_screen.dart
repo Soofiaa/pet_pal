@@ -1,23 +1,23 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/pet.dart';
-import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/providers/document_providers.dart';
 
-class AddEditDocumentScreen extends StatefulWidget {
+class AddEditDocumentScreen extends ConsumerStatefulWidget {
   final Pet pet;
   final Document? document;
 
   const AddEditDocumentScreen({super.key, required this.pet, this.document});
 
   @override
-  State<AddEditDocumentScreen> createState() => _AddEditDocumentScreenState();
+  ConsumerState<AddEditDocumentScreen> createState() => _AddEditDocumentScreenState();
 }
 
-class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
+class _AddEditDocumentScreenState extends ConsumerState<AddEditDocumentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _tituloController = TextEditingController();
   final _notasController = TextEditingController();
@@ -95,28 +95,35 @@ class _AddEditDocumentScreenState extends State<AddEditDocumentScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final String? savedPath =
-          await ImageStorageService.saveImageIfNeeded(_filePath, 'documents');
-
-      final newDocument = Document(
-        id: widget.document?.id,
-        petId: widget.pet.id,
-        categoria: _categoria,
-        titulo: _tituloController.text,
-        fecha: _fecha,
-        filePath: savedPath!,
-        notas: _notasController.text.trim().isEmpty ? null : _notasController.text.trim(),
-      );
+      final notifier = ref.read(documentsProvider(widget.pet.id).notifier);
+      final String? notas =
+          _notasController.text.trim().isEmpty ? null : _notasController.text.trim();
 
       if (_isEditing) {
-        await DatabaseHelper().updateDocument(newDocument);
+        final Document draft = Document(
+          id: widget.document!.id,
+          petId: widget.pet.id,
+          categoria: _categoria,
+          titulo: _tituloController.text,
+          fecha: _fecha,
+          filePath: _filePath!,
+          notas: notas,
+        );
+        await notifier.updateDocument(widget.document!, draft);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Documento actualizado con éxito.')),
           );
         }
       } else {
-        await DatabaseHelper().insertDocument(newDocument);
+        await notifier.addDocument(
+          petId: widget.pet.id,
+          categoria: _categoria,
+          titulo: _tituloController.text,
+          fecha: _fecha,
+          rawFilePath: _filePath!,
+          notas: notas,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Documento agregado con éxito.')),
