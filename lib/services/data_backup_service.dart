@@ -34,6 +34,7 @@ class BackupRestorePreview {
     required this.restoredData,
     required this.timestamp,
     required this.petCount,
+    required this.petNames,
   });
 
   /// Datos ya procesados (con los paths de archivos adjuntos restaurados a
@@ -45,6 +46,11 @@ class BackupRestorePreview {
   final DateTime? timestamp;
 
   final int petCount;
+
+  /// Nombres de las mascotas incluidas en el backup, en el mismo orden que
+  /// `restoredData['pets']` -para que la UI pueda mostrarle al usuario a
+  /// quiénes va a restaurar antes del reemplazo destructivo, no solo cuántas.
+  final List<String> petNames;
 }
 
 /// Resultado de [DataBackupService.loadBackupForRestore]: o bien [preview]
@@ -232,11 +238,18 @@ class DataBackupService {
       final rawTimestamp = allData['timestamp'];
       final DateTime? timestamp = rawTimestamp is String ? DateTime.tryParse(rawTimestamp) : null;
 
+      final List<dynamic> restoredPets = restoredData['pets'] as List;
+      final List<String> petNames = restoredPets
+          .map((petData) => (petData as Map)['name'] as String? ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList();
+
       return BackupLoadResult.success(
         BackupRestorePreview(
           restoredData: restoredData,
           timestamp: timestamp,
-          petCount: (restoredData['pets'] as List).length,
+          petCount: restoredPets.length,
+          petNames: petNames,
         ),
       );
     } catch (e) {

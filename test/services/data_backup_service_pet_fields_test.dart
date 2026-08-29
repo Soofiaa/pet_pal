@@ -215,6 +215,7 @@ void main() {
         final preview = loadResult.preview!;
 
         expect(preview.petCount, 1);
+        expect(preview.petNames, ['Firulais']);
         expect(preview.timestamp, isNotNull);
         expect(
           preview.timestamp!.difference(beforeExport).inMinutes.abs() < 1,

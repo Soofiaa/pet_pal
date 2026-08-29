@@ -126,11 +126,10 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen>
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
+        final String petsSummary = _describePets(preview.petNames);
         final String backupDescription = preview.timestamp != null
-            ? 'Respaldo del ${DateFormat('dd/MM/yyyy HH:mm').format(preview.timestamp!.toLocal())}, '
-                'con ${preview.petCount} mascota${preview.petCount == 1 ? '' : 's'}.'
-            : 'Este respaldo tiene ${preview.petCount} mascota${preview.petCount == 1 ? '' : 's'} '
-                '(no incluye fecha, es de un formato anterior).';
+            ? 'Respaldo del ${DateFormat('dd/MM/yyyy HH:mm').format(preview.timestamp!.toLocal())}. $petsSummary'
+            : 'Este respaldo no incluye fecha (es de un formato anterior). $petsSummary';
 
         return AlertDialog(
           title: const Text('Restaurar respaldo'),
@@ -168,6 +167,26 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen>
     });
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+  }
+
+  /// Describe las mascotas de un [BackupRestorePreview] para el diálogo de
+  /// confirmación: nombres reales en vez de solo la cantidad, truncando si
+  /// son muchas y avisando explícitamente si el backup no trae ninguna
+  /// -señal de que puede tratarse del archivo equivocado-.
+  static String _describePets(List<String> petNames) {
+    if (petNames.isEmpty) {
+      return 'Este respaldo parece estar vacío: no contiene ninguna mascota. '
+          'Verifica que sea el archivo correcto antes de continuar.';
+    }
+
+    const int maxShown = 5;
+    if (petNames.length <= maxShown) {
+      return 'Incluye a: ${petNames.join(', ')}.';
+    }
+
+    final String shown = petNames.take(maxShown).join(', ');
+    final int remaining = petNames.length - maxShown;
+    return 'Incluye a: $shown... y $remaining más.';
   }
 
   Widget _buildPermissionStatusRow({
