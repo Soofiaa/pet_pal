@@ -1,18 +1,31 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pet_pal/providers/appointment_providers.dart';
+import 'package:pet_pal/providers/deworming_providers.dart';
+import 'package:pet_pal/providers/document_providers.dart';
+import 'package:pet_pal/providers/emergency_contact_providers.dart';
+import 'package:pet_pal/providers/food_allergy_providers.dart';
+import 'package:pet_pal/providers/medication_providers.dart';
+import 'package:pet_pal/providers/note_providers.dart';
+import 'package:pet_pal/providers/pets_providers.dart';
+import 'package:pet_pal/providers/vaccination_providers.dart';
+import 'package:pet_pal/providers/vital_sign_providers.dart';
+import 'package:pet_pal/providers/weight_record_providers.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/notification_service.dart';
 import 'package:pet_pal/utils/backup_password_dialog.dart';
 
-class BackupSettingsScreen extends StatefulWidget {
+class BackupSettingsScreen extends ConsumerStatefulWidget {
   const BackupSettingsScreen({super.key});
 
   @override
-  State<BackupSettingsScreen> createState() => _BackupSettingsScreenState();
+  ConsumerState<BackupSettingsScreen> createState() =>
+      _BackupSettingsScreenState();
 }
 
-class _BackupSettingsScreenState extends State<BackupSettingsScreen>
+class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
     with WidgetsBindingObserver {
   final DataBackupService _backupService = DataBackupService();
   bool _isWorking = false;
@@ -161,12 +174,52 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen>
     final String result = await _backupService.applyRestoredBackup(preview.restoredData);
 
     if (!mounted) return;
+
+    // applyRestoredBackup no distingue éxito/error con un tipo de resultado
+    // (devuelve un String para ambos casos); "Error" es el único prefijo
+    // que usa en sus mensajes de falla, así que es la única señal
+    // disponible sin tocar data_backup_service.dart.
+    if (!result.startsWith('Error')) {
+      _invalidateAllDataProviders();
+    }
+
     setState(() {
       _isWorking = false;
       _lastMessage = result;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+  }
+
+  /// Tras restaurar un respaldo, TODOS los datos de TODAS las mascotas
+  /// fueron reemplazados en la base de datos. Riverpod (2.6.1, la versión
+  /// de este proyecto) no ofrece una forma de invalidar todo el estado
+  /// cacheado de una sola vez -solo permite invalidar providers puntuales
+  /// por su referencia-, así que hay que enumerar explícitamente cada
+  /// provider raíz que lee la base de datos directamente. Los providers
+  /// derivados que solo hacen ref.watch de estos (p. ej.
+  /// todayDashboardProvider, que depende de petsProvider) no hace falta
+  /// listarlos: Riverpod los invalida en cascada automáticamente.
+  ///
+  /// Los .family de abajo se invalidan SIN pasarles el petId: invalidar un
+  /// family provider así invalida todas las instancias ya creadas para
+  /// cualquier mascota, no solo una -comportamiento documentado de
+  /// Riverpod-, así que cubre también los providers .family que hayan
+  /// quedado cacheados con datos de mascotas que ya no existen tras la
+  /// restauración.
+  void _invalidateAllDataProviders() {
+    ref.invalidate(petsProvider);
+    ref.invalidate(emergencyContactsProvider);
+
+    ref.invalidate(notesProvider);
+    ref.invalidate(weightRecordsProvider);
+    ref.invalidate(appointmentsProvider);
+    ref.invalidate(vaccinationsProvider);
+    ref.invalidate(foodAllergiesProvider);
+    ref.invalidate(medicationsProvider);
+    ref.invalidate(dewormingsProvider);
+    ref.invalidate(documentsProvider);
+    ref.invalidate(vitalSignRecordsProvider);
   }
 
   /// Describe las mascotas de un [BackupRestorePreview] para el diálogo de
