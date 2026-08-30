@@ -16,6 +16,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.today,
         color: primary,
         title: 'Hoy',
+        group: 'Otros',
         description:
             'Al abrir PetPal, aquí ves de un vistazo qué necesita atención hoy '
             'entre todas tus mascotas: citas, próximas dosis y tratamientos '
@@ -26,6 +27,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.pets,
         color: primary,
         title: 'Mascotas',
+        group: 'Otros',
         description:
             'Cada mascota tiene su propio perfil: foto, especie, raza, y hasta '
             'su número de microchip. La edad se calcula sola, en años, meses y '
@@ -36,6 +38,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.local_hospital,
         color: entityColorFor('vaccination'),
         title: 'Vacunas',
+        group: 'Salud',
         description:
             'Registra cada vacuna aplicada con su fecha y, si corresponde, la '
             'próxima dosis. PetPal te avisa cuando se acerca. Entra al perfil '
@@ -46,6 +49,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.medical_services,
         color: entityColorFor('medication'),
         title: 'Medicación',
+        group: 'Salud',
         description:
             'Define cuántas veces al día se da un medicamento y a qué hora '
             'exacta — los recordatorios respetan tu horario real, no uno '
@@ -56,6 +60,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.bug_report,
         color: entityColorFor('deworming'),
         title: 'Desparasitación',
+        group: 'Salud',
         description:
             'Además de registrar cada aplicación, puedes marcarla como '
             'recurrente (por ejemplo, cada 3 meses) y PetPal te va a recordar '
@@ -67,6 +72,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.scale,
         color: entityColorFor('weight'),
         title: 'Peso',
+        group: 'Historial',
         description:
             'Cada control de peso se suma a un gráfico de tendencia, para ver '
             'de un vistazo si tu mascota está subiendo, bajando, o estable en '
@@ -77,6 +83,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.monitor_heart,
         color: entityColorFor('vital_sign'),
         title: 'Signos Vitales',
+        group: 'Salud',
         description:
             'Registra la temperatura de tu mascota y recibe una alerta '
             'automática si el valor sale del rango normal para su especie. '
@@ -87,6 +94,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.folder_shared,
         color: entityColorFor('document'),
         title: 'Documentos',
+        group: 'Historial',
         description:
             'Guarda exámenes, informes de cirugía, radiografías y recetas, '
             'organizados por categoría — todo el historial clínico en un solo '
@@ -97,6 +105,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.description,
         color: entityColorFor('note'),
         title: 'Notas',
+        group: 'Historial',
         description:
             'Un diario de comportamiento y observaciones, con fotos, que '
             'puedes exportar a PDF cuando lo necesites. Entra al perfil de tu '
@@ -106,6 +115,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.calendar_today,
         color: entityColorFor('appointment'),
         title: 'Citas',
+        group: 'Otros',
         description:
             'Programa tus visitas al veterinario con recordatorio incluido. '
             'Entra al perfil de tu mascota, toca \'Citas\', y presiona el '
@@ -115,6 +125,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.no_food,
         color: entityColorFor('food_allergy'),
         title: 'Alergias Alimentarias',
+        group: 'Salud',
         description:
             'Lleva registro de qué alimentos no le sientan bien a tu mascota, '
             'para tenerlo siempre a mano. Entra al perfil de tu mascota, toca '
@@ -124,6 +135,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.calendar_month,
         color: primary,
         title: 'Calendario',
+        group: 'Otros',
         description:
             'Todo el historial de una mascota —vacunas, medicación, citas, '
             'notas y más— en una sola vista cronológica, cada tipo con su '
@@ -134,6 +146,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.search,
         color: primary,
         title: 'Buscador',
+        group: 'Otros',
         description:
             '¿No recuerdas en qué vacuna o documento aparece algo puntual? El '
             'buscador revisa todas tus mascotas y todas las secciones a la '
@@ -146,6 +159,7 @@ class GuideScreen extends StatelessWidget {
         icon: Icons.lock,
         color: primary,
         title: 'Backup y Restauración',
+        group: 'Otros',
         description:
             'Respalda toda la información de la app —incluyendo archivos '
             'adjuntos— en un solo archivo protegido con contraseña. Puedes '
@@ -155,11 +169,29 @@ class GuideScreen extends StatelessWidget {
       ),
     ];
 
+    const List<String> groupOrder = ['Salud', 'Historial', 'Otros'];
+
     return Scaffold(
       appBar: AppBar(title: const Text('Guía de PetPal')),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        children: cards,
+        children: [
+          for (final group in groupOrder)
+            if (cards.any((card) => card.group == group))
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12.0, bottom: 4.0, left: 16.0),
+                    child: Text(
+                      group,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  ...cards.where((card) => card.group == group),
+                ],
+              ),
+        ],
       ),
     );
   }
@@ -169,12 +201,14 @@ class _GuideCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String title;
+  final String group;
   final String description;
 
   const _GuideCard({
     required this.icon,
     required this.color,
     required this.title,
+    required this.group,
     required this.description,
   });
 
@@ -184,43 +218,33 @@ class _GuideCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: Container(
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 22),
         ),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }
