@@ -17,9 +17,10 @@ class GuideScreen extends StatelessWidget {
         color: primary,
         title: 'Hoy',
         description:
-            'Al abrir PetPal, acá ves de un vistazo qué necesita atención hoy '
+            'Al abrir PetPal, aquí ves de un vistazo qué necesita atención hoy '
             'entre todas tus mascotas: citas, próximas dosis y tratamientos '
-            'activos, ordenados por urgencia.',
+            'activos, ordenados por urgencia. Aparece automáticamente al abrir '
+            'la app, no necesitas hacer nada para verla.',
       ),
       _GuideCard(
         icon: Icons.pets,
@@ -28,7 +29,8 @@ class GuideScreen extends StatelessWidget {
         description:
             'Cada mascota tiene su propio perfil: foto, especie, raza, y hasta '
             'su número de microchip. La edad se calcula sola, en años, meses y '
-            'días exactos.',
+            'días exactos. Para agregar una, toca el botón + en la esquina '
+            'inferior derecha de la pantalla principal.',
       ),
       _GuideCard(
         icon: Icons.local_hospital,
@@ -36,7 +38,9 @@ class GuideScreen extends StatelessWidget {
         title: 'Vacunas',
         description:
             'Registra cada vacuna aplicada con su fecha y, si corresponde, la '
-            'próxima dosis. PetPal te avisa cuando se acerca.',
+            'próxima dosis. PetPal te avisa cuando se acerca. Entra al perfil '
+            'de tu mascota, toca \'Vacunas\', y presiona el botón + para '
+            'agregar una nueva.',
       ),
       _GuideCard(
         icon: Icons.medical_services,
@@ -45,16 +49,19 @@ class GuideScreen extends StatelessWidget {
         description:
             'Define cuántas veces al día se da un medicamento y a qué hora '
             'exacta — los recordatorios respetan tu horario real, no uno '
-            'genérico.',
+            'genérico. Entra al perfil de tu mascota, toca \'Medicación\', y '
+            'presiona el botón + para registrar una.',
       ),
       _GuideCard(
         icon: Icons.bug_report,
         color: entityColorFor('deworming'),
         title: 'Desparasitación',
         description:
-            'Además de registrar cada aplicación, podés marcarla como '
+            'Además de registrar cada aplicación, puedes marcarla como '
             'recurrente (por ejemplo, cada 3 meses) y PetPal te va a recordar '
-            'sin que tengas que crear un registro nuevo cada vez.',
+            'sin que tengas que crear un registro nuevo cada vez. Entra al '
+            'perfil de tu mascota, toca \'Desparasitaciones\', y presiona el '
+            'botón + —ahí encontrarás la opción de recurrencia.',
       ),
       _GuideCard(
         icon: Icons.scale,
@@ -63,15 +70,18 @@ class GuideScreen extends StatelessWidget {
         description:
             'Cada control de peso se suma a un gráfico de tendencia, para ver '
             'de un vistazo si tu mascota está subiendo, bajando, o estable en '
-            'el tiempo.',
+            'el tiempo. Entra al perfil de tu mascota, toca \'Peso\', y '
+            'presiona el botón + para agregar un registro.',
       ),
       _GuideCard(
         icon: Icons.monitor_heart,
         color: entityColorFor('vital_sign'),
         title: 'Signos Vitales',
         description:
-            'Registra la temperatura de tu mascota y recibí una alerta '
-            'automática si el valor sale del rango normal para su especie.',
+            'Registra la temperatura de tu mascota y recibe una alerta '
+            'automática si el valor sale del rango normal para su especie. '
+            'Entra al perfil de tu mascota, toca \'Signos Vitales\', y '
+            'presiona el botón + para registrar una medición.',
       ),
       _GuideCard(
         icon: Icons.folder_shared,
@@ -80,7 +90,8 @@ class GuideScreen extends StatelessWidget {
         description:
             'Guarda exámenes, informes de cirugía, radiografías y recetas, '
             'organizados por categoría — todo el historial clínico en un solo '
-            'lugar.',
+            'lugar. Entra al perfil de tu mascota, toca \'Documentos\', y '
+            'presiona el botón + para adjuntar un archivo.',
       ),
       _GuideCard(
         icon: Icons.description,
@@ -88,21 +99,26 @@ class GuideScreen extends StatelessWidget {
         title: 'Notas',
         description:
             'Un diario de comportamiento y observaciones, con fotos, que '
-            'podés exportar a PDF cuando lo necesites.',
+            'puedes exportar a PDF cuando lo necesites. Entra al perfil de tu '
+            'mascota, toca \'Notas\', y presiona el botón + para escribir una.',
       ),
       _GuideCard(
         icon: Icons.calendar_today,
         color: entityColorFor('appointment'),
         title: 'Citas',
-        description: 'Programa tus visitas al veterinario con recordatorio incluido.',
+        description:
+            'Programa tus visitas al veterinario con recordatorio incluido. '
+            'Entra al perfil de tu mascota, toca \'Citas\', y presiona el '
+            'botón + para agendar una.',
       ),
       _GuideCard(
         icon: Icons.no_food,
         color: entityColorFor('food_allergy'),
         title: 'Alergias Alimentarias',
         description:
-            'Llevá registro de qué alimentos no le sientan bien a tu mascota, '
-            'para tenerlo siempre a mano.',
+            'Lleva registro de qué alimentos no le sientan bien a tu mascota, '
+            'para tenerlo siempre a mano. Entra al perfil de tu mascota, toca '
+            '\'Alergias\', y presiona el botón + para agregar una.',
       ),
       _GuideCard(
         icon: Icons.calendar_month,
@@ -111,16 +127,18 @@ class GuideScreen extends StatelessWidget {
         description:
             'Todo el historial de una mascota —vacunas, medicación, citas, '
             'notas y más— en una sola vista cronológica, cada tipo con su '
-            'propio ícono y color.',
+            'propio ícono y color. Entra al perfil de tu mascota y toca '
+            '\'Eventos\' en la parte superior de la pantalla.',
       ),
       _GuideCard(
         icon: Icons.search,
         color: primary,
         title: 'Buscador',
         description:
-            '¿No te acordás en qué vacuna o documento aparece algo puntual? '
-            'El buscador revisa todas tus mascotas y todas las secciones a la '
-            'vez.',
+            '¿No recuerdas en qué vacuna o documento aparece algo puntual? El '
+            'buscador revisa todas tus mascotas y todas las secciones a la '
+            'vez. Toca el ícono de lupa en la parte superior de la pantalla '
+            'principal, y escribe lo que buscas.',
       ),
       _GuideCard(
         icon: Icons.lock,
@@ -128,8 +146,10 @@ class GuideScreen extends StatelessWidget {
         title: 'Backup y Restauración',
         description:
             'Respalda toda la información de la app —incluyendo archivos '
-            'adjuntos— en un solo archivo protegido con contraseña. Podés '
-            'restaurarlo cuando lo necesites.',
+            'adjuntos— en un solo archivo protegido con contraseña. Puedes '
+            'restaurarlo cuando lo necesites. Abre el menú lateral (ícono de '
+            'las tres líneas, arriba a la izquierda) y toca \'Notificaciones '
+            'y Respaldo\'.',
       ),
     ];
 
