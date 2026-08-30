@@ -108,6 +108,7 @@ Future<Uint8List> generateHealthSummaryPdf(
   required List<Vaccination> vaccinations,
   required List<Medication> medications,
   required List<Deworming> dewormings,
+  required List<FoodAllergy> foodAllergies,
   required List<WeightRecord> weightRecords,
   required List<Document> documents,
   PetFoodConfig? foodConfig,
@@ -142,6 +143,7 @@ Future<Uint8List> generateHealthSummaryPdf(
         vaccinations: vaccinations,
         medications: medications,
         dewormings: dewormings,
+        foodAllergies: foodAllergies,
         weightRecords: weightRecords,
         documents: documents,
         foodConfig: foodConfig,
@@ -167,6 +169,7 @@ List<pw.Widget> buildHealthSummarySections(
   required List<Vaccination> vaccinations,
   required List<Medication> medications,
   required List<Deworming> dewormings,
+  required List<FoodAllergy> foodAllergies,
   required List<WeightRecord> weightRecords,
   required List<Document> documents,
   PetFoodConfig? foodConfig,
@@ -232,6 +235,12 @@ List<pw.Widget> buildHealthSummarySections(
       pw.SizedBox(height: 12),
     ],
 
+    if (foodAllergies.isNotEmpty) ...[
+      _buildPdfSectionTitle('Alergias Alimentarias'),
+      for (final foodAllergy in foodAllergies) _buildFoodAllergyBox(foodAllergy),
+      pw.SizedBox(height: 12),
+    ],
+
     if (weightRecords.isNotEmpty) ...[
       _buildPdfSectionTitle('Peso'),
       _buildWeightTable(weightRecords),
@@ -246,170 +255,8 @@ List<pw.Widget> buildHealthSummarySections(
   ];
 }
 
-/// Carnet de identificación de una mascota: foto, datos básicos y, a
-/// modo de cartilla sanitaria, el historial de vacunas, desparasitaciones,
-/// alergias alimentarias y peso. A diferencia de [generateHealthSummaryPdf],
-/// no incluye medicación activa ni el índice de documentos.
-Future<Uint8List> generatePetCardPdf(
-  Pet pet, {
-  required List<Vaccination> vaccinations,
-  required List<Deworming> dewormings,
-  required List<FoodAllergy> foodAllergies,
-  required List<WeightRecord> weightRecords,
-}) async {
-  final pdf = pw.Document();
-  final DateTime now = DateTime.now();
-
-  Uint8List? photoBytes;
-  if (ImageStorageService.isValidLocalFile(pet.imageUrl)) {
-    photoBytes = File(pet.imageUrl!).readAsBytesSync();
-  }
-
-  pdf.addPage(
-    pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.all(36),
-      header: (pw.Context context) {
-        return pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              'Carnet de Identificación de ${pet.name}',
-              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.Text(
-              'Generado el: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
-              style: const pw.TextStyle(fontSize: 10),
-            ),
-            pw.Divider(),
-            pw.SizedBox(height: 10),
-          ],
-        );
-      },
-      build: (pw.Context context) {
-        return [
-          pw.Center(
-            child: photoBytes != null
-                ? pw.ClipRRect(
-                    horizontalRadius: 12,
-                    verticalRadius: 12,
-                    child: pw.Image(
-                      pw.MemoryImage(photoBytes),
-                      width: 220,
-                      height: 220,
-                      fit: pw.BoxFit.cover,
-                    ),
-                  )
-                : pw.Container(
-                    width: 220,
-                    height: 220,
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.grey200,
-                      borderRadius: pw.BorderRadius.circular(12),
-                    ),
-                    child: pw.Center(
-                      child: pw.Text('Sin foto', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
-                    ),
-                  ),
-          ),
-          pw.SizedBox(height: 14),
-          pw.Center(
-            child: pw.Text(
-              pet.name,
-              style: pw.TextStyle(fontSize: 32, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Center(
-            child: pw.Text(
-              '${pet.species} · ${pet.breed}',
-              style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
-            ),
-          ),
-          pw.SizedBox(height: 16),
-
-          _buildPdfInfoBox([
-            _buildPetCardRow('Edad', pet.detailedAge),
-            _buildPetCardRow('Nacimiento', pet.formattedDob),
-            _buildPetCardRow('Color', pet.color),
-            if (pet.microchipNumber != null && pet.microchipNumber!.isNotEmpty)
-              _buildPetCardRow('Microchip', pet.microchipNumber!),
-          ]),
-          pw.SizedBox(height: 10),
-
-          pw.Center(
-            child: pw.Container(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: pw.BoxDecoration(
-                color: pet.isNeutered ? PdfColors.green50 : PdfColors.grey200,
-                borderRadius: pw.BorderRadius.circular(4),
-              ),
-              child: pw.Text(
-                pet.isNeutered ? 'Esterilizado/a' : 'No esterilizado/a',
-                style: pw.TextStyle(
-                  fontSize: 11,
-                  fontWeight: pw.FontWeight.bold,
-                  color: pet.isNeutered ? PdfColors.green700 : PdfColors.grey700,
-                ),
-              ),
-            ),
-          ),
-          pw.SizedBox(height: 20),
-
-          _buildPdfSectionTitle('Vacunas'),
-          if (vaccinations.isEmpty)
-            _buildPdfEmptySection()
-          else
-            ..._buildGroupedVaccinationSection(vaccinations),
-          pw.SizedBox(height: 12),
-
-          _buildPdfSectionTitle('Desparasitación'),
-          if (dewormings.isEmpty)
-            _buildPdfEmptySection()
-          else
-            ..._buildGroupedDewormingSection(dewormings, now),
-          pw.SizedBox(height: 12),
-
-          _buildPdfSectionTitle('Alergias Alimentarias'),
-          if (foodAllergies.isEmpty)
-            _buildPdfEmptySection()
-          else
-            for (final foodAllergy in foodAllergies) _buildFoodAllergyBox(foodAllergy),
-          pw.SizedBox(height: 12),
-
-          _buildPdfSectionTitle('Peso'),
-          if (weightRecords.isEmpty)
-            _buildPdfEmptySection()
-          else
-            _buildWeightTable(weightRecords),
-        ];
-      },
-    ),
-  );
-
-  return pdf.save();
-}
-
-pw.Widget _buildPetCardRow(String label, String value) {
-  return pw.Padding(
-    padding: const pw.EdgeInsets.only(bottom: 4),
-    child: pw.Row(
-      children: [
-        pw.SizedBox(
-          width: 90,
-          child: pw.Text(label, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-        ),
-        pw.Expanded(
-          child: pw.Text(value, style: const pw.TextStyle(fontSize: 11)),
-        ),
-      ],
-    ),
-  );
-}
-
-/// Foto de perfil de la mascota para la ficha clínica -mismo manejo de
-/// archivo/placeholder que ya usa generatePetCardPdf, en un tamaño más
-/// chico acorde a un reporte en vez de una tarjeta de identificación-.
+/// Foto de perfil de la mascota para la ficha clínica: archivo local si
+/// existe, o un placeholder si no.
 pw.Widget _buildPetPhoto(Pet pet, {required double size}) {
   Uint8List? photoBytes;
   if (ImageStorageService.isValidLocalFile(pet.imageUrl)) {
@@ -665,16 +512,6 @@ pw.Widget _buildPdfSectionTitle(String title) {
     child: pw.Text(
       title,
       style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-    ),
-  );
-}
-
-pw.Widget _buildPdfEmptySection() {
-  return pw.Padding(
-    padding: const pw.EdgeInsets.only(bottom: 15),
-    child: pw.Text(
-      'Sin registros.',
-      style: pw.TextStyle(fontSize: 12, fontStyle: pw.FontStyle.italic),
     ),
   );
 }

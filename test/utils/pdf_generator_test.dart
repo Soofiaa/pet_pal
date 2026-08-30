@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/document.dart';
+import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
@@ -118,6 +119,7 @@ void main() {
         vaccinations: const [],
         medications: const [],
         dewormings: const [],
+        foodAllergies: const [],
         weightRecords: const [],
         documents: const [],
         now: DateTime(2026, 6, 1),
@@ -126,6 +128,7 @@ void main() {
       expect(texts, isNot(contains('Vacunas')));
       expect(texts, isNot(contains('Medicación')));
       expect(texts, isNot(contains('Desparasitación')));
+      expect(texts, isNot(contains('Alergias Alimentarias')));
       expect(texts, isNot(contains('Peso')));
       expect(texts, isNot(contains('Documentos')));
       expect(texts, isNot(contains(contains('Sin registros'))));
@@ -148,6 +151,7 @@ void main() {
           ),
         ],
         dewormings: [Deworming(id: 'd1', petId: 'p1', product: 'Drontal', date: DateTime(2026, 1, 1))],
+        foodAllergies: [FoodAllergy(petId: 'p1', food: 'Pollo', dateRecorded: DateTime(2026, 1, 1))],
         weightRecords: [WeightRecord(petId: 'p1', weight: 12.5, date: DateTime(2026, 1, 1))],
         documents: [
           Document(
@@ -164,6 +168,7 @@ void main() {
       expect(texts, contains('Vacunas'));
       expect(texts, contains('Medicación'));
       expect(texts, contains('Desparasitación'));
+      expect(texts, contains('Alergias Alimentarias'));
       expect(texts, contains('Peso'));
       expect(texts, contains('Documentos'));
     });
@@ -195,6 +200,7 @@ void main() {
           vaccinations: const [],
           medications: const [],
           dewormings: [oldApplication, newApplication],
+          foodAllergies: const [],
           weightRecords: const [],
           documents: const [],
           now: now,
@@ -222,6 +228,7 @@ void main() {
         vaccinations: const [],
         medications: const [],
         dewormings: [onlyApplication],
+        foodAllergies: const [],
         weightRecords: const [],
         documents: const [],
         now: now,
@@ -244,6 +251,7 @@ void main() {
         vaccinations: applications,
         medications: const [],
         dewormings: const [],
+        foodAllergies: const [],
         weightRecords: const [],
         documents: const [],
         now: DateTime(2027, 1, 1),
