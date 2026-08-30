@@ -80,9 +80,9 @@ class DashboardEvent {
     final events = <DashboardEvent>[];
 
     final dewormingWinnerIds =
-        _idsOfMostRecentApplicationPerName(rawEvents, 'deworming');
+        idsOfMostRecentApplicationPerName(rawEvents, 'deworming');
     final vaccinationWinnerIds =
-        _idsOfMostRecentApplicationPerName(rawEvents, 'vaccination');
+        idsOfMostRecentApplicationPerName(rawEvents, 'vaccination');
     // 'next_vaccination' usa '${vaccination.id}_next' as id (ver
     // Vaccination.getEventsFromList), a diferencia de 'next_deworming' que
     // reutiliza el mismo id que su registro de aplicación.
@@ -165,7 +165,14 @@ class DashboardEvent {
   /// es lo que permite que dos vacunas distintas (ej. "Rabia" y
   /// "Polivalente") tengan cada una su propia "próxima dosis" vigente, en
   /// vez de que la más recientemente aplicada tape a las demás.
-  static Set<dynamic> _idsOfMostRecentApplicationPerName(
+  ///
+  /// Pública (no privada del archivo): pdf_generator.dart la reutiliza tal
+  /// cual para decidir qué aplicación de desparasitación muestra el badge
+  /// de vigente/vencida en la ficha clínica -mismo criterio exacto que acá
+  /// (mismo campo comparado, mismo desempate en fecha exacta), para que el
+  /// PDF y el panel "Hoy" nunca puedan discrepar sobre cuál aplicación es
+  /// la vigente para un mismo dato real-.
+  static Set<dynamic> idsOfMostRecentApplicationPerName(
     List<Map<String, dynamic>> rawEvents,
     String applicationType,
   ) {
