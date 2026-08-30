@@ -137,8 +137,10 @@ class GuideScreen extends StatelessWidget {
         description:
             '¿No recuerdas en qué vacuna o documento aparece algo puntual? El '
             'buscador revisa todas tus mascotas y todas las secciones a la '
-            'vez. Toca el ícono de lupa en la parte superior de la pantalla '
-            'principal, y escribe lo que buscas.',
+            'vez. Si tienes más de una mascota, cada resultado te indica de '
+            'cuál es, para que no haya confusión. Toca el ícono de lupa en la '
+            'parte superior de la pantalla principal, y escribe lo que '
+            'buscas.',
       ),
       _GuideCard(
         icon: Icons.lock,
