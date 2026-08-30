@@ -10,6 +10,7 @@ import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_scr
 import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/screens/deworming_products_screen/deworming_products_screen.dart';
 import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.dart';
+import 'package:pet_pal/screens/guide_screen/guide_screen.dart';
 import 'package:pet_pal/screens/search_screen/search_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
@@ -264,6 +265,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const BackupSettingsScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.menu_book),
+              title: const Text('Guía de PetPal'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GuideScreen()),
                 );
               },
             ),
