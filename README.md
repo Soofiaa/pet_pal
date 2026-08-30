@@ -7,15 +7,23 @@ documentos clínicos y estado de salud, todo organizado por mascota.
 ## Características
 
 - Registro y gestión de múltiples mascotas, con foto de perfil (recorte
-  integrado en la app) y cálculo automático de edad exacta (años, meses
-  y días)
+  integrado en la app), número de microchip y cálculo automático de edad
+  exacta (años, meses y días)
 - **Dashboard "Hoy"**: resumen de citas, próximas dosis y tratamientos
-  activos de todas las mascotas, ordenado por urgencia
+  activos de todas las mascotas, ordenado por urgencia, con una sola
+  entrada por mascota y tipo de evento (no una por cada registro
+  histórico)
+- **Buscador global**: encuentra cualquier texto (nombre de vacuna,
+  contenido de una nota, categoría de un documento, etc.) entre todas
+  las mascotas y las 8 entidades con texto libre, sin necesitar recordar
+  en qué mascota o pantalla está
 - **Historial médico completo**: vacunas, medicación, desparasitación,
   peso y signos vitales (temperatura), cada uno con su propia pantalla,
   gráfico de tendencia y su lugar en el calendario unificado de la
   mascota. Los signos vitales alertan cuando un valor sale del rango
-  normal
+  normal. La desparasitación admite recordatorios genuinamente
+  recurrentes (ej. "cada 3 meses"), sin necesitar crear un registro
+  nuevo en cada ciclo
 - **Documentos clínicos**: exámenes, informes de cirugía, radiografías y
   recetas, organizados por categoría, con visualización diferenciada
   (imágenes en vista ampliada, PDFs abiertos con la app nativa del
@@ -33,8 +41,11 @@ documentos clínicos y estado de salud, todo organizado por mascota.
   a PDF
 - **Backup y restauración completa cifrada**: todos los datos de la app
   (incluyendo imágenes y documentos adjuntos) en un solo archivo ZIP
-  protegido con contraseña
-- Modo oscuro (sigue la preferencia del sistema)
+  protegido con contraseña, con vista previa (fecha y mascotas incluidas)
+  antes de confirmar el reemplazo
+- **Guía in-app**: pantalla de ayuda con explicación de cada función y
+  cómo usarla, agrupada por categoría
+- Modo oscuro, con toggle manual (claro / oscuro / según el sistema)
 - Acceso a galería y cámara con manejo de permisos Android/iOS modernos
 - Persistencia local con integridad referencial real (`PRAGMA
   foreign_keys` activa, borrado en cascada verificado por tests)
@@ -59,45 +70,52 @@ documentos clínicos y estado de salud, todo organizado por mascota.
 
 ## Arquitectura
 
-El proyecto está migrando de forma incremental hacia una arquitectura en
-capas: **pantalla → provider (Riverpod) → repository → base de datos**,
-feature por feature, sin tocar todo el proyecto de una vez. Cada
-repository es acceso a datos puro; la orquestación de efectos
-secundarios (programar/cancelar recordatorios, evaluar alertas de rango
-anormal, limpiar archivos obsoletos) vive en el provider correspondiente,
-que es la única puerta de escritura real para esa feature.
+El proyecto usa una arquitectura en capas: **pantalla → provider
+(Riverpod) → repository → base de datos**. Cada repository es acceso a
+datos puro (con una advertencia explícita en el código contra llamarlo
+directo desde una pantalla); la orquestación de efectos secundarios
+(programar/cancelar recordatorios, evaluar alertas de rango anormal,
+limpiar archivos obsoletos) vive en el provider correspondiente, que es
+la única puerta de escritura real para esa feature.
 
-Features ya migradas: mascotas, registro de peso, desparasitación,
-vacunas, medicación y signos vitales. El resto del proyecto sigue un
-patrón más simple (acceso directo a la base de datos desde la pantalla)
-mientras se completa la migración.
+La migración a esta arquitectura, hecha de forma incremental (una
+entidad a la vez, cada una sumando exactamente una variable nueva de
+riesgo sobre una base ya probada), está completa: las 10 entidades del
+proyecto —mascotas, vacunas, medicación, desparasitación, peso, signos
+vitales, documentos, notas, citas y alergias alimentarias— tienen su
+propio repository y provider.
 
 ## Estado del proyecto
 
 En desarrollo activo. Funcionalidades implementadas y estables: perfiles,
-dashboard, vacunas, desparasitación, medicación, peso, signos vitales,
-alergias, documentos, calendario, notas, notificaciones, exportación a
-CSV, backup/restore cifrado, modo oscuro y persistencia local.
+dashboard, buscador global, vacunas, desparasitación (con recordatorios
+recurrentes), medicación, peso, signos vitales, alergias, documentos,
+calendario, notas, citas, notificaciones, exportación a CSV,
+backup/restore cifrado con vista previa, guía in-app, modo oscuro con
+toggle manual, y persistencia local con arquitectura completa (repository
++ Riverpod) en las 10 entidades.
 
 Próximas funcionalidades planificadas:
 - Localización a inglés
-- Recordatorios recurrentes flexibles (ej. "cada 3 meses")
+- Recordatorios recurrentes flexibles para vacunación y medicación
+  (hoy solo disponible para desparasitación)
 - Backup opcional en la nube
-- Toggle manual de modo oscuro (hoy sigue la preferencia del sistema)
 
 ## Testing y CI
 
-El proyecto cuenta con una suite de pruebas automatizadas centrada en los
-puntos donde un bug puede fallar en silencio, sin lanzar ningún error
-visible:
+El proyecto cuenta con una suite de más de 180 pruebas automatizadas,
+centrada en los puntos donde un bug puede fallar en silencio, sin
+lanzar ningún error visible:
 
 - Integridad referencial y borrado en cascada, verificados contra
-  SQLite real (no simulado) en las 9 tablas de la base de datos
+  SQLite real (no simulado) en las 15 tablas de la base de datos
 - Programación y cancelación de recordatorios, incluyendo ausencia de
   colisión de IDs entre mascotas, horarios y rangos de fechas largos
 - Orquestación correcta entre cada provider y sus efectos secundarios
   (recordatorios, alertas de signos vitales, limpieza de archivos)
-- Primeros widget tests del repo (dashboard "Hoy")
+- Lógica del buscador global (normalización de acentos/mayúsculas,
+  aislamiento entre mascotas)
+- Widget tests del dashboard "Hoy"
 
 Cada push corre automáticamente `flutter analyze` y `flutter test` vía
 GitHub Actions (`.github/workflows/ci.yml`).
