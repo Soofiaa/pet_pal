@@ -1,6 +1,6 @@
 // Pruebas de SearchService: mismo patrón de sqflite_common_ffi real que
 // dashboard_providers_test.dart, porque lo que se prueba es la agregación
-// real a través de DatabaseHelper.getXForPet para las 8 entidades con
+// real a través de DatabaseHelper.getXForPet para las 9 entidades con
 // campo de texto libre -no solo la forma del servicio-.
 import 'dart:io';
 
@@ -12,6 +12,7 @@ import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/food_allergy.dart';
+import 'package:pet_pal/models/food_record.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
@@ -88,7 +89,7 @@ void main() {
     });
 
     test(
-      'encuentra coincidencias en las 8 entidades con campo de texto libre, '
+      'encuentra coincidencias en las 9 entidades con campo de texto libre, '
       'incluyendo campos que no son el "título" (notas, descripción, '
       'ubicación) para probar que se busca en todos los campos configurados',
       () async {
@@ -137,11 +138,17 @@ void main() {
           vaccineName: 'Antirrábica de Rabito',
           date: DateTime(2024, 7, 1),
         ));
+        await dbHelper.insertFoodRecord(FoodRecord(
+          petId: pet.id,
+          foodName: 'Croquetas',
+          startDate: DateTime(2024, 8, 1),
+          notes: 'Marca recomendada para Rabito', // needle en notes, no en foodName
+        ));
 
         final results = await searchService.search('rabito');
 
-        // Pet + las 7 entidades insertadas arriba = 8 resultados.
-        expect(results, hasLength(8));
+        // Pet + las 8 entidades insertadas arriba = 9 resultados.
+        expect(results, hasLength(9));
 
         final typesFound = results.map((r) => r.type).toSet();
         expect(
@@ -149,6 +156,7 @@ void main() {
           {
             SearchEntityType.pet,
             SearchEntityType.foodAllergy,
+            SearchEntityType.foodRecord,
             SearchEntityType.appointment,
             SearchEntityType.document,
             SearchEntityType.deworming,
@@ -209,6 +217,7 @@ void main() {
         {
           SearchEntityType.pet,
           SearchEntityType.foodAllergy,
+          SearchEntityType.foodRecord,
           SearchEntityType.appointment,
           SearchEntityType.document,
           SearchEntityType.deworming,

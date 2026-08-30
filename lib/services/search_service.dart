@@ -28,11 +28,11 @@ String normalizeForSearch(String input) {
 
 /// Buscador global de texto libre entre todas las mascotas del usuario.
 ///
-/// Cubre las 8 entidades con campo de texto libre (mascotas, alergias
-/// alimentarias, citas, documentos, desparasitaciones, medicaciones, notas,
-/// vacunas). Deliberadamente deja afuera peso y signos vitales: son solo un
-/// número y una fecha, sin nada que un usuario pueda "buscar" en el sentido
-/// de este feature.
+/// Cubre las 9 entidades con campo de texto libre (mascotas, alergias
+/// alimentarias, historial de alimentos, citas, documentos,
+/// desparasitaciones, medicaciones, notas, vacunas). Deliberadamente deja
+/// afuera peso y signos vitales: son solo un número y una fecha, sin nada
+/// que un usuario pueda "buscar" en el sentido de este feature.
 ///
 /// Consulta [DatabaseHelper] directo para las 10 entidades por igual -no
 /// mezcla con los repositories ya migrados (vacunación, medicación,
@@ -78,6 +78,20 @@ class SearchService {
             title: allergy.food,
             date: allergy.dateRecorded,
             record: allergy,
+          ));
+        }
+      }
+
+      final foodRecords = await _dbHelper.getFoodRecordsForPet(pet.id);
+      for (final foodRecord in foodRecords) {
+        if (_matches(normalizedQuery, [foodRecord.foodName, foodRecord.notes])) {
+          results.add(SearchResult(
+            type: SearchEntityType.foodRecord,
+            pet: pet,
+            title: foodRecord.foodName,
+            subtitle: foodRecord.isOngoing ? 'Lo sigue comiendo' : null,
+            date: foodRecord.startDate,
+            record: foodRecord,
           ));
         }
       }

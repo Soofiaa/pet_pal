@@ -12,6 +12,7 @@ import 'package:pet_pal/screens/vaccinations_screen/vaccinations_screen.dart';
 import 'package:pet_pal/screens/appointments_screen/appointments_screen.dart';
 import 'package:pet_pal/screens/weight_record_screen/weight_record_screen.dart';
 import 'package:pet_pal/screens/food_allergy_screen/food_allergy_screen.dart';
+import 'package:pet_pal/screens/food_record_screen/food_record_screen.dart';
 import 'package:pet_pal/screens/notes_screen/notes_screen.dart';
 import 'package:pet_pal/screens/calendar_screen/calendar_screen.dart';
 import 'package:pet_pal/screens/deworming_screen/deworming_screen.dart';
@@ -171,6 +172,15 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
         'group': 'Salud',
         'onTap': () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => FoodAllergyScreen(pet: _pet)));
+        },
+      },
+      {
+        'title': 'Alimentos',
+        'icon': Icons.restaurant,
+        'color': entityColorFor('food_record'),
+        'group': 'Historial',
+        'onTap': () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => FoodRecordScreen(pet: _pet)));
         },
       },
       {

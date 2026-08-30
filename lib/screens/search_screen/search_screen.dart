@@ -7,6 +7,7 @@ import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/food_allergy.dart';
+import 'package:pet_pal/models/food_record.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/search_result.dart';
@@ -17,6 +18,7 @@ import 'package:pet_pal/screens/add_edit_appointment_screen/add_edit_appointment
 import 'package:pet_pal/screens/add_edit_deworming_screen/add_edit_deworming_screen.dart';
 import 'package:pet_pal/screens/add_edit_document_screen/add_edit_document_screen.dart';
 import 'package:pet_pal/screens/add_edit_food_allergy_screen/add_edit_food_allergy_screen.dart';
+import 'package:pet_pal/screens/add_edit_food_record_screen/add_edit_food_record_screen.dart';
 import 'package:pet_pal/screens/add_edit_medications_screen/add_edit_medications_screen.dart';
 import 'package:pet_pal/screens/add_edit_note_screen/add_edit_note_screen.dart';
 import 'package:pet_pal/screens/add_edit_vaccination_screen/add_edit_vaccination_screen.dart';
@@ -88,6 +90,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return AddEditFoodAllergyScreen(
           petId: result.pet.id,
           foodAllergy: result.record as FoodAllergy,
+        );
+      case SearchEntityType.foodRecord:
+        return AddEditFoodRecordScreen(
+          petId: result.pet.id,
+          foodRecord: result.record as FoodRecord,
         );
       case SearchEntityType.appointment:
         return AddEditAppointmentScreen(

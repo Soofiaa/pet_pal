@@ -7,6 +7,7 @@ import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/weight_record.dart';
 import 'package:pet_pal/models/food_allergy.dart';
+import 'package:pet_pal/models/food_record.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/document.dart';
@@ -60,12 +61,13 @@ class DatabaseHelper {
   static const String emergencyContactsTable = 'emergency_contacts';
   static const String petFoodConfigsTable = 'pet_food_configs';
   static const String medicationIntakesTable = 'medication_intakes';
+  static const String foodRecordsTable = 'food_records';
 
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 27,
+      version: 28,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -285,6 +287,20 @@ class DatabaseHelper {
       )
     ''');
     debugPrint('Tabla de tomas de medicación creada');
+
+    // 16. Crear tabla de historial de alimentos
+    await db.execute('''
+      CREATE TABLE $foodRecordsTable(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        petId TEXT,
+        foodName TEXT NOT NULL,
+        startDate TEXT,
+        endDate TEXT,
+        notes TEXT NOT NULL DEFAULT '',
+        FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+      )
+    ''');
+    debugPrint('Tabla de historial de alimentos creada');
   }
 
   Future<List<String>> getVaccineNames() async {
@@ -517,6 +533,25 @@ class DatabaseHelper {
       debugPrint('Migración v27: Columna isRecurring añadida a $dewormingsTable');
     }
 
+    // Migración a v28: nueva tabla food_records (historial de qué alimento
+    // se le fue dando a la mascota). startDate y endDate son ambas
+    // opcionales: startDate null = no se recuerda cuándo empezó, endDate
+    // null = lo sigue comiendo.
+    if (oldVersion < 28) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $foodRecordsTable(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          petId TEXT,
+          foodName TEXT NOT NULL,
+          startDate TEXT,
+          endDate TEXT,
+          notes TEXT NOT NULL DEFAULT '',
+          FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
+        )
+      ''');
+      debugPrint('Tabla de historial de alimentos creada (migración v28)');
+    }
+
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
     // van aquí también, respetando el patrón: if (oldVersion < X) { ... }
   }
@@ -552,6 +587,11 @@ class DatabaseHelper {
     final medicationMaps = await db.query(medicationsTable, where: 'petId = ?', whereArgs: [petId]);
     final medications = List.generate(medicationMaps.length, (i) => Medication.fromJson(medicationMaps[i]));
     allEvents.addAll(Medication.getEventsFromList(medications));
+
+    // Historial de alimentos
+    final foodRecordMaps = await db.query(foodRecordsTable, where: 'petId = ?', whereArgs: [petId]);
+    final foodRecords = List.generate(foodRecordMaps.length, (i) => FoodRecord.fromJson(foodRecordMaps[i]));
+    allEvents.addAll(FoodRecord.getEventsFromList(foodRecords));
 
     // Notas
     final noteMaps = await db.query(notesTable, where: 'petId = ?', whereArgs: [petId]);
@@ -601,6 +641,7 @@ class DatabaseHelper {
     await db.delete(emergencyContactsTable);
     await db.delete(petFoodConfigsTable);
     await db.delete(medicationIntakesTable);
+    await db.delete(foodRecordsTable);
     debugPrint('Todos los datos han sido eliminados de la base de datos.');
   }
 
@@ -1142,6 +1183,48 @@ class DatabaseHelper {
     final db = await database;
     return await db.delete(
       foodAllergiesTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // --- Métodos para FoodRecord (Historial de Alimentos) ---
+  Future<int> insertFoodRecord(FoodRecord foodRecord) async {
+    final db = await database;
+    final id = await db.insert(
+      foodRecordsTable,
+      foodRecord.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    return id;
+  }
+
+  Future<List<FoodRecord>> getFoodRecordsForPet(String petId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      foodRecordsTable,
+      where: 'petId = ?',
+      whereArgs: [petId],
+    );
+    return List.generate(maps.length, (i) {
+      return FoodRecord.fromJson(maps[i]);
+    });
+  }
+
+  Future<int> updateFoodRecord(FoodRecord foodRecord) async {
+    final db = await database;
+    return await db.update(
+      foodRecordsTable,
+      foodRecord.toJson(),
+      where: 'id = ?',
+      whereArgs: [foodRecord.id],
+    );
+  }
+
+  Future<int> deleteFoodRecord(int id) async {
+    final db = await database;
+    return await db.delete(
+      foodRecordsTable,
       where: 'id = ?',
       whereArgs: [id],
     );

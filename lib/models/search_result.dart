@@ -10,6 +10,7 @@ import 'package:pet_pal/models/pet.dart';
 enum SearchEntityType {
   pet,
   foodAllergy,
+  foodRecord,
   appointment,
   document,
   deworming,
@@ -33,6 +34,8 @@ const Map<SearchEntityType, SearchEntityTypeConfig> searchEntityTypeConfigs = {
   SearchEntityType.pet: SearchEntityTypeConfig(label: 'Mascotas', icon: Icons.pets),
   SearchEntityType.foodAllergy:
       SearchEntityTypeConfig(label: 'Alergias alimentarias', icon: Icons.warning_amber_rounded),
+  SearchEntityType.foodRecord:
+      SearchEntityTypeConfig(label: 'Historial de alimentos', icon: Icons.restaurant),
   SearchEntityType.appointment: SearchEntityTypeConfig(label: 'Citas', icon: Icons.event_note),
   SearchEntityType.document: SearchEntityTypeConfig(label: 'Documentos', icon: Icons.folder_open_outlined),
   SearchEntityType.deworming: SearchEntityTypeConfig(label: 'Desparasitaciones', icon: Icons.healing),

@@ -17,6 +17,7 @@ final Map<String, Color> entityColors = {
   'weight': eventColorFor('weight'),
   'document': eventColorFor('document'),
   'food_allergy': eventColorFor('food_allergy'),
+  'food_record': eventColorFor('food_record'),
   'vital_sign': Colors.indigo,
   'food_calculator': Colors.amber,
 };
