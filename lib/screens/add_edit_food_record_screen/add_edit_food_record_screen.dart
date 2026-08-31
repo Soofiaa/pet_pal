@@ -23,13 +23,8 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
   final _foodNameController = TextEditingController();
   final _notesController = TextEditingController();
 
-  // Se conserva siempre un DateTime "de trabajo" para cada picker, aunque
-  // el switch correspondiente lo deje afuera del guardado -así el usuario
-  // no pierde la fecha elegida si prende y apaga el switch por error-.
-  late DateTime _startDate;
-  late DateTime _endDate;
-  late bool _startDateUnknown;
-  late bool _isOngoing;
+  DateTime? _startDate;
+  DateTime? _endDate;
   bool _isSaving = false;
 
   bool get _isEditing => widget.foodRecord != null;
@@ -41,15 +36,8 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
     if (existing != null) {
       _foodNameController.text = existing.foodName;
       _notesController.text = existing.notes;
-      _startDateUnknown = existing.startDate == null;
-      _startDate = existing.startDate ?? DateTime.now();
-      _isOngoing = existing.isOngoing;
-      _endDate = existing.endDate ?? DateTime.now();
-    } else {
-      _startDateUnknown = false;
-      _startDate = DateTime.now();
-      _isOngoing = true;
-      _endDate = DateTime.now();
+      _startDate = existing.startDate;
+      _endDate = existing.endDate;
     }
   }
 
@@ -63,11 +51,11 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
   Future<void> _selectStartDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _startDate,
+      initialDate: _startDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
     );
-    if (picked != null && picked != _startDate) {
+    if (picked != null) {
       setState(() => _startDate = picked);
     }
   }
@@ -75,11 +63,11 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
   Future<void> _selectEndDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _endDate,
+      initialDate: _endDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
     );
-    if (picked != null && picked != _endDate) {
+    if (picked != null) {
       setState(() => _endDate = picked);
     }
   }
@@ -102,8 +90,8 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
         id: widget.foodRecord?.id,
         petId: widget.petId,
         foodName: _foodNameController.text,
-        startDate: _startDateUnknown ? null : _startDate,
-        endDate: _isOngoing ? null : _endDate,
+        startDate: _startDate,
+        endDate: _endDate,
         notes: _notesController.text,
       );
 
@@ -140,6 +128,34 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
     }
   }
 
+  Widget _buildDateField({
+    required String label,
+    required IconData icon,
+    required DateTime? date,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    return TextFormField(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        prefixIcon: Icon(icon),
+        suffixIcon: date != null
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                tooltip: 'Borrar fecha',
+                onPressed: onClear,
+              )
+            : null,
+      ),
+      readOnly: true,
+      controller: TextEditingController(
+        text: date != null ? DateFormat('dd/MM/yyyy').format(date) : 'Sin fecha',
+      ),
+      onTap: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -168,49 +184,21 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
                 },
               ),
               const SizedBox(height: 16.0),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('No recuerdo la fecha de inicio'),
-                value: _startDateUnknown,
-                onChanged: (value) => setState(() => _startDateUnknown = value),
+              _buildDateField(
+                label: 'Fecha de Inicio',
+                icon: Icons.calendar_today,
+                date: _startDate,
+                onTap: () => _selectStartDate(context),
+                onClear: () => setState(() => _startDate = null),
               ),
-              if (!_startDateUnknown) ...[
-                const SizedBox(height: 8.0),
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Fecha de Inicio',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  readOnly: true,
-                  controller: TextEditingController(
-                    text: DateFormat('dd/MM/yyyy').format(_startDate),
-                  ),
-                  onTap: () => _selectStartDate(context),
-                ),
-              ],
               const SizedBox(height: 16.0),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('¿Sigue comiendo este alimento?'),
-                value: _isOngoing,
-                onChanged: (value) => setState(() => _isOngoing = value),
+              _buildDateField(
+                label: 'Fecha de Fin',
+                icon: Icons.event_busy,
+                date: _endDate,
+                onTap: () => _selectEndDate(context),
+                onClear: () => setState(() => _endDate = null),
               ),
-              if (!_isOngoing) ...[
-                const SizedBox(height: 8.0),
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Fecha de Fin',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.event_busy),
-                  ),
-                  readOnly: true,
-                  controller: TextEditingController(
-                    text: DateFormat('dd/MM/yyyy').format(_endDate),
-                  ),
-                  onTap: () => _selectEndDate(context),
-                ),
-              ],
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: _notesController,
