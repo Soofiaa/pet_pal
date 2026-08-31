@@ -15,6 +15,21 @@ import 'package:pet_pal/models/emergency_contact.dart';
 import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 
+/// Margen de página de la ficha clínica -compartido entre el `margin:` de
+/// pw.MultiPage en [generateHealthSummaryPdf] y el cálculo de ancho de
+/// columna de [_buildGrid], para que no se desincronicen si algún día
+/// cambia-.
+const double _kPageMargin = 36;
+
+/// Ancho de contenido disponible en una página A4 con [_kPageMargin] de
+/// margen a cada lado. No es `const` -aunque técnicamente podría serlo, ya
+/// que PdfPageFormat.a4 es un const y sus campos son const-accesibles- para
+/// no depender de esa garantía del paquete `pdf` de terceros.
+final double _kContentWidth = PdfPageFormat.a4.width - (_kPageMargin * 2);
+
+/// Espacio horizontal entre columnas de un grid ([_buildGrid]).
+const double _kGridSpacing = 10;
+
 Future<Uint8List> generateNotesPdf(Pet pet, List<Note> notes) async {
   final pdf = pw.Document();
 
@@ -119,7 +134,7 @@ Future<Uint8List> generateHealthSummaryPdf(
   pdf.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.all(36),
+      margin: const pw.EdgeInsets.all(_kPageMargin),
       header: (pw.Context context) {
         return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -218,7 +233,7 @@ List<pw.Widget> buildHealthSummarySections(
 
     if (vaccinations.isNotEmpty) ...[
       _buildPdfSectionTitle('Vacunas'),
-      ..._buildVaccinationSection(vaccinations),
+      _buildGrid(_buildVaccinationSection(vaccinations), columns: 2),
       pw.SizedBox(height: 12),
     ],
 
@@ -230,13 +245,16 @@ List<pw.Widget> buildHealthSummarySections(
 
     if (dewormings.isNotEmpty) ...[
       _buildPdfSectionTitle('Desparasitación'),
-      ..._buildDewormingSection(dewormings, now),
+      _buildGrid(_buildDewormingSection(dewormings, now), columns: 3),
       pw.SizedBox(height: 12),
     ],
 
     if (foodAllergies.isNotEmpty) ...[
       _buildPdfSectionTitle('Alergias Alimentarias'),
-      for (final foodAllergy in foodAllergies) _buildFoodAllergyBox(foodAllergy),
+      _buildGrid(
+        [for (final foodAllergy in foodAllergies) _buildFoodAllergyBox(foodAllergy)],
+        columns: 2,
+      ),
       pw.SizedBox(height: 12),
     ],
 
@@ -473,6 +491,29 @@ pw.Widget _buildPdfSectionTitle(String title) {
       title,
       style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
     ),
+  );
+}
+
+/// Ancho de columna para un grid de [columns] columnas dentro de
+/// [_kContentWidth], separadas por [_kGridSpacing].
+double _gridColumnWidth(int columns) => (_kContentWidth - (_kGridSpacing * (columns - 1))) / columns;
+
+/// Acomoda [boxes] en un grid de [columns] columnas que se reparte en
+/// varias páginas sin partir ninguna caja a la mitad -confirmado leyendo el
+/// código de pw.Wrap: mide cada hijo con una sola llamada a layout() y solo
+/// decide paginar a nivel de fila completa, nunca dentro de un hijo-. Cada
+/// caja se envuelve en un SizedBox con ancho fijo -pw.SizedBox fuerza ese
+/// ancho exacto a su hijo- para que las columnas queden parejas.
+pw.Widget _buildGrid(List<pw.Widget> boxes, {required int columns}) {
+  final double columnWidth = _gridColumnWidth(columns);
+  return pw.Wrap(
+    spacing: _kGridSpacing,
+    // 0: cada caja ya trae su propio margin-bottom (_buildPdfInfoBox), que
+    // sigue proveyendo el espacio vertical entre filas.
+    runSpacing: 0,
+    children: [
+      for (final box in boxes) pw.SizedBox(width: columnWidth, child: box),
+    ],
   );
 }
 

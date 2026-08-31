@@ -306,4 +306,134 @@ void main() {
       expect(dateTexts[2], contains('01/01/2026'));
     });
   });
+
+  group('buildHealthSummarySections — grids de varias columnas', () {
+    // Cada sección de grid queda como un único pw.Wrap de nivel superior en
+    // la lista que devuelve buildHealthSummarySections -los pw.Wrap
+    // anidados dentro de una caja de vacuna (para sus fotos) no cuentan acá
+    // porque no son elementos de nivel superior-.
+    pw.Wrap singleTopLevelGrid(List<pw.Widget> sections) => sections.whereType<pw.Wrap>().single;
+
+    test('Vacunas: 3 registros arman un grid de 3 cajas, todas del mismo ancho', () {
+      final result = buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: [
+          Vaccination(petId: 'p1', vaccineName: 'Rabia', date: DateTime(2026, 1, 1)),
+          Vaccination(petId: 'p1', vaccineName: 'Polivalente', date: DateTime(2026, 2, 1)),
+          Vaccination(petId: 'p1', vaccineName: 'Sextuple', date: DateTime(2026, 3, 1)),
+        ],
+        medications: const [],
+        dewormings: const [],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: DateTime(2026, 6, 1),
+      );
+
+      final grid = singleTopLevelGrid(result);
+      expect(grid.children, hasLength(3));
+      final widths = grid.children.map((c) => (c as pw.SizedBox).width).toSet();
+      expect(widths, hasLength(1), reason: 'todas las columnas deben tener el mismo ancho');
+    });
+
+    test(
+      'Desparasitación (3 columnas) queda con cajas más angostas que Vacunas '
+      '(2 columnas) -mismo ancho de página, más columnas-',
+      () {
+        final vaccinationsResult = buildHealthSummarySections(
+          _samplePet(),
+          vaccinations: [Vaccination(petId: 'p1', vaccineName: 'Rabia', date: DateTime(2026, 1, 1))],
+          medications: const [],
+          dewormings: const [],
+          foodAllergies: const [],
+          weightRecords: const [],
+          documents: const [],
+          now: DateTime(2026, 6, 1),
+        );
+        final vaccinationColumnWidth =
+            (singleTopLevelGrid(vaccinationsResult).children.single as pw.SizedBox).width!;
+
+        final dewormingsResult = buildHealthSummarySections(
+          _samplePet(),
+          vaccinations: const [],
+          medications: const [],
+          dewormings: [
+            Deworming(id: 'd1', petId: 'p1', product: 'Drontal', date: DateTime(2026, 1, 1)),
+            Deworming(id: 'd2', petId: 'p1', product: 'Bravecto', date: DateTime(2026, 2, 1)),
+            Deworming(id: 'd3', petId: 'p1', product: 'Nexgard', date: DateTime(2026, 3, 1)),
+          ],
+          foodAllergies: const [],
+          weightRecords: const [],
+          documents: const [],
+          now: DateTime(2026, 6, 1),
+        );
+        final dewormingGrid = singleTopLevelGrid(dewormingsResult);
+        expect(dewormingGrid.children, hasLength(3));
+        final dewormingColumnWidth = (dewormingGrid.children.first as pw.SizedBox).width!;
+
+        expect(dewormingColumnWidth, lessThan(vaccinationColumnWidth));
+      },
+    );
+
+    test('Alergias Alimentarias: 2 registros arman un grid de 2 cajas', () {
+      final result = buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: const [],
+        medications: const [],
+        dewormings: const [],
+        foodAllergies: [
+          FoodAllergy(petId: 'p1', food: 'Pollo', dateRecorded: DateTime(2026, 1, 1)),
+          FoodAllergy(petId: 'p1', food: 'Lácteos', dateRecorded: DateTime(2026, 2, 1)),
+        ],
+        weightRecords: const [],
+        documents: const [],
+        now: DateTime(2026, 6, 1),
+      );
+
+      final grid = singleTopLevelGrid(result);
+      expect(grid.children, hasLength(2));
+    });
+
+    test('el grid de Vacunas contiene exactamente una caja por registro, sin perder ni duplicar', () {
+      final result = buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: List.generate(
+          5,
+          (i) => Vaccination(petId: 'p1', vaccineName: 'Vacuna $i', date: DateTime(2026, 1, i + 1)),
+        ),
+        medications: const [],
+        dewormings: const [],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: DateTime(2026, 6, 1),
+      );
+
+      expect(singleTopLevelGrid(result).children, hasLength(5));
+    });
+
+    test('Medicación no cambia a grid -sigue una caja por fila, sin pw.Wrap de nivel superior-', () {
+      final result = buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: const [],
+        medications: [
+          Medication(
+            petId: 'p1',
+            name: 'Amoxicilina',
+            dosage: '250mg',
+            frequency: 'Cada 12h',
+            notes: '',
+            startDate: DateTime(2026, 1, 1),
+          ),
+        ],
+        dewormings: const [],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: DateTime(2026, 6, 1),
+      );
+
+      expect(result.whereType<pw.Wrap>(), isEmpty);
+    });
+  });
 }
