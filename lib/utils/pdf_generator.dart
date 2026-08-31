@@ -13,7 +13,6 @@ import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/pet_food_config.dart';
 import 'package:pet_pal/models/emergency_contact.dart';
 import 'package:pet_pal/models/food_allergy.dart';
-import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 
 Future<Uint8List> generateNotesPdf(Pet pet, List<Note> notes) async {
@@ -219,7 +218,7 @@ List<pw.Widget> buildHealthSummarySections(
 
     if (vaccinations.isNotEmpty) ...[
       _buildPdfSectionTitle('Vacunas'),
-      ..._buildGroupedVaccinationSection(vaccinations),
+      ..._buildVaccinationSection(vaccinations),
       pw.SizedBox(height: 12),
     ],
 
@@ -231,7 +230,7 @@ List<pw.Widget> buildHealthSummarySections(
 
     if (dewormings.isNotEmpty) ...[
       _buildPdfSectionTitle('Desparasitación'),
-      ..._buildGroupedDewormingSection(dewormings, now),
+      ..._buildDewormingSection(dewormings, now),
       pw.SizedBox(height: 12),
     ],
 
@@ -331,66 +330,43 @@ pw.Widget _buildInfoField(MapEntry<String, String> field) {
   );
 }
 
-/// Agrupa [items] por el nombre que devuelve [nameOf] y ordena cada grupo
-/// por [dateOf] descendente (más reciente primero). Genérica -no es
-/// específica de desparasitaciones ni vacunas- porque ambas Tareas 1 y 2
-/// necesitan la misma organización de datos para mostrar el historial
-/// completo agrupado. Pública para poder testearla directo (mismo motivo
-/// que normalizeForSearch en search_service.dart). A diferencia de
-/// [DashboardEvent.idsOfMostRecentApplicationPerName] -que decide un único
-/// "ganador" por nombre-, esta función no descarta nada: es solo
-/// organización para mostrar el historial completo, no una deduplicación.
-Map<String, List<T>> groupByNameSortedByDateDesc<T>(
-  List<T> items,
-  String Function(T) nameOf,
-  DateTime Function(T) dateOf,
-) {
-  final Map<String, List<T>> grouped = {};
-  for (final item in items) {
-    grouped.putIfAbsent(nameOf(item), () => []).add(item);
-  }
-  for (final group in grouped.values) {
-    group.sort((a, b) => dateOf(b).compareTo(dateOf(a)));
-  }
-  return grouped;
-}
-
-/// Ids de las desparasitaciones que deben mostrar el badge de vigente/
-/// vencida: solo la aplicación más reciente de cada producto. Reutiliza
-/// literalmente [DashboardEvent.idsOfMostRecentApplicationPerName] -el
-/// mismo criterio que ya usa el panel "Hoy" para deduplicar-, no
-/// reimplementa el criterio, para que el PDF y el dashboard nunca puedan
-/// discrepar sobre cuál aplicación es la vigente. Pública para poder
-/// testearla directo.
+/// Id de la desparasitación que debe mostrar el badge de vigente/vencida:
+/// la aplicación más reciente de TODAS, sin importar el producto -la
+/// desparasitación de una mascota es una sola línea de tiempo, no una por
+/// producto-. Confirmado contra un caso real con 5 productos distintos: el
+/// panel "Hoy" ya trata la desparasitación de una mascota como una sola
+/// línea (no agrupa por nombre de producto), así que la ficha clínica debe
+/// reflejar el mismo criterio. A diferencia de las vacunas -que sí tienen
+/// una "próxima dosis" propia por vacuna distinta-, cambiar de marca de
+/// antiparasitario no abre una línea de vigencia independiente.
+///
+/// Específica y exclusiva de pdf_generator.dart: NO reutiliza ni afecta
+/// [DashboardEvent.idsOfMostRecentApplicationPerName] (que agrupa por
+/// nombre de producto y es el criterio correcto para el panel "Hoy", pero
+/// no para esta ficha). Pública para poder testearla directo.
 Set<String?> dewormingIdsWithUrgencyBadge(List<Deworming> dewormings) {
-  final events = Deworming.getEventsFromList(dewormings);
-  return DashboardEvent.idsOfMostRecentApplicationPerName(events, 'deworming')
-      .cast<String?>();
+  if (dewormings.isEmpty) return {};
+  Deworming winner = dewormings.first;
+  for (final deworming in dewormings.skip(1)) {
+    if (deworming.date.isAfter(winner.date)) winner = deworming;
+  }
+  return {winner.id};
 }
 
-/// Sección de desparasitaciones agrupada por producto (Tarea 1): dentro de
-/// cada grupo, ordenadas por fecha de aplicación descendente. Solo la
-/// aplicación más reciente de cada producto -según
-/// [dewormingIdsWithUrgencyBadge]- muestra el badge de vigente/vencida;
-/// las anteriores del mismo producto se muestran como historial plano, sin
-/// badge de urgencia (antes, cada aplicación evaluaba su propio nextDate
-/// de forma aislada, así que casi todo el historial se veía "Vencida"
-/// aunque ya hubiera sido reemplazada a tiempo por una más nueva).
-List<pw.Widget> _buildGroupedDewormingSection(List<Deworming> dewormings, DateTime now) {
+/// Sección de desparasitación: lista plana ordenada por fecha de
+/// aplicación descendente (más reciente primero). Solo la aplicación más
+/// reciente de todas -según [dewormingIdsWithUrgencyBadge]- muestra el
+/// badge de vigente/vencida; el resto se muestra como historial plano, sin
+/// badge, sin importar su propio producto o fecha individual.
+List<pw.Widget> _buildDewormingSection(List<Deworming> dewormings, DateTime now) {
   final winnerIds = dewormingIdsWithUrgencyBadge(dewormings);
-  final grouped = groupByNameSortedByDateDesc(dewormings, (d) => d.product, (d) => d.date);
-
-  final List<pw.Widget> widgets = [];
-  for (final group in grouped.values) {
-    for (final deworming in group) {
-      widgets.add(
-        winnerIds.contains(deworming.id)
-            ? _buildDewormingBox(deworming, now)
-            : _buildDewormingHistoryBox(deworming),
-      );
-    }
-  }
-  return widgets;
+  final sorted = List<Deworming>.of(dewormings)..sort((a, b) => b.date.compareTo(a.date));
+  return [
+    for (final deworming in sorted)
+      winnerIds.contains(deworming.id)
+          ? _buildDewormingBox(deworming, now)
+          : _buildDewormingHistoryBox(deworming),
+  ];
 }
 
 /// Caja de historial plano para una aplicación de desparasitación que ya
@@ -416,41 +392,33 @@ pw.Widget _buildDewormingHistoryBox(Deworming deworming) {
   ]);
 }
 
-/// Sección de vacunas agrupada por nombre (Tarea 2): dentro de cada grupo,
-/// una línea de fecha por aplicación y, debajo, todas las fotos de todas
-/// las aplicaciones de ese nombre juntas -a diferencia de la Tarea 1, acá
-/// no hay "ganador": es historial visual completo, no una alerta de
-/// urgencia-.
-List<pw.Widget> _buildGroupedVaccinationSection(List<Vaccination> vaccinations) {
-  final grouped = groupByNameSortedByDateDesc(vaccinations, (v) => v.vaccineName, (v) => v.date);
-  return [
-    for (final entry in grouped.entries) _buildVaccinationGroupBox(entry.key, entry.value),
-  ];
+/// Sección de vacunas: lista plana ordenada por fecha de aplicación
+/// descendente (más reciente primero), sin agrupar por nombre de vacuna.
+List<pw.Widget> _buildVaccinationSection(List<Vaccination> vaccinations) {
+  final sorted = List<Vaccination>.of(vaccinations)..sort((a, b) => b.date.compareTo(a.date));
+  return [for (final vaccination in sorted) _buildVaccinationBox(vaccination)];
 }
 
-pw.Widget _buildVaccinationGroupBox(String vaccineName, List<Vaccination> applications) {
-  final List<_VaccinationPhoto> photos = [];
-  for (final application in applications) {
-    if (ImageStorageService.isValidLocalFile(application.stickerPhotoPath)) {
-      photos.add(_VaccinationPhoto(application.stickerPhotoPath!, application.date, 'Adhesivo'));
-    }
-    if (ImageStorageService.isValidLocalFile(application.extraPhotoPath)) {
-      photos.add(_VaccinationPhoto(application.extraPhotoPath!, application.date, 'Extra'));
-    }
+pw.Widget _buildVaccinationBox(Vaccination vaccination) {
+  final List<MapEntry<String, String>> photos = [];
+  if (ImageStorageService.isValidLocalFile(vaccination.stickerPhotoPath)) {
+    photos.add(MapEntry(vaccination.stickerPhotoPath!, 'Adhesivo'));
+  }
+  if (ImageStorageService.isValidLocalFile(vaccination.extraPhotoPath)) {
+    photos.add(MapEntry(vaccination.extraPhotoPath!, 'Extra'));
   }
 
   return _buildPdfInfoBox([
     pw.Text(
-      vaccineName,
+      vaccination.vaccineName,
       style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13),
     ),
     pw.SizedBox(height: 3),
-    for (final application in applications)
-      pw.Text(
-        'Fecha aplicada: ${DateFormat('dd/MM/yyyy').format(application.date)}'
-        '${application.nextDueDate != null ? ' · Próxima dosis: ${DateFormat('dd/MM/yyyy').format(application.nextDueDate!)}' : ''}',
-        style: const pw.TextStyle(fontSize: 11),
-      ),
+    pw.Text(
+      'Fecha aplicada: ${DateFormat('dd/MM/yyyy').format(vaccination.date)}'
+      '${vaccination.nextDueDate != null ? ' · Próxima dosis: ${DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!)}' : ''}',
+      style: const pw.TextStyle(fontSize: 11),
+    ),
     if (photos.isNotEmpty) ...[
       pw.SizedBox(height: 8),
       pw.Wrap(
@@ -465,7 +433,7 @@ pw.Widget _buildVaccinationGroupBox(String vaccineName, List<Vaccination> applic
                   horizontalRadius: 6,
                   verticalRadius: 6,
                   child: pw.Image(
-                    pw.MemoryImage(File(photo.path).readAsBytesSync()),
+                    pw.MemoryImage(File(photo.key).readAsBytesSync()),
                     width: 60,
                     height: 60,
                     fit: pw.BoxFit.cover,
@@ -473,7 +441,7 @@ pw.Widget _buildVaccinationGroupBox(String vaccineName, List<Vaccination> applic
                 ),
                 pw.SizedBox(height: 2),
                 pw.Text(
-                  '${photo.label} · ${DateFormat('dd/MM/yy').format(photo.date)}',
+                  photo.value,
                   style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
                 ),
               ],
@@ -482,14 +450,6 @@ pw.Widget _buildVaccinationGroupBox(String vaccineName, List<Vaccination> applic
       ),
     ],
   ]);
-}
-
-class _VaccinationPhoto {
-  _VaccinationPhoto(this.path, this.date, this.label);
-
-  final String path;
-  final DateTime date;
-  final String label;
 }
 
 pw.Widget _buildFoodAllergyBox(FoodAllergy foodAllergy) {

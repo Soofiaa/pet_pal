@@ -1,10 +1,11 @@
-// Pruebas de la lógica pura reutilizable de pdf_generator.dart (Tareas 1-3
-// de la revisión de generateHealthSummaryPdf): agrupamiento por nombre,
-// reutilización del criterio de "aplicación más reciente" del dashboard, y
-// ocultamiento de secciones vacías. No genera bytes de PDF -recorre el
-// árbol de widgets `pw.*` real que devuelve buildHealthSummarySections,
-// la misma lista que usa generateHealthSummaryPdf para renderizar-, así
-// que estos tests verifican el comportamiento real, no una copia.
+// Pruebas de la lógica pura reutilizable de pdf_generator.dart: vacunas
+// como lista plana por fecha, desparasitación como una sola línea de
+// tiempo por mascota (criterio propio de la ficha clínica, independiente
+// del dashboard), y ocultamiento de secciones vacías. No genera bytes de
+// PDF -recorre el árbol de widgets `pw.*` real que devuelve
+// buildHealthSummarySections, la misma lista que usa
+// generateHealthSummaryPdf para renderizar-, así que estos tests
+// verifican el comportamiento real, no una copia.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -63,31 +64,6 @@ Pet _samplePet() {
 }
 
 void main() {
-  group('groupByNameSortedByDateDesc', () {
-    test('agrupa por nombre y ordena cada grupo por fecha descendente', () {
-      final items = [
-        Deworming(id: 'a', petId: 'p1', product: 'Drontal', date: DateTime(2026, 1, 1)),
-        Deworming(id: 'b', petId: 'p1', product: 'Bravecto', date: DateTime(2026, 3, 1)),
-        Deworming(id: 'c', petId: 'p1', product: 'Drontal', date: DateTime(2026, 5, 1)),
-      ];
-
-      final grouped = groupByNameSortedByDateDesc<Deworming>(
-        items,
-        (d) => d.product,
-        (d) => d.date,
-      );
-
-      expect(grouped.keys.toList(), ['Drontal', 'Bravecto']);
-      expect(grouped['Drontal']!.map((d) => d.id), ['c', 'a']);
-      expect(grouped['Bravecto']!.map((d) => d.id), ['b']);
-    });
-
-    test('lista vacía produce un mapa vacío', () {
-      final grouped = groupByNameSortedByDateDesc<Deworming>([], (d) => d.product, (d) => d.date);
-      expect(grouped, isEmpty);
-    });
-  });
-
   group('dewormingIdsWithUrgencyBadge', () {
     test('con dos aplicaciones del mismo producto, solo la más reciente queda marcada', () {
       final older = Deworming(id: 'old', petId: 'p1', product: 'Drontal', date: DateTime(2026, 1, 1));
@@ -98,14 +74,36 @@ void main() {
       expect(winnerIds, {'new'});
     });
 
-    test('con productos distintos, cada uno tiene su propio ganador', () {
-      final drontal = Deworming(id: 'd', petId: 'p1', product: 'Drontal', date: DateTime(2026, 1, 1));
-      final bravecto = Deworming(id: 'b', petId: 'p1', product: 'Bravecto', date: DateTime(2026, 2, 1));
+    test(
+      'con productos distintos, gana la aplicación más reciente de TODAS '
+      '(una sola línea de tiempo, no una por producto)',
+      () {
+        final drontal = Deworming(id: 'd', petId: 'p1', product: 'Drontal', date: DateTime(2026, 1, 1));
+        final bravecto = Deworming(id: 'b', petId: 'p1', product: 'Bravecto', date: DateTime(2026, 2, 1));
 
-      final winnerIds = dewormingIdsWithUrgencyBadge([drontal, bravecto]);
+        final winnerIds = dewormingIdsWithUrgencyBadge([drontal, bravecto]);
 
-      expect(winnerIds, {'d', 'b'});
-    });
+        expect(winnerIds, {'b'});
+      },
+    );
+
+    test(
+      'caso real tipo Olivia: 5 productos distintos, solo la aplicación con '
+      'fecha más reciente de todas queda marcada, sin importar su producto',
+      () {
+        final applications = [
+          Deworming(id: 'nexgard', petId: 'p1', product: 'Nexgard spectra', date: DateTime(2025, 11, 24)),
+          Deworming(id: 'interno-externo', petId: 'p1', product: 'Interno/Externo', date: DateTime(2026, 1, 24)),
+          Deworming(id: 'simparica', petId: 'p1', product: 'Simparica Trio', date: DateTime(2026, 3, 24)),
+          Deworming(id: 'simparica-mebermic', petId: 'p1', product: 'Simparica+Mebermic', date: DateTime(2026, 5, 24)),
+          Deworming(id: 'simparica-ambas', petId: 'p1', product: 'Simparica Trio (Ambas)', date: DateTime(2026, 8, 24)),
+        ];
+
+        final winnerIds = dewormingIdsWithUrgencyBadge(applications);
+
+        expect(winnerIds, {'simparica-ambas'});
+      },
+    );
 
     test('sin desparasitaciones, no hay ganadores', () {
       expect(dewormingIdsWithUrgencyBadge([]), isEmpty);
@@ -174,10 +172,10 @@ void main() {
     });
   });
 
-  group('buildHealthSummarySections — desparasitaciones agrupadas (Tarea 1, caso real tipo Olivia)', () {
+  group('buildHealthSummarySections — desparasitación como una sola línea de tiempo', () {
     test(
-      'una aplicación vieja ya superada por una nueva no muestra "Vencida", '
-      'aunque su propio nextDate ya haya pasado',
+      'una aplicación vieja ya superada por una más reciente (de OTRO producto) '
+      'no muestra "Vencida", aunque su propio nextDate ya haya pasado',
       () {
         final now = DateTime(2026, 6, 1);
         final oldApplication = Deworming(
@@ -190,7 +188,7 @@ void main() {
         final newApplication = Deworming(
           id: 'd-new',
           petId: 'p1',
-          product: 'Drontal',
+          product: 'Bravecto', // producto distinto: no debe importar para el criterio
           date: DateTime(2026, 5, 1),
           nextDate: DateTime(2026, 8, 1), // vigente respecto de `now`
         );
@@ -236,13 +234,53 @@ void main() {
 
       expect(texts, contains(contains('Vencida')));
     });
+
+    test(
+      'caso real tipo Olivia: 5 productos distintos, solo la aplicación con fecha '
+      'más reciente de todas muestra badge; el resto es historial plano sin badge',
+      () {
+        final now = DateTime(2026, 9, 1);
+        final applications = [
+          Deworming(id: 'nexgard', petId: 'p1', product: 'Nexgard spectra', date: DateTime(2025, 11, 24)),
+          Deworming(id: 'interno-externo', petId: 'p1', product: 'Interno/Externo', date: DateTime(2026, 1, 24)),
+          Deworming(id: 'simparica', petId: 'p1', product: 'Simparica Trio', date: DateTime(2026, 3, 24)),
+          Deworming(id: 'simparica-mebermic', petId: 'p1', product: 'Simparica+Mebermic', date: DateTime(2026, 5, 24)),
+          Deworming(
+            id: 'simparica-ambas',
+            petId: 'p1',
+            product: 'Simparica Trio (Ambas)',
+            date: DateTime(2026, 8, 24),
+            nextDate: DateTime(2026, 11, 24),
+          ),
+        ];
+
+        final texts = _allTexts(buildHealthSummarySections(
+          _samplePet(),
+          vaccinations: const [],
+          medications: const [],
+          dewormings: applications,
+          foodAllergies: const [],
+          weightRecords: const [],
+          documents: const [],
+          now: now,
+        ));
+
+        // Las 5 aplicaciones siguen apareciendo en el historial.
+        expect(texts.where((t) => t.contains('Fecha aplicada')), hasLength(5));
+        // Solo la más reciente de todas (Simparica Trio (Ambas)) muestra el
+        // badge de vigencia; ninguna otra -sin importar su propia fecha o
+        // producto- debería mostrar "Vencida" ni "Vigente hasta".
+        expect(texts, contains(contains('Vigente hasta')));
+        expect(texts.where((t) => t.contains('Vigente hasta') || t.contains('Vencida')), hasLength(1));
+      },
+    );
   });
 
-  group('buildHealthSummarySections — vacunas agrupadas por nombre (Tarea 2)', () {
-    test('varias aplicaciones del mismo nombre aparecen todas, no solo la más reciente', () {
+  group('buildHealthSummarySections — vacunas como lista plana por fecha', () {
+    test('todas las aplicaciones aparecen, ordenadas por fecha descendente, sin agrupar por nombre', () {
       final applications = [
         Vaccination(petId: 'p1', vaccineName: 'Rabia', date: DateTime(2026, 1, 1)),
-        Vaccination(petId: 'p1', vaccineName: 'Rabia', date: DateTime(2026, 6, 1)),
+        Vaccination(petId: 'p1', vaccineName: 'Polivalente', date: DateTime(2026, 6, 1)),
         Vaccination(petId: 'p1', vaccineName: 'Rabia', date: DateTime(2026, 12, 1)),
       ];
 
@@ -257,10 +295,15 @@ void main() {
         now: DateTime(2027, 1, 1),
       ));
 
-      expect(texts.where((t) => t.contains('Fecha aplicada')), hasLength(3));
-      // El nombre de la vacuna aparece una sola vez (encabezado del grupo),
-      // no repetido por cada aplicación.
-      expect(texts.where((t) => t == 'Rabia'), hasLength(1));
+      final dateTexts = texts.where((t) => t.contains('Fecha aplicada')).toList();
+      expect(dateTexts, hasLength(3));
+      // "Rabia" aparece dos veces: una caja por aplicación, no agrupada.
+      expect(texts.where((t) => t == 'Rabia'), hasLength(2));
+
+      // Orden: fecha descendente (más reciente primero), sin agrupar por nombre.
+      expect(dateTexts[0], contains('01/12/2026'));
+      expect(dateTexts[1], contains('01/06/2026'));
+      expect(dateTexts[2], contains('01/01/2026'));
     });
   });
 }
