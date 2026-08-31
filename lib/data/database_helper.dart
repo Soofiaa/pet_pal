@@ -304,21 +304,6 @@ class DatabaseHelper {
     debugPrint('Tabla de historial de alimentos creada');
   }
 
-  Future<List<String>> getVaccineNames() async {
-    final db = await database;
-
-    final result = await db.rawQuery('''
-    SELECT DISTINCT vaccineName
-    FROM $vaccinationsTable
-    WHERE vaccineName IS NOT NULL AND TRIM(vaccineName) <> ''
-    ORDER BY vaccineName COLLATE NOCASE
-  ''');
-
-    return result
-        .map((row) => row['vaccineName'] as String)
-        .toList();
-  }
-
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     debugPrint('DB upgrade: $oldVersion -> $newVersion');
 
@@ -986,21 +971,6 @@ class DatabaseHelper {
     return List.generate(maps.length, (i) {
       return Vaccination.fromJson(maps[i]);
     });
-  }
-
-  Future<List<String>> getDewormingProductNames() async {
-    final db = await database;
-
-    final result = await db.rawQuery('''
-    SELECT DISTINCT product
-    FROM $dewormingsTable
-    WHERE product IS NOT NULL AND TRIM(product) <> ''
-    ORDER BY product COLLATE NOCASE
-  ''');
-
-    return result
-        .map((row) => row['product'] as String)
-        .toList();
   }
 
   Future<void> updateVaccination(Vaccination vaccination) async {

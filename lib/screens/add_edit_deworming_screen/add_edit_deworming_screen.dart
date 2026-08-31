@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/deworming_product.dart';
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
 import '../deworming_products_screen/deworming_products_screen.dart';
 import 'package:uuid/uuid.dart';
@@ -30,7 +29,6 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
   late TextEditingController _nextDateController;
 
   Deworming? _currentDeworming;
-  List<String> _productSuggestions = [];
 
   String? _selectedType;
   int? _selectedFrequency;
@@ -71,8 +69,6 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
     _selectedFrequency = _currentDeworming?.frequencyMonths;
     _reminderDaysAhead = _currentDeworming?.reminderDaysAhead ?? 0;
     _isRecurring = _currentDeworming?.isRecurring ?? false;
-
-    _loadProductSuggestions();
   }
 
   @override
@@ -83,16 +79,6 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
     super.dispose();
   }
 
-  Future<void> _loadProductSuggestions() async {
-    final names = await DatabaseHelper().getDewormingProductNames();
-    
-    if (!mounted) return;
-
-    setState(() {
-      _productSuggestions = names;
-    });
-  }
-
   void _onProductSelected(DewormingProduct product) {
     setState(() {
       _productController.text = product.name;
@@ -100,6 +86,52 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
       _selectedFrequency = product.defaultFrequencyMonths;
       _calculateNextDate();
     });
+  }
+
+  // Menú de catálogo: reemplaza al viejo dropdown + autocompletar de nombres
+  // ya escritos (fuente de nombres inconsistentes). Si el usuario escribe un
+  // nombre libre en el campo, se guarda tal cual, sin sugerencias.
+  Future<void> _showProductPicker() async {
+    final List<DewormingProduct> products =
+        ref.read(dewormingProductsProvider).asData?.value ?? [];
+
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay productos guardados en el catálogo.')),
+      );
+      return;
+    }
+
+    final DewormingProduct? selected = await showModalBottomSheet<DewormingProduct>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Elegir del catálogo',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              for (final product in products)
+                ListTile(
+                  leading: const Icon(Icons.vaccines),
+                  title: Text(product.name),
+                  onTap: () => Navigator.of(context).pop(product),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null) {
+      _onProductSelected(selected);
+    }
   }
 
   void _calculateNextDate() {
@@ -192,8 +224,6 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final productsAsync = ref.watch(dewormingProductsProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.deworming == null ? 'Añadir Desparasitación' : 'Editar Desparasitación'),
@@ -214,67 +244,23 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
           key: _formKey,
           child: Column(
             children: [
-              productsAsync.when(
-                data: (products) {
-                  if (products.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: DropdownButtonFormField<DewormingProduct>(
-                      decoration: const InputDecoration(
-                        labelText: 'Usar producto guardado',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.inventory_2),
-                      ),
-                      items: products.map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
-                      onChanged: (val) {
-                        if (val != null) _onProductSelected(val);
-                      },
-                    ),
-                  );
-                },
-                loading: () => const CircularProgressIndicator(),
-                error: (e, _) => const SizedBox.shrink(),
-              ),
-              Autocomplete<String>(
-                initialValue: TextEditingValue(text: _productController.text),
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  final query = textEditingValue.text.trim().toLowerCase();
-
-                  if (query.isEmpty) {
-                    return _productSuggestions;
+              TextFormField(
+                controller: _productController,
+                decoration: InputDecoration(
+                  labelText: 'Producto/Medicina',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.vaccines),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.inventory_2),
+                    tooltip: 'Elegir del catálogo',
+                    onPressed: _showProductPicker,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Por favor, ingresa el nombre del producto.';
                   }
-
-                  return _productSuggestions.where((option) {
-                    return option.toLowerCase().contains(query);
-                  });
-                },
-                onSelected: (String selection) {
-                  _productController.text = selection;
-                },
-                fieldViewBuilder: (
-                    context,
-                    textEditingController,
-                    focusNode,
-                    onFieldSubmitted,
-                    ) {
-                  return TextFormField(
-                    controller: textEditingController,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(
-                      labelText: 'Producto/Medicina',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.vaccines),
-                    ),
-                    onChanged: (value) {
-                      _productController.text = value;
-                    },
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Por favor, ingresa el nombre del producto.';
-                      }
-                      return null;
-                    },
-                  );
+                  return null;
                 },
               ),
               const SizedBox(height: 16),

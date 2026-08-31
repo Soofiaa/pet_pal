@@ -6,7 +6,6 @@ import 'dart:typed_data';
 import 'package:pet_pal/screens/image_crop_screen/image_crop_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
@@ -40,7 +39,6 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
   String? _extraPhotoPath;
 
   final ImagePicker _picker = ImagePicker();
-  List<String> _vaccineSuggestions = [];
   bool _isSaving = false;
 
   bool get _isEditing => widget.vaccination != null;
@@ -56,7 +54,6 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
       _stickerPhotoPath = widget.vaccination!.stickerPhotoPath;
       _extraPhotoPath = widget.vaccination!.extraPhotoPath;
     }
-    _loadVaccineSuggestions();
   }
 
   @override
@@ -76,17 +73,6 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
     }
-  }
-
-  Future<void> _loadVaccineSuggestions() async {
-    final dbHelper = DatabaseHelper();
-    final names = await dbHelper.getVaccineNames();
-
-    if (!mounted) return;
-
-    setState(() {
-      _vaccineSuggestions = names;
-    });
   }
 
   Future<void> _selectNextDueDate(BuildContext context) async {
@@ -300,6 +286,52 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
     });
   }
 
+  // Menú de catálogo: reemplaza al viejo dropdown + autocompletar de nombres
+  // ya escritos (fuente de nombres inconsistentes). Si el usuario escribe un
+  // nombre libre en el campo, se guarda tal cual, sin sugerencias.
+  Future<void> _showVaccineProductPicker() async {
+    final List<VaccinationProduct> products =
+        ref.read(vaccinationProductsProvider).asData?.value ?? [];
+
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay vacunas guardadas en el catálogo.')),
+      );
+      return;
+    }
+
+    final VaccinationProduct? selected = await showModalBottomSheet<VaccinationProduct>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Elegir del catálogo',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              for (final product in products)
+                ListTile(
+                  leading: const Icon(Icons.vaccines),
+                  title: Text(product.name),
+                  onTap: () => Navigator.of(context).pop(product),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null) {
+      _onVaccineProductSelected(selected);
+    }
+  }
+
   void _saveVaccination() async {
     if (_isSaving) return;
 
@@ -400,74 +432,23 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Consumer(
-                builder: (context, ref, child) {
-                  final productsAsync = ref.watch(vaccinationProductsProvider);
-                  return productsAsync.when(
-                    data: (products) {
-                      if (products.isEmpty) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: DropdownButtonFormField<VaccinationProduct>(
-                          decoration: const InputDecoration(
-                            labelText: 'Usar vacuna del catálogo',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.inventory_2),
-                          ),
-                          items: products
-                              .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) _onVaccineProductSelected(val);
-                          },
-                        ),
-                      );
-                    },
-                    loading: () => const CircularProgressIndicator(),
-                    error: (e, _) => const SizedBox.shrink(),
-                  );
-                },
-              ),
-              Autocomplete<String>(
-                initialValue: TextEditingValue(text: _vaccineNameController.text),
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  final query = textEditingValue.text.trim().toLowerCase();
-
-                  if (query.isEmpty) {
-                    return _vaccineSuggestions;
+              TextFormField(
+                controller: _vaccineNameController,
+                decoration: InputDecoration(
+                  labelText: 'Nombre de la Vacuna',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.vaccines),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.inventory_2),
+                    tooltip: 'Elegir del catálogo',
+                    onPressed: _showVaccineProductPicker,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Por favor, introduce el nombre de la vacuna.';
                   }
-
-                  return _vaccineSuggestions.where((option) {
-                    return option.toLowerCase().contains(query);
-                  });
-                },
-                onSelected: (String selection) {
-                  _vaccineNameController.text = selection;
-                },
-                fieldViewBuilder: (
-                    context,
-                    textEditingController,
-                    focusNode,
-                    onFieldSubmitted,
-                    ) {
-                  return TextFormField(
-                    controller: textEditingController,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre de la Vacuna',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.vaccines),
-                    ),
-                    onChanged: (value) {
-                      _vaccineNameController.text = value;
-                    },
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Por favor, introduce el nombre de la vacuna.';
-                      }
-                      return null;
-                    },
-                  );
+                  return null;
                 },
               ),
               const SizedBox(height: 16),
