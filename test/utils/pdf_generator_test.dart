@@ -7,6 +7,7 @@
 // generateHealthSummaryPdf para renderizar-, así que estos tests
 // verifican el comportamiento real, no una copia.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:pet_pal/models/deworming.dart';
@@ -52,6 +53,35 @@ List<String> _collectTexts(pw.Widget widget) {
 
 List<String> _allTexts(Iterable<pw.Widget> widgets) =>
     widgets.expand(_collectTexts).toList();
+
+/// Índice del widget de nivel superior que arma _buildPdfSectionTitle(title)
+/// -un pw.Padding envolviendo el pw.Text con el título de sección- dentro de
+/// la lista que devuelve buildHealthSummarySections. -1 si no aparece.
+int _indexOfSectionTitle(List<pw.Widget> widgets, String title) {
+  return widgets.indexWhere((w) => w is pw.Padding && _collectTexts(w).contains(title));
+}
+
+/// Widget de instrumentación para los tests de paginación real: delega todo
+/// el layout/render a [child], pero además registra en qué página del
+/// documento terminó pintándose -pw.Context.pageNumber es público
+/// (widget.dart) y refleja la página real asignada durante el render, no
+/// una estimación-. Permite verificar de forma determinista, sin parsear
+/// bytes de PDF, si dos widgets terminaron en la misma página.
+class _PageRecorder extends pw.StatelessWidget {
+  _PageRecorder({required this.child, required this.onPaint});
+
+  final pw.Widget child;
+  final void Function(int pageNumber) onPaint;
+
+  @override
+  pw.Widget build(pw.Context context) => child;
+
+  @override
+  void paint(pw.Context context) {
+    onPaint(context.pageNumber);
+    super.paint(context);
+  }
+}
 
 Pet _samplePet() {
   return Pet(
@@ -435,5 +465,149 @@ void main() {
 
       expect(result.whereType<pw.Wrap>(), isEmpty);
     });
+  });
+
+  group('buildHealthSummarySections — título nunca queda huérfano de su contenido', () {
+    test(
+      'cada sección con datos trae un pw.NewPage(freeSpace: kMinSectionHeight) '
+      'como widget inmediatamente anterior a su título',
+      () {
+        final result = buildHealthSummarySections(
+          _samplePet(),
+          vaccinations: [Vaccination(petId: 'p1', vaccineName: 'Rabia', date: DateTime(2026, 1, 1))],
+          medications: [
+            Medication(
+              petId: 'p1',
+              name: 'Amoxicilina',
+              dosage: '250mg',
+              frequency: 'Cada 12h',
+              notes: '',
+              startDate: DateTime(2026, 1, 1),
+            ),
+          ],
+          dewormings: [Deworming(id: 'd1', petId: 'p1', product: 'Drontal', date: DateTime(2026, 1, 1))],
+          foodAllergies: [FoodAllergy(petId: 'p1', food: 'Pollo', dateRecorded: DateTime(2026, 1, 1))],
+          weightRecords: [WeightRecord(petId: 'p1', weight: 12.5, date: DateTime(2026, 1, 1))],
+          documents: [
+            Document(
+              petId: 'p1',
+              categoria: 'Receta',
+              titulo: 'Análisis',
+              fecha: DateTime(2026, 1, 1),
+              filePath: '/tmp/doc.pdf',
+            ),
+          ],
+          now: DateTime(2026, 6, 1),
+        );
+
+        for (final title in [
+          'Vacunas',
+          'Medicación',
+          'Desparasitación',
+          'Alergias Alimentarias',
+          'Peso',
+          'Documentos',
+        ]) {
+          final titleIndex = _indexOfSectionTitle(result, title);
+          expect(titleIndex, greaterThan(0), reason: 'no se encontró el título "$title"');
+
+          final guard = result[titleIndex - 1];
+          expect(guard, isA<pw.NewPage>(), reason: 'falta el guard antes de "$title"');
+          expect(
+            (guard as pw.NewPage).freeSpace,
+            kMinSectionHeight,
+            reason: '"$title" no usa el umbral compartido kMinSectionHeight',
+          );
+        }
+      },
+    );
+
+    test('Información General -siempre visible, siempre primera- no lleva el guard', () {
+      final result = buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: const [],
+        medications: const [],
+        dewormings: const [],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: DateTime(2026, 6, 1),
+      );
+
+      final titleIndex = _indexOfSectionTitle(result, 'Información General');
+      expect(titleIndex, 0, reason: 'Información General debe ser siempre el primer widget');
+    });
+  });
+
+  group('buildHealthSummarySections — paginación real: título y contenido nunca en páginas distintas', () {
+    // contentHeight: mismo cálculo que usa pdf_generator.dart para el ancho
+    // de columna (_kContentWidth), pero en altura. Ninguno de los dos
+    // números está hardcodeado acá: se calculan a partir de kPageMargin y
+    // kMinSectionHeight, las mismas constantes que usa la generación real,
+    // así que si alguna cambia, este test se recalibra solo.
+    final double contentHeight = PdfPageFormat.a4.height - (kPageMargin * 2);
+
+    Future<Map<String, int>> renderWithFiller(double fillerHeight) async {
+      final pageNumbers = <String, int>{};
+      final document = pw.Document();
+
+      document.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(kPageMargin),
+          build: (pw.Context context) => [
+            // Relleno de altura exacta: deja calibrado, a propósito, cuánto
+            // espacio libre queda antes del guard -no es un volumen de
+            // datos "al azar" esperando reproducir el bug por casualidad-.
+            pw.SizedBox(height: fillerHeight),
+            pw.NewPage(freeSpace: kMinSectionHeight),
+            _PageRecorder(
+              child: pw.Text('Título de sección de prueba'),
+              onPaint: (n) => pageNumbers['title'] = n,
+            ),
+            _PageRecorder(
+              child: pw.Text('Primer elemento de contenido de prueba'),
+              onPaint: (n) => pageNumbers['content'] = n,
+            ),
+          ],
+        ),
+      );
+
+      await document.save();
+      return pageNumbers;
+    }
+
+    test(
+      'con menos espacio libre que kMinSectionHeight, el guard fuerza el salto '
+      'ANTES del título: título y contenido arrancan juntos en la página nueva',
+      () async {
+        // Deja exactamente 20pt menos que el umbral: el escenario real que
+        // orfanaba el título -entraba solo, el contenido no-, antes de este fix.
+        final fillerHeight = contentHeight - (kMinSectionHeight - 20);
+
+        final pageNumbers = await renderWithFiller(fillerHeight);
+
+        expect(pageNumbers['title'], isNotNull);
+        expect(pageNumbers['content'], isNotNull);
+        expect(pageNumbers['title'], pageNumbers['content'], reason: 'título y contenido en la misma página');
+        expect(pageNumbers['title'], 2, reason: 'el relleno solo debería entrar en la página 1');
+      },
+    );
+
+    test(
+      'con más espacio libre que kMinSectionHeight, el guard NO fuerza un '
+      'salto de página innecesario: título y contenido quedan en la página del relleno',
+      () async {
+        // Deja exactamente 50pt más que el umbral.
+        final fillerHeight = contentHeight - (kMinSectionHeight + 50);
+
+        final pageNumbers = await renderWithFiller(fillerHeight);
+
+        expect(pageNumbers['title'], isNotNull);
+        expect(pageNumbers['content'], isNotNull);
+        expect(pageNumbers['title'], pageNumbers['content'], reason: 'título y contenido en la misma página');
+        expect(pageNumbers['title'], 1, reason: 'no debería haber salto de página, sobraba espacio');
+      },
+    );
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -16,19 +17,49 @@ import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 
 /// Margen de página de la ficha clínica -compartido entre el `margin:` de
-/// pw.MultiPage en [generateHealthSummaryPdf] y el cálculo de ancho de
-/// columna de [_buildGrid], para que no se desincronicen si algún día
-/// cambia-.
-const double _kPageMargin = 36;
+/// pw.MultiPage en [generateHealthSummaryPdf], el cálculo de ancho de
+/// columna de [_buildGrid], y el test de paginación real que calibra su
+/// relleno a partir de este mismo valor. Pública (no `_kPageMargin`) por
+/// eso último; `@visibleForTesting` para marcar cualquier otro uso como
+/// sospechoso.
+@visibleForTesting
+const double kPageMargin = 36;
 
-/// Ancho de contenido disponible en una página A4 con [_kPageMargin] de
+/// Ancho de contenido disponible en una página A4 con [kPageMargin] de
 /// margen a cada lado. No es `const` -aunque técnicamente podría serlo, ya
 /// que PdfPageFormat.a4 es un const y sus campos son const-accesibles- para
 /// no depender de esa garantía del paquete `pdf` de terceros.
-final double _kContentWidth = PdfPageFormat.a4.width - (_kPageMargin * 2);
+final double _kContentWidth = PdfPageFormat.a4.width - (kPageMargin * 2);
 
 /// Espacio horizontal entre columnas de un grid ([_buildGrid]).
 const double _kGridSpacing = 10;
+
+/// Espacio mínimo que debe quedar libre en la página para arrancar una
+/// sección (título de sección, ver [_section]) sin que MultiPage la separe
+/// de su contenido -si no entra este espacio, pw.NewPage fuerza el salto de
+/// página ANTES del título, en vez de dejarlo huérfano al final de la
+/// página actual con todo el contenido en la siguiente-.
+///
+/// No es una medición exacta -requeriría un layout real con métricas de
+/// fuente-, es una suma conservadora y redondeada hacia arriba de los
+/// tamaños ya usados en este archivo, para el peor caso real (una caja de
+/// vacuna a 2 columnas, con la fecha en dos líneas y fila de fotos):
+///   título de sección:        18pt fuente + 6pt padding      ≈  30pt
+///   título de la caja + gap:  13pt fuente + 3pt gap          ≈  20pt
+///   fecha en dos líneas:      2 × ~15pt                      ≈  30pt
+///   fila de fotos:            8pt gap + 60pt miniatura       ≈  70pt
+///   padding + margin de la caja (10+10+10):                  =  30pt
+///                                                      total ≈ 180pt
+/// Redondeado a 200pt para dejar margen de sobra: mejor un poco de espacio
+/// en blanco ocasional de más (costo cosmético) que repetir el bug.
+///
+/// Pública (no `_kMinSectionHeight`) solo para que los tests de paginación
+/// real calibren su relleno a partir del mismo valor que usa la
+/// generación real, en vez de duplicarlo a mano -si esta constante
+/// cambia, esos tests se recalibran solos-. `@visibleForTesting` para que
+/// el análisis marque cualquier uso fuera de main o test/ como sospechoso.
+@visibleForTesting
+const double kMinSectionHeight = 200;
 
 Future<Uint8List> generateNotesPdf(Pet pet, List<Note> notes) async {
   final pdf = pw.Document();
@@ -134,7 +165,7 @@ Future<Uint8List> generateHealthSummaryPdf(
   pdf.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.all(_kPageMargin),
+      margin: const pw.EdgeInsets.all(kPageMargin),
       header: (pw.Context context) {
         return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -221,54 +252,35 @@ List<pw.Widget> buildHealthSummarySections(
     ),
     pw.SizedBox(height: 12),
 
-    if (emergencyContacts != null && emergencyContacts.isNotEmpty) ...[
-      _buildPdfSectionTitle('Contactos de Emergencia'),
-      for (final contact in emergencyContacts)
+    ..._section('Contactos de Emergencia', [
+      for (final contact in emergencyContacts ?? <EmergencyContact>[])
         _buildPdfInfoBox([
           pw.Text('${contact.name} (${contact.category ?? "Otros"})', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
           pw.Text('Tel: ${contact.phone}', style: const pw.TextStyle(fontSize: 11)),
         ]),
-      pw.SizedBox(height: 12),
-    ],
+    ]),
 
-    if (vaccinations.isNotEmpty) ...[
-      _buildPdfSectionTitle('Vacunas'),
-      _buildGrid(_buildVaccinationSection(vaccinations), columns: 2),
-      pw.SizedBox(height: 12),
-    ],
+    ..._section('Vacunas', [
+      if (vaccinations.isNotEmpty) _buildGrid(_buildVaccinationSection(vaccinations), columns: 2),
+    ]),
 
-    if (medications.isNotEmpty) ...[
-      _buildPdfSectionTitle('Medicación'),
-      for (final medication in medications) _buildMedicationBox(medication, now),
-      pw.SizedBox(height: 12),
-    ],
+    ..._section('Medicación', [for (final medication in medications) _buildMedicationBox(medication, now)]),
 
-    if (dewormings.isNotEmpty) ...[
-      _buildPdfSectionTitle('Desparasitación'),
-      _buildGrid(_buildDewormingSection(dewormings, now), columns: 3),
-      pw.SizedBox(height: 12),
-    ],
+    ..._section('Desparasitación', [
+      if (dewormings.isNotEmpty) _buildGrid(_buildDewormingSection(dewormings, now), columns: 3),
+    ]),
 
-    if (foodAllergies.isNotEmpty) ...[
-      _buildPdfSectionTitle('Alergias Alimentarias'),
-      _buildGrid(
-        [for (final foodAllergy in foodAllergies) _buildFoodAllergyBox(foodAllergy)],
-        columns: 2,
-      ),
-      pw.SizedBox(height: 12),
-    ],
+    ..._section('Alergias Alimentarias', [
+      if (foodAllergies.isNotEmpty)
+        _buildGrid(
+          [for (final foodAllergy in foodAllergies) _buildFoodAllergyBox(foodAllergy)],
+          columns: 2,
+        ),
+    ]),
 
-    if (weightRecords.isNotEmpty) ...[
-      _buildPdfSectionTitle('Peso'),
-      _buildWeightTable(weightRecords),
-      pw.SizedBox(height: 12),
-    ],
+    ..._section('Peso', [if (weightRecords.isNotEmpty) _buildWeightTable(weightRecords)]),
 
-    if (documents.isNotEmpty) ...[
-      _buildPdfSectionTitle('Documentos'),
-      for (final document in documents) _buildDocumentBox(document),
-      pw.SizedBox(height: 12),
-    ],
+    ..._section('Documentos', [for (final document in documents) _buildDocumentBox(document)]),
   ];
 }
 
@@ -482,6 +494,34 @@ pw.Widget _buildFoodAllergyBox(FoodAllergy foodAllergy) {
       style: const pw.TextStyle(fontSize: 11),
     ),
   ]);
+}
+
+/// Arma una sección completa (título + contenido) protegida contra el bug
+/// de "título huérfano": si [content] está vacío, la sección entera se omite
+/// -ni título ni "Sin registros"-. Si no, antepone un pw.NewPage(freeSpace:)
+/// que fuerza un salto de página ANTES del título cuando no queda espacio
+/// suficiente para el título y el comienzo de su contenido, así nunca quedan
+/// separados entre dos páginas -confirmado leyendo multi_page.dart: NewPage
+/// no es un SpanningWidget, así que insertarlo no agrega una página en
+/// blanco ni interfiere con la paginación del resto, solo gatilla el salto
+/// cuando corresponde-.
+///
+/// Único punto de esta protección para todas las secciones -Vacunas,
+/// Desparasitación, Alergias, Peso, Medicación, Documentos, Contactos, y
+/// cualquier sección que se agregue en el futuro-, sin repetir la lógica
+/// por sección.
+List<pw.Widget> _section(
+  String title,
+  List<pw.Widget> content, {
+  double minHeight = kMinSectionHeight,
+}) {
+  if (content.isEmpty) return [];
+  return [
+    pw.NewPage(freeSpace: minHeight),
+    _buildPdfSectionTitle(title),
+    ...content,
+    pw.SizedBox(height: 12),
+  ];
 }
 
 pw.Widget _buildPdfSectionTitle(String title) {
