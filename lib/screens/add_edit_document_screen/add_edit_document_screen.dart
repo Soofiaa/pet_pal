@@ -1,11 +1,16 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/providers/document_providers.dart';
+import 'package:uuid/uuid.dart';
 
 class AddEditDocumentScreen extends ConsumerStatefulWidget {
   final Pet pet;
@@ -62,17 +67,48 @@ class _AddEditDocumentScreenState extends ConsumerState<AddEditDocumentScreen> {
     }
   }
 
+  // Comprime el archivo elegido (misma calidad/formato que el resto de la
+  // app, ver add_edit_vaccination_screen.dart) solo cuando es una imagen;
+  // si falla, se sigue con la ruta original en vez de bloquear al usuario.
+  Future<String> _compressImage(String path) async {
+    try {
+      final Uint8List? compressedBytes =
+          await FlutterImageCompress.compressWithFile(
+        path,
+        quality: 90,
+        format: CompressFormat.jpeg,
+      );
+
+      if (compressedBytes == null) return path;
+
+      final tempDir = Directory.systemTemp;
+      final compressedFile = File('${tempDir.path}/${const Uuid().v4()}.jpg');
+      await compressedFile.writeAsBytes(compressedBytes);
+
+      return compressedFile.path;
+    } catch (e, stack) {
+      debugPrint('Error al comprimir imagen del documento: $e');
+      debugPrintStack(stackTrace: stack);
+      return path;
+    }
+  }
+
   Future<void> _pickFile() async {
     final FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'heic'],
     );
 
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        _filePath = result.files.single.path;
-      });
-    }
+    final String? pickedPath = result?.files.single.path;
+    if (pickedPath == null) return;
+
+    final String finalPath = Document.isImagePath(pickedPath)
+        ? await _compressImage(pickedPath)
+        : pickedPath;
+
+    setState(() {
+      _filePath = finalPath;
+    });
   }
 
   Future<void> _saveDocument() async {

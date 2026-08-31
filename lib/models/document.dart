@@ -33,8 +33,12 @@ class Document {
   /// nunca se guarda como campo aparte (evita que quede desincronizado).
   static const List<String> _imageExtensions = ['.jpg', '.jpeg', '.png', '.heic'];
 
-  bool get isImage =>
+  /// Misma lógica que [isImage], pero utilizable antes de tener un
+  /// [Document] armado (ej. sobre la ruta cruda que devuelve un file picker).
+  static bool isImagePath(String filePath) =>
       _imageExtensions.contains(p.extension(filePath).toLowerCase());
+
+  bool get isImage => isImagePath(filePath);
 
   bool get isPdf => p.extension(filePath).toLowerCase() == '.pdf';
 

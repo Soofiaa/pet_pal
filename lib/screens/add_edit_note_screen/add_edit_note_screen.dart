@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/providers/note_providers.dart';
+import 'package:uuid/uuid.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
 
 class AddEditNoteScreen extends ConsumerStatefulWidget {
@@ -126,20 +128,52 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
     );
   }
 
+  // Comprime cada foto elegida (misma calidad/formato que el resto de la
+  // app, ver add_edit_vaccination_screen.dart) antes de guardarla en el
+  // estado. Si la compresión falla, se sigue con la ruta original en vez
+  // de bloquear al usuario.
+  Future<String> _compressImage(String path) async {
+    try {
+      final Uint8List? compressedBytes =
+          await FlutterImageCompress.compressWithFile(
+        path,
+        quality: 90,
+        format: CompressFormat.jpeg,
+      );
+
+      if (compressedBytes == null) return path;
+
+      final tempDir = Directory.systemTemp;
+      final compressedFile = File('${tempDir.path}/${const Uuid().v4()}.jpg');
+      await compressedFile.writeAsBytes(compressedBytes);
+
+      return compressedFile.path;
+    } catch (e, stack) {
+      debugPrint('Error al comprimir imagen: $e');
+      debugPrintStack(stackTrace: stack);
+      return path;
+    }
+  }
+
   // ACTUALIZADO: Maneja la selección de imágenes desde cualquier fuente
   Future<void> _pickImages(ImageSource source) async {
     if (source == ImageSource.gallery) {
       final pickedFiles = await _picker.pickMultiImage();
       if (pickedFiles.isNotEmpty) {
+        final List<String> compressedPaths = [];
+        for (final file in pickedFiles) {
+          compressedPaths.add(await _compressImage(file.path));
+        }
         setState(() {
-          _photoPaths.addAll(pickedFiles.map((file) => file.path));
+          _photoPaths.addAll(compressedPaths);
         });
       }
     } else {
       final pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
+        final String compressedPath = await _compressImage(pickedFile.path);
         setState(() {
-          _photoPaths.add(pickedFile.path);
+          _photoPaths.add(compressedPath);
         });
       }
     }
