@@ -240,11 +240,6 @@ List<pw.Widget> buildHealthSummarySections(
               if (pet.microchipNumber != null && pet.microchipNumber!.isNotEmpty)
                 MapEntry('Microchip', pet.microchipNumber!),
               MapEntry('Esterilizado/a', pet.isNeutered ? 'Sí' : 'No'),
-              if (foodConfig != null)
-                MapEntry(
-                  'Ración Diaria',
-                  '${foodConfig.dailyGrams.toStringAsFixed(0)}g / ${foodConfig.portions} tomas',
-                ),
             ]),
           ),
         ),

@@ -6,8 +6,8 @@ import 'package:pet_pal/utils/event_type_details.dart';
 /// TodayDashboardSection: reutiliza [eventColorFor] de event_type_details.dart
 /// para las entidades que ya tienen un `type` de evento asociado, así las
 /// tres pantallas muestran el mismo color por función (antes cada una tenía
-/// su propia paleta hardcodeada). Las dos entidades sin tipo de evento propio
-/// (signos vitales, calculadora de alimento) se definen acá.
+/// su propia paleta hardcodeada). La única entidad sin tipo de evento propio
+/// (signos vitales) se define acá.
 final Map<String, Color> entityColors = {
   'note': eventColorFor('note'),
   'appointment': eventColorFor('appointment'),
@@ -19,7 +19,6 @@ final Map<String, Color> entityColors = {
   'food_allergy': eventColorFor('food_allergy'),
   'food_record': eventColorFor('food_record'),
   'vital_sign': Colors.indigo,
-  'food_calculator': Colors.amber,
 };
 
 Color entityColorFor(String key) => entityColors[key] ?? Colors.grey;

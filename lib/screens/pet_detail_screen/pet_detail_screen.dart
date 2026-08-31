@@ -20,7 +20,6 @@ import 'package:pet_pal/screens/medications_screen/medications_screen.dart';
 import 'package:pet_pal/screens/documents_screen/documents_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/screens/vital_sign_screen/vital_sign_screen.dart';
-import 'package:pet_pal/screens/food_calculator_screen/food_calculator_screen.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/services/csv_export_service.dart';
@@ -219,18 +218,6 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             MaterialPageRoute(
               builder: (context) => VitalSignScreen(pet: _pet, type: VitalSignType.temperature),
             ),
-          );
-        },
-      },
-      {
-        'title': 'Calculadora Alimento',
-        'icon': Icons.calculate,
-        'color': entityColorFor('food_calculator'),
-        'group': 'Otros',
-        'onTap': () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => FoodCalculatorScreen(pet: _pet)),
           );
         },
       },
