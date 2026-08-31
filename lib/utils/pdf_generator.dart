@@ -445,10 +445,16 @@ pw.Widget _buildVaccinationBox(Vaccination vaccination) {
     ),
     pw.SizedBox(height: 3),
     pw.Text(
-      'Fecha aplicada: ${DateFormat('dd/MM/yyyy').format(vaccination.date)}'
-      '${vaccination.nextDueDate != null ? ' · Próxima dosis: ${DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!)}' : ''}',
+      'Fecha aplicada: ${DateFormat('dd/MM/yyyy').format(vaccination.date)}',
       style: const pw.TextStyle(fontSize: 11),
     ),
+    if (vaccination.nextDueDate != null) ...[
+      pw.SizedBox(height: 3),
+      pw.Text(
+        'Próxima dosis: ${DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!)}',
+        style: const pw.TextStyle(fontSize: 11),
+      ),
+    ],
     if (photos.isNotEmpty) ...[
       pw.SizedBox(height: 8),
       pw.Wrap(
@@ -654,12 +660,18 @@ pw.Widget _buildDewormingBox(Deworming deworming, DateTime now) {
         'Frecuencia: cada ${deworming.frequencyMonths} mes${deworming.frequencyMonths! > 1 ? 'es' : ''}',
         style: const pw.TextStyle(fontSize: 11),
       ),
-    pw.Text(
-      effectiveNextDate != null
-          ? 'Próxima aplicación: ${DateFormat('dd/MM/yyyy').format(effectiveNextDate)}'
-          : 'Próxima aplicación: No especificada',
-      style: const pw.TextStyle(fontSize: 11),
-    ),
+    // Cuando está vigente, la fecha ya aparece en statusText ("Vigente
+    // hasta X") más abajo -mostrarla acá también sería una línea
+    // redundante-. En los otros dos casos (vencida, o sin próxima dosis
+    // programada) statusText no repite la fecha, así que esta línea sigue
+    // haciendo falta.
+    if (effectiveNextDate == null || isOverdue)
+      pw.Text(
+        effectiveNextDate != null
+            ? 'Próxima aplicación: ${DateFormat('dd/MM/yyyy').format(effectiveNextDate)}'
+            : 'Próxima aplicación: No especificada',
+        style: const pw.TextStyle(fontSize: 11),
+      ),
     pw.SizedBox(height: 3),
     if (isOverdue)
       pw.Container(
@@ -679,18 +691,35 @@ pw.Widget _buildWeightTable(List<WeightRecord> weightRecords) {
   final List<WeightRecord> sorted = List.of(weightRecords)
     ..sort((a, b) => a.date.compareTo(b.date));
 
-  return pw.TableHelper.fromTextArray(
-    headers: ['Fecha', 'Peso (kg)'],
-    data: sorted
-        .map((record) => [
-              DateFormat('dd/MM/yyyy').format(record.date),
-              record.weight.toStringAsFixed(2),
-            ])
-        .toList(),
-    headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
-    cellStyle: const pw.TextStyle(fontSize: 10),
-    cellAlignment: pw.Alignment.centerLeft,
-    border: pw.TableBorder.all(color: PdfColors.grey300),
+  return pw.Align(
+    alignment: pw.Alignment.centerLeft,
+    child: pw.TableHelper.fromTextArray(
+      headers: ['Fecha', 'Peso (kg)'],
+      data: sorted
+          .map((record) => [
+                DateFormat('dd/MM/yyyy').format(record.date),
+                record.weight.toStringAsFixed(2),
+              ])
+          .toList(),
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+      cellStyle: const pw.TextStyle(fontSize: 10),
+      cellAlignment: pw.Alignment.centerLeft,
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      // Anchos fijos angostos en vez del ancho de página completo: sin
+      // columnWidths, pw.Table estira sus columnas para llenar el ancho
+      // disponible (IntrinsicColumnWidth con flex 0 igual se reparte
+      // proporcionalmente contra constraints.maxWidth cuando tableWidth
+      // es TableWidth.max, el default -confirmado leyendo
+      // pdf/src/widgets/table.dart-). TableWidth.min es imprescindible
+      // acá: fijar solo columnWidths con FixedColumnWidth no alcanza,
+      // ya que ese mismo estiramiento se sigue aplicando aun con flex 0
+      // en todas las columnas mientras tableWidth siga en su default max.
+      columnWidths: const {
+        0: pw.FixedColumnWidth(74),
+        1: pw.FixedColumnWidth(72),
+      },
+      tableWidth: pw.TableWidth.min,
+    ),
   );
 }
 

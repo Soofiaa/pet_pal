@@ -306,6 +306,82 @@ void main() {
     );
   });
 
+  group('buildHealthSummarySections — desparasitación: "Próxima aplicación" sin redundar con el estado', () {
+    test('vigente: no repite la fecha, solo aparece en "Vigente hasta"', () {
+      final now = DateTime(2026, 6, 1);
+      final application = Deworming(
+        id: 'd1',
+        petId: 'p1',
+        product: 'Drontal',
+        date: DateTime(2026, 5, 1),
+        nextDate: DateTime(2026, 8, 1), // vigente respecto de `now`
+      );
+
+      final texts = _allTexts(buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: const [],
+        medications: const [],
+        dewormings: [application],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: now,
+      ));
+
+      expect(texts, isNot(contains(contains('Próxima aplicación'))));
+      expect(texts, contains(contains('Vigente hasta')));
+    });
+
+    test('vencida: sigue mostrando "Próxima aplicación" junto con "Vencida"', () {
+      final now = DateTime(2026, 6, 1);
+      final application = Deworming(
+        id: 'd1',
+        petId: 'p1',
+        product: 'Drontal',
+        date: DateTime(2026, 1, 1),
+        nextDate: DateTime(2026, 2, 1), // vencido respecto de `now`
+      );
+
+      final texts = _allTexts(buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: const [],
+        medications: const [],
+        dewormings: [application],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: now,
+      ));
+
+      expect(texts, contains('Próxima aplicación: 01/02/2026'));
+      expect(texts, contains(contains('Vencida')));
+    });
+
+    test('sin próxima dosis programada: sigue mostrando "Próxima aplicación: No especificada"', () {
+      final now = DateTime(2026, 6, 1);
+      final application = Deworming(
+        id: 'd1',
+        petId: 'p1',
+        product: 'Drontal',
+        date: DateTime(2026, 1, 1),
+      );
+
+      final texts = _allTexts(buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: const [],
+        medications: const [],
+        dewormings: [application],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: now,
+      ));
+
+      expect(texts, contains('Próxima aplicación: No especificada'));
+      expect(texts, contains(contains('sin próxima dosis programada')));
+    });
+  });
+
   group('buildHealthSummarySections — vacunas como lista plana por fecha', () {
     test('todas las aplicaciones aparecen, ordenadas por fecha descendente, sin agrupar por nombre', () {
       final applications = [
@@ -334,6 +410,80 @@ void main() {
       expect(dateTexts[0], contains('01/12/2026'));
       expect(dateTexts[1], contains('01/06/2026'));
       expect(dateTexts[2], contains('01/01/2026'));
+    });
+
+    test('fecha aplicada y próxima dosis quedan en líneas (pw.Text) separadas, no concatenadas', () {
+      final texts = _allTexts(buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: [
+          Vaccination(
+            petId: 'p1',
+            vaccineName: 'Rabia',
+            date: DateTime(2026, 1, 1),
+            nextDueDate: DateTime(2026, 7, 1),
+          ),
+        ],
+        medications: const [],
+        dewormings: const [],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: DateTime(2026, 1, 1),
+      ));
+
+      expect(texts, contains('Fecha aplicada: 01/01/2026'));
+      expect(texts, contains('Próxima dosis: 01/07/2026'));
+      // No debe quedar un único texto que concatene ambas fechas.
+      expect(texts, isNot(contains(contains('·'))));
+    });
+
+    test('sin próxima dosis: no agrega la línea "Próxima dosis"', () {
+      final texts = _allTexts(buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: [
+          Vaccination(petId: 'p1', vaccineName: 'Rabia', date: DateTime(2026, 1, 1)),
+        ],
+        medications: const [],
+        dewormings: const [],
+        foodAllergies: const [],
+        weightRecords: const [],
+        documents: const [],
+        now: DateTime(2026, 1, 1),
+      ));
+
+      expect(texts, contains('Fecha aplicada: 01/01/2026'));
+      expect(texts, isNot(contains(contains('Próxima dosis'))));
+    });
+  });
+
+  group('buildHealthSummarySections — tabla de Peso angosta y alineada a la izquierda', () {
+    test('usa columnWidths fijos angostos y tableWidth.min, envuelta en Align a la izquierda', () {
+      final result = buildHealthSummarySections(
+        _samplePet(),
+        vaccinations: const [],
+        medications: const [],
+        dewormings: const [],
+        foodAllergies: const [],
+        weightRecords: [
+          WeightRecord(petId: 'p1', weight: 12.5, date: DateTime(2026, 1, 1)),
+          WeightRecord(petId: 'p1', weight: 13.2, date: DateTime(2026, 2, 1)),
+        ],
+        documents: const [],
+        now: DateTime(2026, 6, 1),
+      );
+
+      final titleIndex = _indexOfSectionTitle(result, 'Peso');
+      expect(titleIndex, isNot(-1));
+
+      final align = result[titleIndex + 1] as pw.Align;
+      expect(align.alignment, pw.Alignment.centerLeft);
+
+      final table = align.child as pw.Table;
+      expect(table.tableWidth, pw.TableWidth.min);
+      expect(table.columnWidths, {
+        0: const pw.FixedColumnWidth(74),
+        1: const pw.FixedColumnWidth(72),
+      });
     });
   });
 
