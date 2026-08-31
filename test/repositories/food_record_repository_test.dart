@@ -132,6 +132,26 @@ void main() {
       expect(records.single.isOngoing, isTrue);
     });
 
+    test(
+      'insertFoodRecord con isOngoing: false y endDate null persiste y relee '
+      '"dejó de comerlo, fecha desconocida" sin confundirlo con "sigue comiendo"',
+      () async {
+        final pet = await _insertSamplePet(DatabaseHelper());
+
+        await repository.insertFoodRecord(FoodRecord(
+          petId: pet.id,
+          foodName: 'Croquetas',
+          startDate: DateTime(2026, 1, 1),
+          endDate: null,
+          isOngoing: false,
+        ));
+
+        final records = await repository.getFoodRecordsForPet(pet.id);
+        expect(records.single.endDate, isNull);
+        expect(records.single.isOngoing, isFalse);
+      },
+    );
+
     test('updateFoodRecord permite pasar de "lo sigue comiendo" a tener endDate', () async {
       final pet = await _insertSamplePet(DatabaseHelper());
 

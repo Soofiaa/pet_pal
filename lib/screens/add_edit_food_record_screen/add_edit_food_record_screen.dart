@@ -25,6 +25,10 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
 
   DateTime? _startDate;
   DateTime? _endDate;
+  // Solo tiene efecto cuando _endDate es null: distingue "sigue comiendo"
+  // de "dejó de comerlo, fecha desconocida". Con _endDate ya seteado, este
+  // valor se ignora al guardar -isOngoing se fuerza a false-.
+  bool _isOngoing = true;
   bool _isSaving = false;
 
   bool get _isEditing => widget.foodRecord != null;
@@ -38,6 +42,7 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
       _notesController.text = existing.notes;
       _startDate = existing.startDate;
       _endDate = existing.endDate;
+      _isOngoing = existing.isOngoing;
     }
   }
 
@@ -68,7 +73,13 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
       lastDate: DateTime(2101),
     );
     if (picked != null) {
-      setState(() => _endDate = picked);
+      // Fijar una fecha de fin concreta implica dejar de estar "ongoing":
+      // no tendría sentido preguntar "¿sigue comiendo?" con una fecha de fin
+      // ya elegida.
+      setState(() {
+        _endDate = picked;
+        _isOngoing = false;
+      });
     }
   }
 
@@ -93,6 +104,7 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
         startDate: _startDate,
         endDate: _endDate,
         notes: _notesController.text,
+        isOngoing: _endDate != null ? false : _isOngoing,
       );
 
       if (_isEditing) {
@@ -199,6 +211,25 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
                 onTap: () => _selectEndDate(context),
                 onClear: () => setState(() => _endDate = null),
               ),
+              if (_endDate == null) ...[
+                const SizedBox(height: 8.0),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Sigue comiendo'),
+                      icon: Icon(Icons.restaurant_menu),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Ya no, fecha desconocida'),
+                      icon: Icon(Icons.event_busy),
+                    ),
+                  ],
+                  selected: {_isOngoing},
+                  onSelectionChanged: (selection) => setState(() => _isOngoing = selection.first),
+                ),
+              ],
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: _notesController,

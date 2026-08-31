@@ -1,4 +1,5 @@
 import 'package:pet_pal/data/database_helper.dart';
+import 'package:pet_pal/models/food_record.dart';
 import 'package:pet_pal/models/search_result.dart';
 
 /// Mapa mínimo de vocales/ñ acentuadas -> sin acento, para que buscar
@@ -89,7 +90,7 @@ class SearchService {
             type: SearchEntityType.foodRecord,
             pet: pet,
             title: foodRecord.foodName,
-            subtitle: foodRecord.isOngoing ? 'Lo sigue comiendo' : null,
+            subtitle: foodRecordStatusText(foodRecord),
             date: foodRecord.startDate,
             record: foodRecord,
           ));

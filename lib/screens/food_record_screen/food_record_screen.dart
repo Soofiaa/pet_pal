@@ -56,10 +56,10 @@ class FoodRecordScreen extends ConsumerWidget {
   }
 
   String _subtitleFor(FoodRecord record) {
+    final String status = foodRecordStatusText(record);
     final String range = record.startDate != null
-        ? '${DateFormat('dd/MM/yyyy').format(record.startDate!)} - '
-            '${record.isOngoing ? "Sigue comiendo" : DateFormat('dd/MM/yyyy').format(record.endDate!)}'
-        : (record.isOngoing ? 'Sigue comiendo' : 'Hasta ${DateFormat('dd/MM/yyyy').format(record.endDate!)}');
+        ? '${DateFormat('dd/MM/yyyy').format(record.startDate!)} - $status'
+        : status;
     return record.notes.isEmpty ? range : '$range · ${record.notes}';
   }
 

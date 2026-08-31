@@ -67,7 +67,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 28,
+      version: 29,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -297,6 +297,7 @@ class DatabaseHelper {
         startDate TEXT,
         endDate TEXT,
         notes TEXT NOT NULL DEFAULT '',
+        isOngoing INTEGER NOT NULL DEFAULT 1,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
@@ -550,6 +551,23 @@ class DatabaseHelper {
         )
       ''');
       debugPrint('Tabla de historial de alimentos creada (migración v28)');
+    }
+
+    // Migración a v29: agregar isOngoing a food_records, como campo real en
+    // vez de inferirlo de endDate == null (no distinguía "sigue comiendo" de
+    // "dejó de comerlo, fecha desconocida"). El DEFAULT 1 ya deja
+    // isOngoing = true en las filas con endDate NULL -que es exactamente lo
+    // que significaba implícitamente ese estado antes de este cambio-, así
+    // que el UPDATE de abajo solo necesita corregir las filas que ya tenían
+    // un endDate concreto (isOngoing = 0), sin alterar el significado de
+    // ningún registro existente.
+    if (oldVersion < 29) {
+      final hasIsOngoing = await _columnExists(db, foodRecordsTable, 'isOngoing');
+      if (!hasIsOngoing) {
+        await db.execute('ALTER TABLE $foodRecordsTable ADD COLUMN isOngoing INTEGER NOT NULL DEFAULT 1');
+        await db.execute('UPDATE $foodRecordsTable SET isOngoing = 0 WHERE endDate IS NOT NULL');
+      }
+      debugPrint('Migración v29: Columna isOngoing añadida a $foodRecordsTable');
     }
 
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
