@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+.graphifyignore
+CLAUDE.md
+bundletool.jar
+mi_app.apks
