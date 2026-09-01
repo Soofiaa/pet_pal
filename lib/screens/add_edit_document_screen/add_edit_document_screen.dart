@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:pet_pal/models/document.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/providers/document_providers.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:uuid/uuid.dart';
 
 class AddEditDocumentScreen extends ConsumerStatefulWidget {
@@ -166,6 +167,10 @@ class _AddEditDocumentScreenState extends ConsumerState<AddEditDocumentScreen> {
           );
         }
       }
+
+      // Recién acá el guardado completo (copia + base) es un éxito
+      // confirmado: es seguro borrar el temporal de origen, si lo había.
+      await ImageStorageService.deleteIfTemporary(_filePath);
 
       if (mounted) {
         Navigator.of(context).pop();

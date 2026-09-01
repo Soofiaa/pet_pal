@@ -230,6 +230,11 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
             );
           }
         }
+
+        // Recién acá el guardado completo (copia + base) es un éxito
+        // confirmado: es seguro borrar el temporal de origen, si lo había.
+        await ImageStorageService.deleteIfTemporary(_imagePath);
+
         if (mounted) {
           Navigator.of(context).pop();
         }

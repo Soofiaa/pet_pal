@@ -372,6 +372,11 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           await notifier.addVaccination(newVaccination);
         }
 
+        // Recién acá el guardado completo (copia + base) es un éxito
+        // confirmado: es seguro borrar los temporales de origen, si los había.
+        await ImageStorageService.deleteIfTemporary(_stickerPhotoPath);
+        await ImageStorageService.deleteIfTemporary(_extraPhotoPath);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Vacunación guardada con éxito.')),

@@ -32,18 +32,38 @@ void main() {
   late Directory tempRootDir;
   late Directory documentsDir; // simula getApplicationDocumentsDirectory()
   late Directory rawFilesDir; // simula archivos recién elegidos por el usuario
+  // Fuera de Directory.systemTemp a propósito -bajo .dart_tool/, ya
+  // gitignoreado-, para simular un archivo que NO es un temporal nuestro
+  // (ej. uno ya permanente en petpal_files/, o uno elegido por el usuario
+  // que la app no creó).
+  late Directory permanentLikeDir;
 
   setUp(() async {
     tempRootDir = await Directory.systemTemp.createTemp('image_storage_service_test_');
     documentsDir = Directory(p.join(tempRootDir.path, 'documents'))..createSync(recursive: true);
     rawFilesDir = Directory(p.join(tempRootDir.path, 'raw'))..createSync(recursive: true);
     PathProviderPlatform.instance = _FakePathProvider(documentsDir);
+
+    permanentLikeDir = Directory(
+      p.join(Directory.current.path, '.dart_tool', 'image_storage_service_test_permanent'),
+    );
+    if (await permanentLikeDir.exists()) {
+      await permanentLikeDir.delete(recursive: true);
+    }
+    await permanentLikeDir.create(recursive: true);
   });
 
   tearDown(() async {
     try {
       if (await tempRootDir.exists()) {
         await tempRootDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Mejor esfuerzo: no crítico para el resultado de la prueba.
+    }
+    try {
+      if (await permanentLikeDir.exists()) {
+        await permanentLikeDir.delete(recursive: true);
       }
     } catch (_) {
       // Mejor esfuerzo: no crítico para el resultado de la prueba.
@@ -102,5 +122,47 @@ void main() {
         }
       },
     );
+  });
+
+  group('ImageStorageService.deleteIfTemporary', () {
+    test('borra un archivo que vive bajo Directory.systemTemp', () async {
+      final file = makeRawFile('temp.jpg', 'contenido');
+      expect(file.existsSync(), isTrue);
+
+      await ImageStorageService.deleteIfTemporary(file.path);
+
+      expect(file.existsSync(), isFalse);
+    });
+
+    test(
+      'NO borra un archivo que no vive bajo Directory.systemTemp (ej. ya permanente)',
+      () async {
+        final file = File(p.join(permanentLikeDir.path, 'permanente.jpg'));
+        file.writeAsStringSync('contenido');
+        expect(file.existsSync(), isTrue);
+
+        await ImageStorageService.deleteIfTemporary(file.path);
+
+        expect(file.existsSync(), isTrue);
+      },
+    );
+
+    test('es un no-op seguro si el path es null', () async {
+      await ImageStorageService.deleteIfTemporary(null);
+      // No debe lanzar excepción.
+    });
+
+    test('es un no-op seguro si el path es una cadena vacía', () async {
+      await ImageStorageService.deleteIfTemporary('');
+      // No debe lanzar excepción.
+    });
+
+    test('es un no-op seguro si el archivo no existe', () async {
+      final String nonExistentPath = p.join(rawFilesDir.path, 'no_existe.jpg');
+      expect(File(nonExistentPath).existsSync(), isFalse);
+
+      await ImageStorageService.deleteIfTemporary(nonExistentPath);
+      // No debe lanzar excepción.
+    });
   });
 }

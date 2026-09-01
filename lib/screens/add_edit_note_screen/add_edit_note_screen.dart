@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/providers/note_providers.dart';
+import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
@@ -249,6 +250,12 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
             const SnackBar(content: Text('Nota guardada con éxito.')),
           );
         }
+      }
+
+      // Recién acá el guardado completo (copia + base) es un éxito
+      // confirmado: es seguro borrar los temporales de origen, si los había.
+      for (final photoPath in _photoPaths) {
+        await ImageStorageService.deleteIfTemporary(photoPath);
       }
 
       _markSaved();

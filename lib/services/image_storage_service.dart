@@ -101,4 +101,36 @@ class ImageStorageService {
       await deleteFileIfExist(path);
     }
   }
+
+  /// Borra [path] únicamente si vive físicamente bajo el directorio
+  /// temporal del sistema (Directory.systemTemp) -la única condición bajo
+  /// la que sabemos con certeza que es descartable-. Un path ya permanente
+  /// (dentro de petpal_files/) o un archivo elegido por el usuario que la
+  /// app nunca creó (ej. un PDF tomado directo de sus Descargas) queda
+  /// fuera del directorio temporal, así que la llamada es un no-op seguro.
+  ///
+  /// Pensado para llamarse DESPUÉS de que el guardado completo -copia a
+  /// almacenamiento permanente Y persistencia en base- haya terminado con
+  /// éxito. Nunca antes, y nunca si algo en el medio falló: si la copia o
+  /// el guardado en base lanzan una excepción, este método no debe
+  /// alcanzarse, para no borrar la única copia que queda del archivo del
+  /// usuario.
+  static Future<void> deleteIfTemporary(String? path) async {
+    if (path == null || path.trim().isEmpty) return;
+
+    try {
+      final File file = File(path);
+      if (!await file.exists()) return;
+
+      final String normalizedPath = p.normalize(file.path);
+      final String normalizedTempPath = p.normalize(Directory.systemTemp.path);
+
+      if (!p.isWithin(normalizedTempPath, normalizedPath)) return;
+
+      await file.delete();
+    } catch (_) {
+      // Best-effort: un fallo al limpiar un temporal no debe reportarse
+      // como error de guardado -el registro ya se persistió con éxito-.
+    }
+  }
 }
