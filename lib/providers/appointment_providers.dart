@@ -36,6 +36,10 @@ class AppointmentsNotifier extends FamilyAsyncNotifier<List<Appointment>, String
     for (final appointment in appointments) {
       if (!appointment.isCompleted && appointment.dateTime.isBefore(now)) {
         final completed = appointment.copyWith(isCompleted: true);
+        // Mismo patrón que updateAppointment: cancela el recordatorio antes
+        // de persistir, para no dejar una alarma "viva" en un id que ya no
+        // corresponde a una cita pendiente.
+        await ReminderScheduler.cancelAppointmentReminder(appointment);
         await repository.updateAppointment(completed);
         result.add(completed);
       } else {

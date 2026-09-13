@@ -1,12 +1,11 @@
 // reminder_scheduler.dart
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/vaccination.dart';
-import 'package:pet_pal/models/vital_sign_config.dart';
-import 'package:pet_pal/models/vital_sign_record.dart';
 import 'package:pet_pal/services/notification_service.dart';
 
 /// Punto único donde se decide CUÁNDO y con QUÉ id se programa cada
@@ -21,6 +20,34 @@ class ReminderScheduler {
 
   static DateTime _atReminderHour(DateTime date) =>
       DateTime(date.year, date.month, date.day, _reminderHour);
+
+  /// Nombre para mostrar en el título de la notificación. Si la mascota ya
+  /// no existe (por ejemplo, se borró pero el recordatorio no se canceló a
+  /// tiempo) o la búsqueda falla por cualquier otro motivo (ej. la base de
+  /// datos no está disponible en ese momento), cae a un texto genérico en
+  /// vez de romper el armado del mensaje y dejar todo el recordatorio sin
+  /// programar.
+  static Future<String> _petDisplayName(String petId) async {
+    try {
+      final pet = await DatabaseHelper().getPetById(petId);
+      if (pet == null) {
+        // Caso esperado (no es un error): la mascota ya no existe -por
+        // ejemplo se borró pero el recordatorio no se canceló a tiempo-.
+        debugPrint(
+            'Mascota no encontrada (petId: $petId) al armar el título de '
+            'la notificación; se usa el nombre genérico.');
+        return 'tu mascota';
+      }
+      return pet.name;
+    } catch (e) {
+      // Caso inesperado: la búsqueda en sí falló (ej. la base de datos no
+      // está disponible en ese momento), no que la mascota no exista.
+      debugPrint(
+          'Error al buscar el nombre de la mascota para la notificación '
+          '(petId: $petId): $e');
+      return 'tu mascota';
+    }
+  }
 
   static int _medicationBaseId(String medicationId) =>
       medicationId.hashCode.abs() % 100000;
@@ -123,11 +150,12 @@ class ReminderScheduler {
   static Future<void> scheduleMedicationReminders(Medication medication) async {
     if (medication.id == null) return;
     final String id = medication.id!;
+    final String petName = await _petDisplayName(medication.petId);
 
     if (medication.reminderTimes.isEmpty) {
       await NotificationService().scheduleMedicationForDays(
         baseId: _medicationBaseId(id),
-        title: 'Recordatorio de medicación: ${medication.name}',
+        title: 'Medicación para $petName: ${medication.name}',
         body: _legacyBody(medication),
         firstDoseDateTime: _atReminderHour(medication.startDate),
         days: _medicationDayCount(medication.startDate, medication.endDate),
@@ -158,7 +186,7 @@ class ReminderScheduler {
 
           await NotificationService().scheduleNotificationOnce(
             id: _medicationTimedDayId(id, i, day),
-            title: 'Recordatorio de medicación: ${medication.name}',
+            title: 'Medicación para $petName: ${medication.name}',
             body: _timedBody(medication, timeLabel),
             scheduledDateTime: doseDateTime,
             payload: id,
@@ -173,7 +201,7 @@ class ReminderScheduler {
         );
         await NotificationService().scheduleDailyRepeatingNotification(
           id: _medicationRepeatingId(id, i),
-          title: 'Recordatorio de medicación: ${medication.name}',
+          title: 'Medicación para $petName: ${medication.name}',
           body: _timedBody(medication, timeLabel),
           firstOccurrence: firstOccurrence,
           payload: id,
@@ -193,13 +221,14 @@ class ReminderScheduler {
   static Future<void> scheduleVaccinationReminder(Vaccination vaccination) async {
     if (vaccination.nextDueDate == null) return;
 
+    final String petName = await _petDisplayName(vaccination.petId);
     final DateTime notifyAt = _atReminderHour(
       vaccination.nextDueDate!.subtract(Duration(days: vaccination.reminderDaysAhead)),
     );
 
     await NotificationService().scheduleNotificationOnce(
       id: _vaccinationNextId(vaccination.id),
-      title: 'Próxima vacuna: ${vaccination.vaccineName}',
+      title: 'Vacunación próxima para $petName: ${vaccination.vaccineName}',
       body: vaccination.reminderDaysAhead > 0
           ? 'Faltan ${vaccination.reminderDaysAhead} días para la próxima dosis de ${vaccination.vaccineName}.'
           : 'Hoy corresponde la próxima dosis de ${vaccination.vaccineName}.',
@@ -221,13 +250,14 @@ class ReminderScheduler {
     final DateTime? effectiveNextDate = deworming.effectiveNextDate();
     if (deworming.id == null || effectiveNextDate == null) return;
 
+    final String petName = await _petDisplayName(deworming.petId);
     final DateTime notifyAt = _atReminderHour(
       effectiveNextDate.subtract(Duration(days: deworming.reminderDaysAhead)),
     );
 
     await NotificationService().scheduleNotificationOnce(
       id: _dewormingNextId(deworming.id!),
-      title: 'Próxima desparasitación: ${deworming.product}',
+      title: 'Desparasitación próxima para $petName: ${deworming.product}',
       body: deworming.reminderDaysAhead > 0
           ? 'Faltan ${deworming.reminderDaysAhead} días para la próxima desparasitación con ${deworming.product}.'
           : 'Hoy corresponde la próxima desparasitación con ${deworming.product}.',
@@ -260,39 +290,17 @@ class ReminderScheduler {
   static Future<void> scheduleAppointmentReminder(Appointment appointment) async {
     if (appointment.isCompleted) return;
 
+    final String petName = await _petDisplayName(appointment.petId);
     final DateTime notifyAt =
         appointment.dateTime.subtract(const Duration(days: 1));
 
     await NotificationService().scheduleNotificationOnce(
       id: _appointmentReminderId(appointment.id),
-      title: 'Recordatorio de Cita: ${appointment.title}',
+      title: 'Cita próxima para $petName: ${appointment.title}',
       body:
           'Tu cita es mañana a las ${DateFormat('HH:mm').format(appointment.dateTime)}.',
       scheduledDateTime: notifyAt,
       payload: appointment.id,
-    );
-  }
-
-  static int _vitalSignAlertId(String recordId) =>
-      '${recordId}_alert'.hashCode;
-
-  /// Dispara una alerta inmediata (no una alarma programada a futuro) para
-  /// un registro de signo vital fuera del rango normal configurado para su
-  /// tipo. A diferencia del resto de esta clase, no hay nada que cancelar
-  /// después: es un evento puntual del momento de la carga, no algo que
-  /// deba sobrevivir a un reinicio del dispositivo, así que no participa
-  /// de [rescheduleAllPending].
-  static Future<void> notifyAbnormalVitalSign(
-    VitalSignRecord record,
-    VitalSignConfig config,
-  ) async {
-    if (record.id == null) return;
-
-    await NotificationService().showImmediateNotification(
-      id: _vitalSignAlertId(record.id.toString()),
-      title: 'Valor anormal de ${config.label}',
-      body: '${record.value}${config.unit} está fuera del rango normal '
-          '(${config.normalMin}–${config.normalMax}${config.unit}).',
     );
   }
 

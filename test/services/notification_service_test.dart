@@ -160,7 +160,7 @@ void main() {
       expect(calls.where((c) => c.method == 'zonedSchedule'), isEmpty);
     });
 
-    test('showImmediateNotification usa el canal vital_sign_alerts', () async {
+    test('showImmediateNotification usa el canal por defecto (medication_reminders)', () async {
       final service = NotificationService();
       await service.init();
       calls.clear();
@@ -174,7 +174,7 @@ void main() {
       final showCall = calls.firstWhere((c) => c.method == 'show');
       final platformSpecifics =
           showCall.arguments['platformSpecifics'] as Map;
-      expect(platformSpecifics['channelId'], 'vital_sign_alerts');
+      expect(platformSpecifics['channelId'], 'medication_reminders');
     });
   });
 

@@ -1,9 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/models/vital_sign_record.dart';
 import 'package:pet_pal/providers/database_providers.dart';
 import 'package:pet_pal/repositories/vital_sign_repository.dart';
-import 'package:pet_pal/services/reminder_scheduler.dart';
 
 final vitalSignRepositoryProvider = Provider<VitalSignRepository>((ref) {
   return VitalSignRepository(ref.watch(databaseHelperProvider));
@@ -35,22 +33,13 @@ class VitalSignRecordsNotifier
     state = await AsyncValue.guard(() => build(arg));
   }
 
-  /// Agrega un registro y, si el valor cae fuera del rango normal
-  /// configurado para su tipo, dispara una alerta inmediata. Mismo
-  /// principio que MedicationsNotifier: la pantalla nunca inserta directo
-  /// por el repository, así que esta evaluación no se puede saltear.
+  /// Agrega un registro. El valor fuera de rango se señaliza solo en la UI
+  /// (fondo rojo + ícono de advertencia en vital_sign_screen.dart), sin
+  /// notificación push: el usuario lo carga a mano, así que ya sabe en el
+  /// momento que el valor es anormal.
   Future<void> addVitalSignRecord(VitalSignRecord record) async {
     final repository = ref.read(vitalSignRepositoryProvider);
-    final int insertedId = await repository.insertVitalSignRecord(record);
-
-    final config = vitalSignConfigs[record.type];
-    if (config != null && config.isAbnormal(record.value)) {
-      await ReminderScheduler.notifyAbnormalVitalSign(
-        record.copyWith(id: insertedId),
-        config,
-      );
-    }
-
+    await repository.insertVitalSignRecord(record);
     await refresh();
   }
 

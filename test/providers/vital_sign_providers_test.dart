@@ -1,8 +1,9 @@
 // Pruebas de VitalSignRecordsNotifier (vitalSignRecordsProvider): mismo
 // esqueleto que weight_record_providers_test.dart (fake repository en
 // memoria), más el mock de canal de plataforma de
-// notification_service_test.dart para verificar que un valor fuera de
-// rango efectivamente dispara showImmediateNotification (y uno normal no).
+// notification_service_test.dart para verificar que NINGÚN valor -esté o
+// no fuera de rango- dispara una notificación push; la señal de valor
+// anormal es solo visual (vital_sign_screen.dart), nunca push.
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -128,7 +129,7 @@ void main() {
       expect(container.read(vitalSignRecordsProvider('pet-1')).value, hasLength(1));
     });
 
-    test('addVitalSignRecord con valor fuera de rango dispara showImmediateNotification', () async {
+    test('addVitalSignRecord con valor fuera de rango NO dispara notificación push', () async {
       final fakeRecords = <VitalSignRecord>[];
 
       final container = ProviderContainer(
@@ -142,14 +143,14 @@ void main() {
 
       await container.read(vitalSignRecordsProvider('pet-1').future);
       // 41.0°C está por encima del normalMax (39.2) configurado para
-      // VitalSignType.temperature.
+      // VitalSignType.temperature. La alerta de rango anormal ahora es
+      // exclusivamente visual (vital_sign_screen.dart); ya no dispara push.
       await container.read(vitalSignRecordsProvider('pet-1').notifier).addVitalSignRecord(
             VitalSignRecord(petId: 'pet-1', type: VitalSignType.temperature, value: 41.0, date: DateTime(2026, 1, 1)),
           );
 
-      final showCalls = notificationCalls.where((c) => c.method == 'show').toList();
-      expect(showCalls, hasLength(1));
-      expect(showCalls.first.arguments['title'], contains('Temperatura'));
+      expect(notificationCalls.where((c) => c.method == 'show'), isEmpty);
+      expect(container.read(vitalSignRecordsProvider('pet-1')).value, hasLength(1));
     });
 
     test('deleteVitalSignRecord elimina y refresca', () async {

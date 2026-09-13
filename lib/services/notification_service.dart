@@ -254,10 +254,10 @@ class NotificationService {
   }
 
   /// Notificación inmediata (sin `zonedSchedule`), para alertas puntuales
-  /// que no son un recordatorio programado a futuro -ej. un signo vital
-  /// fuera de rango normal al momento de registrarlo-. Usa un canal propio
-  /// (no 'medication_reminders') para que el usuario pueda silenciar estas
-  /// alertas por separado de los recordatorios de medicación.
+  /// que no son un recordatorio programado a futuro. Usa el canal por
+  /// defecto de _notificationDetails: ningún llamador actual necesita un
+  /// canal propio (el que existía para signos vitales se eliminó junto con
+  /// ReminderScheduler.notifyAbnormalVitalSign, su único usuario).
   Future<void> showImmediateNotification({
     required int id,
     required String title,
@@ -268,12 +268,7 @@ class NotificationService {
       id,
       title,
       body,
-      _notificationDetails(
-        channelId: 'vital_sign_alerts',
-        channelName: 'Alertas de Signos Vitales',
-        channelDescription:
-            'Canal para alertas de valores de signos vitales fuera de rango normal.',
-      ),
+      _notificationDetails(),
       payload: payload,
     );
   }
