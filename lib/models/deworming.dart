@@ -100,6 +100,51 @@ class Deworming {
     return candidate;
   }
 
+  static const Set<String> _coverageTypes = {'interna', 'externa', 'ambas'};
+
+  /// Ids de los registros que deben mostrar "Próxima dosis" en la pantalla
+  /// de desparasitaciones, según cobertura por tipo (interna/externa/ambas)
+  /// en vez de solo por producto: cada tipo de parásito tiene su propio
+  /// reloj de vigencia, salvo que el registro más reciente de todos cubra
+  /// AMBOS -en cuyo caso resetea la cobertura completa y manda solo él-.
+  /// Registros sin [type] reconocido (legado, previo a que el campo se
+  /// hiciera obligatorio en el formulario) quedan fuera del cálculo: no
+  /// hay forma de saber qué cobertura dan, así que nunca son ganadores.
+  ///
+  /// Puramente de presentación -qué línea verde se muestra-: no tiene
+  /// relación con qué recordatorio real programa ReminderScheduler.
+  static Set<String> idsWithVisibleNextDose(List<Deworming> dewormings) {
+    final List<Deworming> typed = dewormings
+        .where((d) => d.id != null && _coverageTypes.contains(d.type))
+        .toList();
+    if (typed.isEmpty) return {};
+
+    Deworming mostRecentOverall = typed.first;
+    for (final d in typed.skip(1)) {
+      if (d.date.isAfter(mostRecentOverall.date)) mostRecentOverall = d;
+    }
+
+    if (mostRecentOverall.type == 'ambas') {
+      return {mostRecentOverall.id!};
+    }
+
+    final winners = <String>{mostRecentOverall.id!};
+
+    final String otherType =
+        mostRecentOverall.type == 'interna' ? 'externa' : 'interna';
+    final matchingOther =
+        typed.where((d) => d.type == otherType || d.type == 'ambas');
+    if (matchingOther.isNotEmpty) {
+      Deworming mostRecentOther = matchingOther.first;
+      for (final d in matchingOther.skip(1)) {
+        if (d.date.isAfter(mostRecentOther.date)) mostRecentOther = d;
+      }
+      winners.add(mostRecentOther.id!);
+    }
+
+    return winners;
+  }
+
   static List<Map<String, dynamic>> getEventsFromList(List<Deworming> dewormings) {
     List<Map<String, dynamic>> events = [];
     for (var deworming in dewormings) {

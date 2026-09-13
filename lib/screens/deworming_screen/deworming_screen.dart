@@ -88,10 +88,14 @@ class DewormingScreen extends ConsumerWidget {
             );
           }
 
+          final idsWithVisibleNextDose = Deworming.idsWithVisibleNextDose(dewormingList);
+
           return ListView.builder(
             itemCount: dewormingList.length,
             itemBuilder: (context, index) {
               final deworming = dewormingList[index];
+              final bool showNextDose = deworming.id != null &&
+                  idsWithVisibleNextDose.contains(deworming.id);
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 child: ListTile(
@@ -113,7 +117,7 @@ class DewormingScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Fecha: ${DateFormat('dd/MM/yyyy').format(deworming.date)}'),
-                      if (deworming.effectiveNextDate() != null)
+                      if (showNextDose && deworming.effectiveNextDate() != null)
                         Text('Próxima fecha: ${DateFormat('dd/MM/yyyy').format(deworming.effectiveNextDate()!)}'),
                     ],
                   ),

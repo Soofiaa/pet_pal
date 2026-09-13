@@ -123,6 +123,113 @@ void main() {
     });
   });
 
+  group('Deworming.idsWithVisibleNextDose', () {
+    test('el más reciente cubre AMBOS: resetea la cobertura, solo él muestra "Próxima dosis"', () {
+      final vieaInterna = Deworming(
+        id: 'd-interna-vieja',
+        petId: 'pet-1',
+        product: 'Interno viejo',
+        date: DateTime(2025, 1, 1),
+        nextDate: DateTime(2025, 4, 1),
+        type: 'interna',
+      );
+      final viejaExterna = Deworming(
+        id: 'd-externa-vieja',
+        petId: 'pet-1',
+        product: 'Externo viejo',
+        date: DateTime(2025, 2, 1),
+        nextDate: DateTime(2025, 5, 1),
+        type: 'externa',
+      );
+      final masReciente = Deworming(
+        id: 'd-ambas',
+        petId: 'pet-1',
+        product: 'Nexgard Spectra',
+        date: DateTime(2026, 1, 1),
+        nextDate: DateTime(2026, 4, 1),
+        type: 'ambas',
+      );
+
+      final winners = Deworming.idsWithVisibleNextDose(
+        [vieaInterna, viejaExterna, masReciente],
+      );
+
+      expect(winners, {'d-ambas'});
+    });
+
+    test('el más reciente cubre solo un tipo: busca el más reciente del otro tipo por separado', () {
+      final internaReciente = Deworming(
+        id: 'd-interna-nueva',
+        petId: 'pet-1',
+        product: 'Desparasitante interno',
+        date: DateTime(2026, 6, 1),
+        nextDate: DateTime(2026, 9, 1),
+        type: 'interna',
+      );
+      final externaAntigua = Deworming(
+        id: 'd-externa-vieja',
+        petId: 'pet-1',
+        product: 'Simparica',
+        date: DateTime(2024, 1, 1),
+        nextDate: DateTime(2024, 4, 1),
+        type: 'externa',
+      );
+      final internaMasVieja = Deworming(
+        id: 'd-interna-vieja',
+        petId: 'pet-1',
+        product: 'Desparasitante interno viejo',
+        date: DateTime(2023, 1, 1),
+        nextDate: DateTime(2023, 4, 1),
+        type: 'interna',
+      );
+
+      final winners = Deworming.idsWithVisibleNextDose(
+        [internaReciente, externaAntigua, internaMasVieja],
+      );
+
+      expect(winners, {'d-interna-nueva', 'd-externa-vieja'});
+      expect(winners.contains('d-interna-vieja'), isFalse);
+    });
+
+    test('un registro "ambas" antiguo cuenta como cobertura del otro tipo si es el más reciente de ese tipo', () {
+      final internaReciente = Deworming(
+        id: 'd-interna-nueva',
+        petId: 'pet-1',
+        product: 'Desparasitante interno',
+        date: DateTime(2026, 6, 1),
+        nextDate: DateTime(2026, 9, 1),
+        type: 'interna',
+      );
+      final ambasAntigua = Deworming(
+        id: 'd-ambas-vieja',
+        petId: 'pet-1',
+        product: 'Nexgard Spectra viejo',
+        date: DateTime(2024, 1, 1),
+        nextDate: DateTime(2024, 4, 1),
+        type: 'ambas',
+      );
+
+      final winners = Deworming.idsWithVisibleNextDose(
+        [internaReciente, ambasAntigua],
+      );
+
+      expect(winners, {'d-interna-nueva', 'd-ambas-vieja'});
+    });
+
+    test('sin registros con type reconocido: no hay ganadores', () {
+      final legado = Deworming(
+        id: 'd-legado',
+        petId: 'pet-1',
+        product: 'Producto legado',
+        date: DateTime(2026, 1, 1),
+        nextDate: DateTime(2026, 4, 1),
+        type: null,
+      );
+
+      expect(Deworming.idsWithVisibleNextDose([legado]), isEmpty);
+    });
+  });
+
   group('Deworming.getEventsFromList', () {
     test('el evento next_deworming usa la fecha avanzada para un registro recurrente vencido', () {
       final deworming = Deworming(
