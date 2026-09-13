@@ -145,6 +145,22 @@ class Deworming {
     return winners;
   }
 
+  /// Tipos de cobertura ('interna'/'externa') que NUNCA tuvieron ni un solo
+  /// registro -ni exclusivo ni combinado en 'ambas'- en todo el historial
+  /// de la mascota. Distinto de "está vencida": esto es un vacío
+  /// estructural (nunca se hizo), no un problema temporal.
+  static Set<String> neverRecordedCoverageTypes(List<Deworming> dewormings) {
+    final bool hasInterna =
+        dewormings.any((d) => d.type == 'interna' || d.type == 'ambas');
+    final bool hasExterna =
+        dewormings.any((d) => d.type == 'externa' || d.type == 'ambas');
+
+    final missing = <String>{};
+    if (!hasInterna) missing.add('interna');
+    if (!hasExterna) missing.add('externa');
+    return missing;
+  }
+
   static List<Map<String, dynamic>> getEventsFromList(List<Deworming> dewormings) {
     List<Map<String, dynamic>> events = [];
     for (var deworming in dewormings) {

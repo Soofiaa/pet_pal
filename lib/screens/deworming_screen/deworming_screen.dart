@@ -57,6 +57,49 @@ class DewormingScreen extends ConsumerWidget {
     }
   }
 
+  /// Banner de alerta cuando algún tipo de cobertura (interna/externa)
+  /// nunca tuvo ni un solo registro en todo el historial de la mascota.
+  /// Mismo patrón visual que la alerta de signos vitales fuera de rango
+  /// (fondo rojo claro + ícono de advertencia), adaptado a un aviso de
+  /// cabecera en vez de un indicador por registro, ya que acá el vacío es
+  /// de toda la pantalla y no de un registro puntual.
+  Widget _buildMissingCoverageBanner(Set<String> missingTypes) {
+    if (missingTypes.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final type in missingTypes)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Nunca se ha registrado desparasitación $type para ${pet.name}.',
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<List<Deworming>> asyncDewormings =
@@ -80,73 +123,89 @@ class DewormingScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(child: Text('Error: $error')),
         data: (dewormingList) {
+          final missingCoverageTypes = Deworming.neverRecordedCoverageTypes(dewormingList);
+
           if (dewormingList.isEmpty) {
-            return EmptyState(
-              icon: Icons.healing,
-              message: 'Aún no hay desparasitaciones registradas para ${pet.name}.',
-              actionHint: 'Presiona "+" para añadir una nueva.',
+            return Column(
+              children: [
+                _buildMissingCoverageBanner(missingCoverageTypes),
+                Expanded(
+                  child: EmptyState(
+                    icon: Icons.healing,
+                    message: 'Aún no hay desparasitaciones registradas para ${pet.name}.',
+                    actionHint: 'Presiona "+" para añadir una nueva.',
+                  ),
+                ),
+              ],
             );
           }
 
           final idsWithVisibleNextDose = Deworming.idsWithVisibleNextDose(dewormingList);
 
-          return ListView.builder(
-            itemCount: dewormingList.length,
-            itemBuilder: (context, index) {
-              final deworming = dewormingList[index];
-              final bool showNextDose = deworming.id != null &&
-                  idsWithVisibleNextDose.contains(deworming.id);
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: ListTile(
-                  title: Row(
-                    children: [
-                      Flexible(
-                        child: Text(deworming.product, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      if (deworming.isRecurring) ...[
-                        const SizedBox(width: 6),
-                        const Tooltip(
-                          message: 'Recordatorio automático recurrente',
-                          child: Icon(Icons.repeat, size: 16, color: Colors.grey),
-                        ),
-                      ],
-                    ],
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Fecha: ${DateFormat('dd/MM/yyyy').format(deworming.date)}'),
-                      if (showNextDose && deworming.effectiveNextDate() != null)
-                        Text('Próxima fecha: ${DateFormat('dd/MM/yyyy').format(deworming.effectiveNextDate()!)}'),
-                    ],
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AddEditDewormingScreen(
-                                pet: pet,
-                                deworming: deworming,
-                              ),
+          return Column(
+            children: [
+              _buildMissingCoverageBanner(missingCoverageTypes),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: dewormingList.length,
+                  itemBuilder: (context, index) {
+                    final deworming = dewormingList[index];
+                    final bool showNextDose = deworming.id != null &&
+                        idsWithVisibleNextDose.contains(deworming.id);
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      child: ListTile(
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(deworming.product, style: const TextStyle(fontWeight: FontWeight.bold)),
                             ),
-                          );
-                        },
+                            if (deworming.isRecurring) ...[
+                              const SizedBox(width: 6),
+                              const Tooltip(
+                                message: 'Recordatorio automático recurrente',
+                                child: Icon(Icons.repeat, size: 16, color: Colors.grey),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Fecha: ${DateFormat('dd/MM/yyyy').format(deworming.date)}'),
+                            if (showNextDose && deworming.effectiveNextDate() != null)
+                              Text('Próxima fecha: ${DateFormat('dd/MM/yyyy').format(deworming.effectiveNextDate()!)}'),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AddEditDewormingScreen(
+                                      pet: pet,
+                                      deworming: deworming,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _confirmDelete(context, ref, deworming),
+                            ),
+                          ],
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _confirmDelete(context, ref, deworming),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
           );
         },
       ),

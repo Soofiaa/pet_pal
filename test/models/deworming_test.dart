@@ -230,6 +230,42 @@ void main() {
     });
   });
 
+  group('Deworming.neverRecordedCoverageTypes', () {
+    test('nunca hubo registro externo ni combinado: alerta por "externa"', () {
+      final soloInterna = Deworming(
+        id: 'd-1',
+        petId: 'pet-1',
+        product: 'Producto interno',
+        date: DateTime(2026, 1, 1),
+        type: 'interna',
+      );
+
+      expect(
+        Deworming.neverRecordedCoverageTypes([soloInterna]),
+        {'externa'},
+      );
+    });
+
+    test('un registro "ambas" cubre huecos de ambos tipos', () {
+      final ambas = Deworming(
+        id: 'd-1',
+        petId: 'pet-1',
+        product: 'Nexgard Spectra',
+        date: DateTime(2026, 1, 1),
+        type: 'ambas',
+      );
+
+      expect(Deworming.neverRecordedCoverageTypes([ambas]), isEmpty);
+    });
+
+    test('sin ningún registro: faltan ambos tipos', () {
+      expect(
+        Deworming.neverRecordedCoverageTypes(const []),
+        {'interna', 'externa'},
+      );
+    });
+  });
+
   group('Deworming.getEventsFromList', () {
     test('el evento next_deworming usa la fecha avanzada para un registro recurrente vencido', () {
       final deworming = Deworming(
