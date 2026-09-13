@@ -20,8 +20,8 @@ documentos clínicos y estado de salud, todo organizado por mascota.
 - **Historial médico completo**: vacunas, medicación, desparasitación,
   peso y signos vitales (temperatura), cada uno con su propia pantalla,
   gráfico de tendencia y su lugar en el calendario unificado de la
-  mascota. Los signos vitales alertan cuando un valor sale del rango
-  normal. La desparasitación admite recordatorios genuinamente
+  mascota. Los signos vitales alertan visualmente cuando un valor sale
+  del rango normal. La desparasitación admite recordatorios genuinamente
   recurrentes (ej. "cada 3 meses"), sin necesitar crear un registro
   nuevo en cada ciclo
 - **Documentos clínicos**: exámenes, informes de cirugía, radiografías y
@@ -30,9 +30,10 @@ documentos clínicos y estado de salud, todo organizado por mascota.
   sistema)
 - Registro de alergias alimentarias, integrado al calendario
 - **Recordatorios confiables**: notificaciones para medicación (con
-  horarios múltiples configurables por el usuario), vacunas y
-  desparasitación, que sobreviven a un reinicio del dispositivo y a la
-  restauración de un backup
+  horarios múltiples configurables por el usuario), vacunas,
+  desparasitación y citas veterinarias, cada una identificando el
+  nombre de la mascota en el mensaje, que sobreviven a un reinicio del
+  dispositivo y a la restauración de un backup
 - **Ficha clínica exportable en PDF**, consolidando vacunas, medicación,
   desparasitación, peso y el índice de documentos — pensada para llevar
   directamente a una consulta veterinaria
@@ -112,7 +113,7 @@ lanzar ningún error visible:
 - Programación y cancelación de recordatorios, incluyendo ausencia de
   colisión de IDs entre mascotas, horarios y rangos de fechas largos
 - Orquestación correcta entre cada provider y sus efectos secundarios
-  (recordatorios, alertas de signos vitales, limpieza de archivos)
+  (recordatorios, limpieza de archivos)
 - Lógica del buscador global (normalización de acentos/mayúsculas,
   aislamiento entre mascotas)
 - Widget tests del dashboard "Hoy"
