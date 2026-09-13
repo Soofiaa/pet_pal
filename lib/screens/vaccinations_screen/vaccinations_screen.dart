@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
@@ -119,11 +120,27 @@ class VaccinationsScreen extends ConsumerWidget {
     );
   }
 
+  /// Ids de las vacunaciones que deben mostrar "Próxima dosis": la más
+  /// reciente (por fecha de aplicación) dentro de cada grupo de mismo
+  /// [Vaccination.vaccineName]. Reutiliza el mismo criterio de agrupación
+  /// que ya usa el panel "Hoy" ([DashboardEvent.idsOfMostRecentApplicationPerName])
+  /// para que un registro histórico superado por una dosis más nueva de la
+  /// misma vacuna deje de mostrar su propia predicción -aunque el
+  /// recordatorio real siga siendo responsabilidad exclusiva de
+  /// ReminderScheduler, sin relación con esta función-.
+  Set<dynamic> _idsWithVisibleNextDose(List<Vaccination> vaccinations) {
+    return DashboardEvent.idsOfMostRecentApplicationPerName(
+      Vaccination.getEventsFromList(vaccinations),
+      'vaccination',
+    );
+  }
+
   Widget _buildVaccinationCard(
     BuildContext context,
     WidgetRef ref,
-    Vaccination vaccination,
-  ) {
+    Vaccination vaccination, {
+    required bool showNextDose,
+  }) {
     final bool hasSticker =
         ImageStorageService.isValidLocalFile(vaccination.stickerPhotoPath);
 
@@ -172,7 +189,7 @@ class VaccinationsScreen extends ConsumerWidget {
                         Text(
                           'Aplicada: ${DateFormat('dd/MM/yyyy').format(vaccination.date)}',
                         ),
-                        if (vaccination.nextDueDate != null)
+                        if (vaccination.nextDueDate != null && showNextDose)
                           Text(
                             'Próxima dosis: ${DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!)}',
                             style: TextStyle(color: Colors.green.shade700),
@@ -250,10 +267,18 @@ class VaccinationsScreen extends ConsumerWidget {
             );
           }
 
+          final idsWithVisibleNextDose = _idsWithVisibleNextDose(vaccinations);
+
           return ListView.builder(
             itemCount: vaccinations.length,
             itemBuilder: (context, index) {
-              return _buildVaccinationCard(context, ref, vaccinations[index]);
+              final vaccination = vaccinations[index];
+              return _buildVaccinationCard(
+                context,
+                ref,
+                vaccination,
+                showNextDose: idsWithVisibleNextDose.contains(vaccination.id),
+              );
             },
           );
         },
