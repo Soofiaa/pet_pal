@@ -19,6 +19,7 @@ import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/models/vital_sign_record.dart';
 import 'package:pet_pal/models/weight_record.dart';
@@ -334,6 +335,54 @@ void main() {
       expect(foodAllergyEvents, hasLength(1));
       expect(foodAllergyEvents.first['title'], 'Alergia registrada: Pollo');
       expect(foodAllergyEvents.first['petId'], pet.id);
+    });
+  });
+
+  group('DatabaseHelper - insertVaccinationProduct', () {
+    // Reproduce el bug reportado en "Catálogo de Vacunas" → "Añadir Vacuna":
+    // insertVaccinationProduct hacía un db.update de "sincronización" hacia
+    // vaccinationsTable con un mapa de valores vacío, y sqflite rechaza un
+    // update con ContentValues vacío ("Invalid argument(s): Empty values").
+    // Ese update no cumplía ninguna función real -no hay campo de
+    // vaccinationsTable que sincronizar desde el catálogo- así que se
+    // eliminó por completo en vez de rellenarlo.
+    test('guarda un producto nuevo sin lanzar excepción (caso "Sextuple", 12 meses)', () async {
+      final dbHelper = DatabaseHelper();
+
+      await dbHelper.insertVaccinationProduct(VaccinationProduct(
+        name: 'Sextuple',
+        defaultFrequencyMonths: 12,
+      ));
+
+      final products = await dbHelper.getVaccinationProducts();
+      expect(products, hasLength(1));
+      expect(products.first.name, 'Sextuple');
+      expect(products.first.defaultFrequencyMonths, 12);
+    });
+
+    test('no rompe aunque ya existan vacunaciones con ese mismo nombre', () async {
+      final dbHelper = DatabaseHelper();
+      final pet = Pet(
+        name: 'Firulais',
+        species: 'Perro',
+        breed: 'Mestizo',
+        dob: DateTime(2020, 1, 1),
+        color: 'Marrón',
+      );
+      await dbHelper.insertPet(pet);
+      await dbHelper.insertVaccination(Vaccination(
+        petId: pet.id,
+        vaccineName: 'Sextuple',
+        date: DateTime.now(),
+      ));
+
+      await dbHelper.insertVaccinationProduct(VaccinationProduct(
+        name: 'Sextuple',
+        defaultFrequencyMonths: 12,
+      ));
+
+      final products = await dbHelper.getVaccinationProducts();
+      expect(products.where((p) => p.name == 'Sextuple'), hasLength(1));
     });
   });
 }

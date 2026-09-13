@@ -753,17 +753,6 @@ class DatabaseHelper {
       product.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    // Sincronizar registros existentes
-    await db.update(
-      vaccinationsTable,
-      {
-        // En vacunas solo sincronizamos el nombre si fuera necesario, 
-        // pero aquí no hay campo frequency directo en la tabla de vacunas, 
-        // se usa para calcular nextDueDate al momento de insertar.
-      },
-      where: 'vaccineName = ?',
-      whereArgs: [product.name],
-    );
   }
 
   Future<List<VaccinationProduct>> getVaccinationProducts() async {
