@@ -15,6 +15,7 @@ import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/providers/appointment_providers.dart';
 import 'package:pet_pal/repositories/appointment_repository.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:uuid/uuid.dart';
 
 class _FakeAppointmentRepository implements AppointmentRepository {
@@ -159,6 +160,59 @@ void main() {
           cancelId,
           scheduleId,
           reason: 'mismo id de la cita: no cambia entre ediciones',
+        );
+      },
+    );
+
+    test(
+      'updateAppointment reprograma el recordatorio cuando solo cambia '
+      'reminderDaysBefore (cancela el viejo, agenda el nuevo con la nueva '
+      'anticipación)',
+      () async {
+        await NotificationService().init();
+        final original = Appointment(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          dateTime: DateTime(2030, 3, 15, 14, 30),
+          title: 'Control anual',
+          reminderDaysBefore: 1,
+        );
+        final records = <Appointment>[original];
+        final container = buildContainer(records);
+
+        // Recordatorio original con la anticipación vieja (1 día), para
+        // comparar contra el reprogramado. Se compara una DIFERENCIA entre
+        // dos scheduledDateTime -no un valor absoluto- por el mismo motivo
+        // que reminder_scheduler_test.dart: tz.local no está inicializado en
+        // el entorno de test, así que TZDateTime.from aplica un corrimiento
+        // fijo al serializar el argumento de zonedSchedule, que se cancela
+        // al restar dos scheduledDateTime entre sí.
+        await ReminderScheduler.scheduleAppointmentReminder(original);
+        final DateTime originalNotifyAt = calls
+            .where((c) => c.method == 'zonedSchedule')
+            .map((c) => DateTime.parse(c.arguments['scheduledDateTime'] as String))
+            .single;
+        calls.clear();
+
+        final updated = original.copyWith(reminderDaysBefore: 7);
+        await container
+            .read(appointmentsProvider('pet-1').notifier)
+            .updateAppointment(original, updated);
+
+        final relevantCalls = calls
+            .where((c) => c.method == 'cancel' || c.method == 'zonedSchedule')
+            .toList();
+        expect(relevantCalls, hasLength(2));
+        expect(relevantCalls[0].method, 'cancel');
+        expect(relevantCalls[1].method, 'zonedSchedule');
+
+        final DateTime updatedNotifyAt =
+            DateTime.parse(relevantCalls[1].arguments['scheduledDateTime'] as String);
+        expect(
+          originalNotifyAt.difference(updatedNotifyAt),
+          const Duration(days: 6),
+          reason: 'con 6 días más de anticipación (7 en vez de 1), el nuevo '
+              'recordatorio debe caer 6 días antes que el original',
         );
       },
     );

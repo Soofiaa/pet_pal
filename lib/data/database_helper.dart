@@ -67,7 +67,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 29,
+      version: 30,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -139,10 +139,11 @@ class DatabaseHelper {
         location TEXT,
         type TEXT,
         isCompleted INTEGER NOT NULL DEFAULT 0,
+        reminderDaysBefore INTEGER NOT NULL DEFAULT 1,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
-    debugPrint('Tabla de citas creada (con isCompleted)');
+    debugPrint('Tabla de citas creada (con isCompleted y reminderDaysBefore)');
 
     // 5. Crear tabla de registros de peso
     await db.execute('''
@@ -553,6 +554,21 @@ class DatabaseHelper {
         await db.execute('UPDATE $foodRecordsTable SET isOngoing = 0 WHERE endDate IS NOT NULL');
       }
       debugPrint('Migración v29: Columna isOngoing añadida a $foodRecordsTable');
+    }
+
+    // Migración a v30: agregar reminderDaysBefore a citas (antes el
+    // recordatorio de una cita era siempre "un día antes", fijo en
+    // ReminderScheduler.scheduleAppointmentReminder). DEFAULT 1 deja a las
+    // citas ya existentes con exactamente ese mismo comportamiento histórico,
+    // sin que quede ninguna fila con el campo nulo.
+    if (oldVersion < 30) {
+      final hasReminderDaysBefore =
+          await _columnExists(db, appointmentsTable, 'reminderDaysBefore');
+      if (!hasReminderDaysBefore) {
+        await db.execute(
+            'ALTER TABLE $appointmentsTable ADD COLUMN reminderDaysBefore INTEGER NOT NULL DEFAULT 1');
+      }
+      debugPrint('Migración v30: Columna reminderDaysBefore añadida a $appointmentsTable');
     }
 
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,

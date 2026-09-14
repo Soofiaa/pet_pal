@@ -327,19 +327,22 @@ class ReminderScheduler {
   static int _appointmentReminderId(String appointmentId) =>
       appointmentId.hashCode;
 
-  /// Cancela el recordatorio "un día antes" de una cita. Nunca falla si no
-  /// había nada agendado con ese id -mismo comportamiento no-op seguro que
-  /// el resto de los cancel* de esta clase-.
+  /// Cancela el recordatorio de una cita (con la anticipación que sea que
+  /// tuviera configurada, ver [Appointment.reminderDaysBefore]). Nunca falla
+  /// si no había nada agendado con ese id -mismo comportamiento no-op seguro
+  /// que el resto de los cancel* de esta clase-.
   static Future<void> cancelAppointmentReminder(Appointment appointment) async {
     await NotificationService()
         .cancelNotification(_appointmentReminderId(appointment.id));
   }
 
-  /// Agenda el recordatorio "un día antes" de la cita. No agenda nada si la
-  /// cita ya está marcada como completada, incluso si su fecha quedara en
-  /// el futuro por algún motivo -antes de esta migración,
-  /// add_edit_appointment_screen.dart no chequeaba esto y rescheduleAllPending
-  /// sí, una inconsistencia entre las dos implementaciones duplicadas-.
+  /// Agenda el recordatorio de la cita, con la anticipación elegida por el
+  /// usuario ([Appointment.reminderDaysBefore]; por defecto 1, "un día
+  /// antes"). No agenda nada si la cita ya está marcada como completada,
+  /// incluso si su fecha quedara en el futuro por algún motivo -antes de
+  /// esta migración, add_edit_appointment_screen.dart no chequeaba esto y
+  /// rescheduleAllPending sí, una inconsistencia entre las dos
+  /// implementaciones duplicadas-.
   ///
   /// No hace falta chequear acá si el horario resultante ya pasó:
   /// NotificationService.scheduleNotificationOnce ya se niega a agendar en
@@ -349,14 +352,21 @@ class ReminderScheduler {
     if (appointment.isCompleted) return;
 
     final String petName = await _petDisplayName(appointment.petId);
+    final int daysBefore = appointment.reminderDaysBefore;
     final DateTime notifyAt =
-        appointment.dateTime.subtract(const Duration(days: 1));
+        appointment.dateTime.subtract(Duration(days: daysBefore));
+
+    final String whenLabel = daysBefore == 0
+        ? 'hoy'
+        : daysBefore == 1
+            ? 'mañana'
+            : 'en $daysBefore días';
 
     await NotificationService().scheduleNotificationOnce(
       id: _appointmentReminderId(appointment.id),
       title: 'Cita próxima para $petName: ${appointment.title}',
       body:
-          'Tu cita es mañana a las ${DateFormat('HH:mm').format(appointment.dateTime)}.',
+          'Tu cita es $whenLabel a las ${DateFormat('HH:mm').format(appointment.dateTime)}.',
       scheduledDateTime: notifyAt,
       payload: appointment.id,
     );

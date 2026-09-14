@@ -442,6 +442,44 @@ void main() {
       },
     );
 
+    test(
+      'scheduleAppointmentReminder respeta reminderDaysBefore en vez del '
+      'valor fijo de 1 día que tenía antes de que el campo existiera',
+      () async {
+        await NotificationService().init();
+        calls.clear();
+
+        // Mismo truco que el test de arriba ("a la misma hora"): se compara
+        // la diferencia entre dos citas agendadas (una con el default de 1
+        // día, otra con reminderDaysBefore: 3), no un valor absoluto, porque
+        // tz.local no está inicializado en el entorno de test y
+        // TZDateTime.from aplica un corrimiento fijo que se cancela al
+        // restar dos scheduledDateTime entre sí.
+        final DateTime dateTime = DateTime(2030, 3, 15, 14, 30);
+
+        await ReminderScheduler.scheduleAppointmentReminder(Appointment(
+          petId: 'pet-1',
+          dateTime: dateTime,
+          title: 'Control con default (1 día)',
+        ));
+        await ReminderScheduler.scheduleAppointmentReminder(Appointment(
+          petId: 'pet-1',
+          dateTime: dateTime,
+          title: 'Control con 3 días de anticipación',
+          reminderDaysBefore: 3,
+        ));
+
+        final times = scheduledDateTimes();
+        expect(times, hasLength(2));
+        expect(
+          times[0].difference(times[1]),
+          const Duration(days: 2),
+          reason: 'con reminderDaysBefore: 3 el aviso debe caer 2 días antes '
+              'que con el default de 1 día, para la misma cita',
+        );
+      },
+    );
+
     test('muchas citas distintas no colisionan entre sí', () async {
       await NotificationService().init();
       calls.clear();

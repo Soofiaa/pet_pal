@@ -61,6 +61,24 @@ void main() {
                 notes TEXT NOT NULL DEFAULT ''
               )
             ''');
+            // También se siembra en el esquema viejo (sin reminderDaysBefore,
+            // ver migración v30): _onUpgrade real corre TODAS las
+            // migraciones pendientes desde oldVersion, no solo la de
+            // isOngoing, así que esta tabla debe existir para que esa otra
+            // migración no falle contra un archivo .db que en la realidad
+            // siempre la tiene desde mucho antes de v28.
+            await db.execute('''
+              CREATE TABLE appointments(
+                id TEXT PRIMARY KEY,
+                petId TEXT,
+                dateTime TEXT,
+                title TEXT,
+                description TEXT,
+                location TEXT,
+                type TEXT,
+                isCompleted INTEGER NOT NULL DEFAULT 0
+              )
+            ''');
           },
         ),
       );

@@ -21,6 +21,7 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
   final _locationController = TextEditingController();
   final _typeController = TextEditingController();
   late DateTime _selectedDateTime;
+  int _reminderDaysBefore = 1;
   bool _isSaving = false;
 
   @override
@@ -32,6 +33,7 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
       _descriptionController.text = widget.appointment!.description ?? '';
       _locationController.text = widget.appointment!.location ?? '';
       _typeController.text = widget.appointment!.type ?? '';
+      _reminderDaysBefore = widget.appointment!.reminderDaysBefore;
     } else {
       _selectedDateTime = DateTime.now();
     }
@@ -157,6 +159,7 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
           location: _locationController.text.isEmpty ? null : _locationController.text,
           type: _typeController.text.isEmpty ? null : _typeController.text,
           isCompleted: isCompleted,
+          reminderDaysBefore: _reminderDaysBefore,
         );
         await notifier.updateAppointment(widget.appointment!, draft);
         if (mounted) {
@@ -173,6 +176,7 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
           location: _locationController.text.isEmpty ? null : _locationController.text,
           type: _typeController.text.isEmpty ? null : _typeController.text,
           isCompleted: isCompleted,
+          reminderDaysBefore: _reminderDaysBefore,
         );
         await notifier.addAppointment(newAppointment);
         if (mounted) {
@@ -292,6 +296,24 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.local_hospital),
                 ),
+              ),
+              const SizedBox(height: 16.0),
+              DropdownButtonFormField<int>(
+                initialValue: _reminderDaysBefore,
+                decoration: const InputDecoration(
+                  labelText: 'Avisarme con anticipación',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.notification_important),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('El mismo día')),
+                  DropdownMenuItem(value: 1, child: Text('1 día antes')),
+                  DropdownMenuItem(value: 3, child: Text('3 días antes')),
+                  DropdownMenuItem(value: 7, child: Text('1 semana antes')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _reminderDaysBefore = value);
+                },
               ),
               const SizedBox(height: 24.0),
               ElevatedButton.icon(
