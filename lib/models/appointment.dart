@@ -10,6 +10,7 @@ class Appointment {
   final String? type;
   final bool isCompleted;
   final int reminderDaysBefore;
+  final String? locationMapsUrl;
 
   Appointment({
     String? id,
@@ -21,6 +22,7 @@ class Appointment {
     this.type,
     this.isCompleted = false,
     this.reminderDaysBefore = 1,
+    this.locationMapsUrl,
   }) : id = id ?? const Uuid().v4();
 
   // El método copyWith ya está en tu código, por lo que no necesita cambios.
@@ -35,6 +37,7 @@ class Appointment {
     String? type,
     bool? isCompleted,
     int? reminderDaysBefore,
+    String? locationMapsUrl,
   }) {
     return Appointment(
       id: id ?? this.id,
@@ -46,6 +49,7 @@ class Appointment {
       type: type ?? this.type,
       isCompleted: isCompleted ?? this.isCompleted,
       reminderDaysBefore: reminderDaysBefore ?? this.reminderDaysBefore,
+      locationMapsUrl: locationMapsUrl ?? this.locationMapsUrl,
     );
   }
 
@@ -60,6 +64,7 @@ class Appointment {
       'type': type,
       'isCompleted': isCompleted ? 1 : 0,
       'reminderDaysBefore': reminderDaysBefore,
+      'locationMapsUrl': locationMapsUrl,
     };
   }
 
@@ -77,6 +82,10 @@ class Appointment {
       // (mismo default que la migración de base de datos aplica en la
       // columna), preservando el comportamiento histórico de "un día antes".
       reminderDaysBefore: json['reminderDaysBefore'] as int? ?? 1,
+      // Filas migradas desde antes de que esta columna existiera quedan con
+      // null (sin backfill posible: no hay forma de derivar un link de Maps
+      // de `location`, texto libre).
+      locationMapsUrl: json['locationMapsUrl'] as String?,
     );
   }
 

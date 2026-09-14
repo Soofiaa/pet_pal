@@ -9,12 +9,12 @@ import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
 import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_screen.dart';
 import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/screens/deworming_products_screen/deworming_products_screen.dart';
+import 'package:pet_pal/screens/location_entries_screen/location_entries_screen.dart';
 import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.dart';
 import 'package:pet_pal/screens/guide_screen/guide_screen.dart';
 import 'package:pet_pal/screens/search_screen/search_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
-import 'package:pet_pal/providers/search_country_provider.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -117,44 +117,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 value: mode,
               );
             }).toList(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _countryNameForCode(String code) {
-    return searchCountryOptions.entries
-        .firstWhere((entry) => entry.value == code,
-            orElse: () => const MapEntry('Chile', 'cl'))
-        .key;
-  }
-
-  void _showSearchCountryDialog(BuildContext context) {
-    final current = ref.read(searchCountryProvider);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('País para buscar direcciones'),
-        content: RadioGroup<String>(
-          groupValue: current,
-          onChanged: (value) {
-            if (value != null) {
-              ref.read(searchCountryProvider.notifier).setCountryCode(value);
-            }
-            Navigator.of(dialogContext).pop();
-          },
-          child: SizedBox(
-            width: double.maxFinite,
-            child: ListView(
-              shrinkWrap: true,
-              children: searchCountryOptions.entries.map((entry) {
-                return RadioListTile<String>(
-                  title: Text(entry.key),
-                  value: entry.value,
-                );
-              }).toList(),
-            ),
           ),
         ),
       ),
@@ -272,12 +234,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               subtitle: Text(_themeModeLabel(ref.watch(themeModeProvider))),
               onTap: () => _showThemeModeDialog(context),
             ),
-            ListTile(
-              leading: const Icon(Icons.public),
-              title: const Text('País para buscar direcciones'),
-              subtitle: Text(_countryNameForCode(ref.watch(searchCountryProvider))),
-              onTap: () => _showSearchCountryDialog(context),
-            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.settings),
@@ -298,6 +254,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const DewormingProductsScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.location_on),
+              title: const Text('Catálogo de Ubicaciones'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LocationEntriesScreen()),
                 );
               },
             ),

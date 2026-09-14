@@ -17,6 +17,7 @@ import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/models/emergency_contact.dart';
 import 'package:pet_pal/models/pet_food_config.dart';
 import 'package:pet_pal/models/medication_intake.dart';
+import 'package:pet_pal/models/location_entry.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -62,12 +63,13 @@ class DatabaseHelper {
   static const String petFoodConfigsTable = 'pet_food_configs';
   static const String medicationIntakesTable = 'medication_intakes';
   static const String foodRecordsTable = 'food_records';
+  static const String locationEntriesTable = 'location_entries';
 
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 30,
+      version: 32,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -140,10 +142,11 @@ class DatabaseHelper {
         type TEXT,
         isCompleted INTEGER NOT NULL DEFAULT 0,
         reminderDaysBefore INTEGER NOT NULL DEFAULT 1,
+        locationMapsUrl TEXT,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
-    debugPrint('Tabla de citas creada (con isCompleted y reminderDaysBefore)');
+    debugPrint('Tabla de citas creada (con isCompleted, reminderDaysBefore y locationMapsUrl)');
 
     // 5. Crear tabla de registros de peso
     await db.execute('''
@@ -303,6 +306,18 @@ class DatabaseHelper {
       )
     ''');
     debugPrint('Tabla de historial de alimentos creada');
+
+    // 17. Crear tabla de catálogo de ubicaciones (lugares reusables entre
+    // citas de todas las mascotas; cada cita copia name/mapsUrl al elegir
+    // uno, no guarda una referencia -ver add_edit_appointment_screen.dart-).
+    await db.execute('''
+      CREATE TABLE $locationEntriesTable(
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        mapsUrl TEXT
+      )
+    ''');
+    debugPrint('Tabla de catálogo de ubicaciones creada');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -571,6 +586,37 @@ class DatabaseHelper {
       debugPrint('Migración v30: Columna reminderDaysBefore añadida a $appointmentsTable');
     }
 
+    // Migración a v31: agregar locationMapsUrl a citas (link de Google Maps
+    // pegado a mano, reemplaza la búsqueda de direcciones vía Nominatim).
+    // Sin backfill: las citas ya existentes simplemente no tienen link hasta
+    // que alguien lo agregue editándolas -no hay forma de derivarlo de
+    // `location` (texto libre, no una dirección estructurada)-.
+    if (oldVersion < 31) {
+      final hasLocationMapsUrl =
+          await _columnExists(db, appointmentsTable, 'locationMapsUrl');
+      if (!hasLocationMapsUrl) {
+        await db.execute(
+            'ALTER TABLE $appointmentsTable ADD COLUMN locationMapsUrl TEXT');
+      }
+      debugPrint('Migración v31: Columna locationMapsUrl añadida a $appointmentsTable');
+    }
+
+    // Migración a v32: nueva tabla de catálogo de ubicaciones (lugares
+    // reusables entre citas de todas las mascotas). Sin FK hacia
+    // appointments a propósito: cada cita copia name/mapsUrl al elegir un
+    // lugar del catálogo, así que esta tabla es independiente y
+    // editar/borrar una entrada después nunca reescribe citas ya guardadas.
+    if (oldVersion < 32) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $locationEntriesTable(
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          mapsUrl TEXT
+        )
+      ''');
+      debugPrint('Migración v32: Tabla de catálogo de ubicaciones creada');
+    }
+
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
     // van aquí también, respetando el patrón: if (oldVersion < X) { ... }
   }
@@ -661,6 +707,7 @@ class DatabaseHelper {
     await db.delete(petFoodConfigsTable);
     await db.delete(medicationIntakesTable);
     await db.delete(foodRecordsTable);
+    await db.delete(locationEntriesTable);
     debugPrint('Todos los datos han sido eliminados de la base de datos.');
   }
 
@@ -795,6 +842,43 @@ class DatabaseHelper {
       product.toJson(),
       where: 'id = ?',
       whereArgs: [product.id],
+    );
+  }
+
+  // --- Métodos para Catálogo de Ubicaciones (LocationEntry) ---
+  Future<void> insertLocationEntry(LocationEntry entry) async {
+    final db = await database;
+    await db.insert(
+      locationEntriesTable,
+      entry.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<LocationEntry>> getLocationEntries() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(locationEntriesTable, orderBy: 'name ASC');
+    return List.generate(maps.length, (i) {
+      return LocationEntry.fromJson(maps[i]);
+    });
+  }
+
+  Future<void> updateLocationEntry(LocationEntry entry) async {
+    final db = await database;
+    await db.update(
+      locationEntriesTable,
+      entry.toJson(),
+      where: 'id = ?',
+      whereArgs: [entry.id],
+    );
+  }
+
+  Future<void> deleteLocationEntry(String id) async {
+    final db = await database;
+    await db.delete(
+      locationEntriesTable,
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 

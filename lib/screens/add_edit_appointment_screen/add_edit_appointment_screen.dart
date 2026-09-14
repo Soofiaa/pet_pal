@@ -1,29 +1,28 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/appointment.dart';
+import 'package:pet_pal/models/location_entry.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/providers/appointment_providers.dart';
-import 'package:pet_pal/providers/search_country_provider.dart';
-import 'package:pet_pal/services/geocoding_service.dart';
+import 'package:pet_pal/providers/location_entry_providers.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-/// Busca direcciones para el diálogo de ubicación. Firma compartida entre
-/// [GeocodingService().searchAddresses] (uso real, default en producción) y
-/// un fake inyectado desde tests de widget, para no golpear la red real de
-/// Nominatim en `flutter test`.
-typedef AddressSearcher = Future<List<String>> Function(String query);
+/// Abre un enlace (el de Google Maps pegado por la persona). Firma
+/// compartida entre [launchUrl] (uso real, default en producción) y un fake
+/// inyectado desde tests de widget, para no golpear url_launcher de verdad
+/// en `flutter test`.
+typedef LinkLauncher = Future<bool> Function(Uri uri);
 
 class AddEditAppointmentScreen extends ConsumerStatefulWidget {
   final String petId;
   final Appointment? appointment;
-  final AddressSearcher? addressSearcher;
+  final LinkLauncher? urlLauncher;
 
   const AddEditAppointmentScreen({
     super.key,
     required this.petId,
     this.appointment,
-    this.addressSearcher,
+    this.urlLauncher,
   });
 
   @override
@@ -35,10 +34,23 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
+  final _locationMapsUrlController = TextEditingController();
   final _typeController = TextEditingController();
   late DateTime _selectedDateTime;
   int _reminderDaysBefore = 1;
   bool _isSaving = false;
+
+  /// Selector "guardados"/"nuevo" del lugar. Siempre arranca en "nuevo"
+  /// -incluso editando una cita existente-: sus controllers ya llegan
+  /// precargados con location/locationMapsUrl (ver initState), así que no
+  /// hay ninguna entrada del catálogo que preseleccionar de entrada.
+  bool _useCatalogLocation = false;
+  String? _selectedCatalogEntryId;
+
+  /// Solo aplica en modo "nuevo": si la persona tipeó un lugar a mano y
+  /// marca esto, _saveAppointment además crea una entrada nueva en el
+  /// catálogo de ubicaciones al guardar la cita.
+  bool _saveToCatalog = false;
 
   @override
   void initState() {
@@ -48,6 +60,7 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
       _selectedDateTime = widget.appointment!.dateTime;
       _descriptionController.text = widget.appointment!.description ?? '';
       _locationController.text = widget.appointment!.location ?? '';
+      _locationMapsUrlController.text = widget.appointment!.locationMapsUrl ?? '';
       _typeController.text = widget.appointment!.type ?? '';
       _reminderDaysBefore = widget.appointment!.reminderDaysBefore;
     } else {
@@ -60,6 +73,7 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
+    _locationMapsUrlController.dispose();
     _typeController.dispose();
     super.dispose();
   }
@@ -102,35 +116,37 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
     }
   }
 
-  void _searchLocation() async {
-    // El país sesga la búsqueda hacia ese país en Nominatim -sin esto, una
-    // dirección poco específica (ej. sin ciudad) puede devolver una
-    // coincidencia de otro país antes que la correcta, o ninguna del país
-    // esperado, ver SearchCountryNotifier-. Se lee una sola vez acá (no
-    // watch): si la persona lo cambia en el Drawer mientras este diálogo ya
-    // está abierto, no vale la pena rehacer la búsqueda en curso por eso.
-    final String countryCode = ref.read(searchCountryProvider);
+  /// "Parece una URL" a propósito laxo (solo el esquema): no vale la pena
+  /// validar que sea específicamente un link de Google Maps ni que el link
+  /// funcione de verdad -sería sobre-ingeniería para un campo opcional que
+  /// de todos modos nunca bloquea el guardado-.
+  bool get _mapsUrlLooksValid {
+    final String text = _locationMapsUrlController.text.trim();
+    return text.startsWith('http://') || text.startsWith('https://');
+  }
 
-    final String? selectedAddress = await showDialog<String>(
-      context: context,
-      builder: (context) => _AddressSearchDialog(
-        searchAddresses: widget.addressSearcher ??
-            (query) => GeocodingService().searchAddresses(
-                  query,
-                  countryCode: countryCode,
-                ),
-      ),
-    );
+  /// Abre el link de Maps pegado por la persona. Nunca lanza hacia la UI:
+  /// un link roto, sin esquema, o sin ninguna app que lo maneje en el
+  /// dispositivo terminan todos en el mismo SnackBar discreto -el campo es
+  /// una ayuda opcional, no algo que deba interrumpir el flujo de la cita-.
+  Future<void> _openInMaps() async {
+    final String url = _locationMapsUrlController.text.trim();
+    if (url.isEmpty) return;
 
-    if (selectedAddress != null && selectedAddress.isNotEmpty) {
-      setState(() {
-        _locationController.text = selectedAddress;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ubicación actualizada con el lugar buscado.')),
-        );
-      }
+    bool opened = false;
+    try {
+      final Uri uri = Uri.parse(url);
+      final LinkLauncher launcher = widget.urlLauncher ?? launchUrl;
+      opened = await launcher(uri);
+    } catch (e) {
+      debugPrint('Error al abrir el enlace de Maps ("$url"): $e');
+      opened = false;
+    }
+
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el enlace.')),
+      );
     }
   }
 
@@ -171,6 +187,8 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
           type: _typeController.text.isEmpty ? null : _typeController.text,
           isCompleted: isCompleted,
           reminderDaysBefore: _reminderDaysBefore,
+          locationMapsUrl:
+              _locationMapsUrlController.text.trim().isEmpty ? null : _locationMapsUrlController.text.trim(),
         );
         await notifier.updateAppointment(widget.appointment!, draft);
         if (mounted) {
@@ -188,12 +206,31 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
           type: _typeController.text.isEmpty ? null : _typeController.text,
           isCompleted: isCompleted,
           reminderDaysBefore: _reminderDaysBefore,
+          locationMapsUrl:
+              _locationMapsUrlController.text.trim().isEmpty ? null : _locationMapsUrlController.text.trim(),
         );
         await notifier.addAppointment(newAppointment);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Cita añadida con éxito.')),
           );
+        }
+      }
+
+      // Solo en modo "nuevo" (eligiendo del catálogo no hay nada que
+      // agregar: la entrada ya existe ahí). Copia congelada: esta entrada
+      // nueva no tiene ninguna relación con la cita recién guardada -que ya
+      // quedó persistida arriba con su propio name/mapsUrl-, así que
+      // editarla después no la afecta.
+      if (!_useCatalogLocation && _saveToCatalog) {
+        final String catalogName = _locationController.text.trim();
+        if (catalogName.isNotEmpty) {
+          await ref.read(locationEntriesProvider.notifier).addEntry(
+                LocationEntry(
+                  name: catalogName,
+                  mapsUrl: _locationMapsUrlController.text.trim(),
+                ),
+              );
         }
       }
 
@@ -212,6 +249,54 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  /// Dropdown con las entradas del catálogo (locationEntriesProvider). Elegir
+  /// una copia su name/mapsUrl a los controllers de siempre en ese mismo
+  /// instante -copia congelada-: _saveAppointment no distingue de dónde
+  /// vino el texto, así que editar o borrar esta entrada del catálogo
+  /// después nunca afecta a la cita ya guardada.
+  Widget _buildCatalogLocationPicker(BuildContext context) {
+    final AsyncValue<List<LocationEntry>> entriesAsync = ref.watch(locationEntriesProvider);
+
+    return entriesAsync.when(
+      data: (entries) {
+        if (entries.isEmpty) {
+          return Text(
+            'Todavía no tienes lugares guardados. Ingresa uno nuevo y marca '
+            '"Guardar en mi catálogo de lugares" para que quede disponible acá.',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          );
+        }
+
+        final bool selectionStillValid = entries.any((e) => e.id == _selectedCatalogEntryId);
+
+        return DropdownButtonFormField<String>(
+          initialValue: selectionStillValid ? _selectedCatalogEntryId : null,
+          decoration: const InputDecoration(
+            labelText: 'Elige un lugar guardado',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.bookmark),
+          ),
+          items: entries
+              .map((entry) => DropdownMenuItem(value: entry.id, child: Text(entry.name)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              _selectedCatalogEntryId = value;
+              final LocationEntry selected = entries.firstWhere((e) => e.id == value);
+              _locationController.text = selected.name;
+              _locationMapsUrlController.text = selected.mapsUrl;
+            });
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Text('Error al cargar el catálogo: $e'),
+    );
   }
 
   @override
@@ -286,19 +371,87 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
                 maxLines: 3,
               ),
               const SizedBox(height: 16.0),
-              TextFormField(
-                controller: _locationController,
-                decoration: InputDecoration(
-                  labelText: 'Lugar (Opcional)',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.location_on),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.map),
-                    onPressed: _searchLocation,
-                    tooltip: 'Buscar en el mapa',
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: true,
+                    label: Text('Elegir de mis lugares guardados'),
+                    icon: Icon(Icons.bookmark),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Ingresar uno nuevo'),
+                    icon: Icon(Icons.edit_location_alt),
+                  ),
+                ],
+                selected: {_useCatalogLocation},
+                onSelectionChanged: (selection) => setState(() {
+                  _useCatalogLocation = selection.first;
+                  // Cambiar a "guardados" sin nada elegido todavía: se
+                  // limpia lo que hubiera tipeado a mano antes, para que un
+                  // guardado accidental sin elegir nada no arrastre ese
+                  // texto viejo (_saveAppointment siempre lee de estos
+                  // controllers, sea cual sea el modo).
+                  if (_useCatalogLocation && _selectedCatalogEntryId == null) {
+                    _locationController.clear();
+                    _locationMapsUrlController.clear();
+                  }
+                }),
+              ),
+              const SizedBox(height: 16.0),
+              if (_useCatalogLocation)
+                _buildCatalogLocationPicker(context)
+              else ...[
+                TextFormField(
+                  controller: _locationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Lugar (Opcional)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.location_on),
                   ),
                 ),
-              ),
+                const SizedBox(height: 8.0),
+                Text(
+                  'Busca el lugar en Google Maps, toca Compartir, y pega el enlace aquí.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8.0),
+                TextFormField(
+                  controller: _locationMapsUrlController,
+                  decoration: InputDecoration(
+                    labelText: 'Enlace de Google Maps (opcional)',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.link),
+                    helperText: _locationMapsUrlController.text.isNotEmpty && !_mapsUrlLooksValid
+                        ? 'Pega el enlace que compartiste desde Google Maps.'
+                        : null,
+                  ),
+                  keyboardType: TextInputType.url,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 8.0),
+                CheckboxListTile(
+                  value: _saveToCatalog,
+                  onChanged: (checked) => setState(() => _saveToCatalog = checked ?? false),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Guardar en mi catálogo de lugares'),
+                ),
+              ],
+              if (_locationMapsUrlController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 8.0),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: _openInMaps,
+                    icon: const Text('📍'),
+                    label: const Text('Abrir en Maps'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: _typeController,
@@ -346,121 +499,6 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Diálogo de búsqueda de direcciones, con debounce (Timer, ~500ms) sobre
-/// [searchAddresses] para no disparar una request por cada tecla -importante
-/// por el rate limit de 1 req/seg de Nominatim, ver GeocodingService-. Nunca
-/// bloquea: sin resultados o con error de red (searchAddresses ya devuelve
-/// lista vacía en ambos casos, ver su doc) solo muestra "Sin sugerencias";
-/// el usuario siempre puede cerrar el diálogo y seguir escribiendo la
-/// ubicación a mano en el campo de la pantalla principal.
-class _AddressSearchDialog extends StatefulWidget {
-  const _AddressSearchDialog({required this.searchAddresses});
-
-  final AddressSearcher searchAddresses;
-
-  @override
-  State<_AddressSearchDialog> createState() => _AddressSearchDialogState();
-}
-
-class _AddressSearchDialogState extends State<_AddressSearchDialog> {
-  final TextEditingController _controller = TextEditingController();
-  Timer? _debounce;
-  List<String> _results = [];
-  bool _isSearching = false;
-  bool _hasSearched = false;
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onQueryChanged(String value) {
-    _debounce?.cancel();
-    if (value.trim().isEmpty) {
-      setState(() {
-        _results = [];
-        _isSearching = false;
-        _hasSearched = false;
-      });
-      return;
-    }
-    _debounce = Timer(const Duration(milliseconds: 500), () => _runSearch(value));
-  }
-
-  Future<void> _runSearch(String value) async {
-    setState(() => _isSearching = true);
-    final List<String> results = await widget.searchAddresses(value);
-    if (!mounted) return;
-    setState(() {
-      _results = results;
-      _isSearching = false;
-      _hasSearched = true;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Buscar Ubicación'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Introduce un lugar o dirección',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: _onQueryChanged,
-            ),
-            const SizedBox(height: 12),
-            if (_isSearching)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            else if (_hasSearched && _results.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('Sin sugerencias', style: TextStyle(color: Colors.grey)),
-              )
-            else if (_results.isNotEmpty)
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _results.length,
-                  itemBuilder: (context, index) {
-                    final String address = _results[index];
-                    return ListTile(
-                      leading: const Icon(Icons.location_on_outlined),
-                      title: Text(address),
-                      onTap: () => Navigator.of(context).pop(address),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-      ],
     );
   }
 }
