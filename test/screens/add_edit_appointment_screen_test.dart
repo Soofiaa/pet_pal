@@ -304,7 +304,12 @@ void main() {
 
         // El formulario creció con los campos nuevos: el botón queda fuera
         // del viewport por defecto (800x600) sin desplazar el scroll primero.
-        final Finder saveButton = find.widgetWithText(ElevatedButton, 'Guardar Cita');
+        // Por texto, no find.widgetWithText(ElevatedButton, ...): ese
+        // Finder hace match exacto de runtimeType, y la clase interna real
+        // de un ElevatedButton.icon(...) (privada) varía entre versiones
+        // del SDK de Flutter -encontrado en CI con Flutter 3.38.6, invisible
+        // en local con 3.44.8-.
+        final Finder saveButton = find.text('Guardar Cita');
         await tester.ensureVisible(saveButton);
         await tester.tap(saveButton);
         await tester.pumpAndSettle();
@@ -358,7 +363,12 @@ void main() {
         await tester.tap(find.text('Veterinaria Central').last);
         await tester.pumpAndSettle();
 
-        final Finder saveButton = find.widgetWithText(ElevatedButton, 'Guardar Cita');
+        // Por texto, no find.widgetWithText(ElevatedButton, ...): ese
+        // Finder hace match exacto de runtimeType, y la clase interna real
+        // de un ElevatedButton.icon(...) (privada) varía entre versiones
+        // del SDK de Flutter -encontrado en CI con Flutter 3.38.6, invisible
+        // en local con 3.44.8-.
+        final Finder saveButton = find.text('Guardar Cita');
         await tester.ensureVisible(saveButton);
         await tester.tap(saveButton);
         await tester.pumpAndSettle();
@@ -417,7 +427,12 @@ void main() {
         await tester.tap(find.text('Guardar en mi catálogo de lugares'));
         await tester.pump();
 
-        final Finder saveButton = find.widgetWithText(ElevatedButton, 'Guardar Cita');
+        // Por texto, no find.widgetWithText(ElevatedButton, ...): ese
+        // Finder hace match exacto de runtimeType, y la clase interna real
+        // de un ElevatedButton.icon(...) (privada) varía entre versiones
+        // del SDK de Flutter -encontrado en CI con Flutter 3.38.6, invisible
+        // en local con 3.44.8-.
+        final Finder saveButton = find.text('Guardar Cita');
         await tester.ensureVisible(saveButton);
         await tester.tap(saveButton);
         await tester.pumpAndSettle();
@@ -454,7 +469,12 @@ void main() {
           'Veterinaria Sin Guardar',
         );
 
-        final Finder saveButton = find.widgetWithText(ElevatedButton, 'Guardar Cita');
+        // Por texto, no find.widgetWithText(ElevatedButton, ...): ese
+        // Finder hace match exacto de runtimeType, y la clase interna real
+        // de un ElevatedButton.icon(...) (privada) varía entre versiones
+        // del SDK de Flutter -encontrado en CI con Flutter 3.38.6, invisible
+        // en local con 3.44.8-.
+        final Finder saveButton = find.text('Guardar Cita');
         await tester.ensureVisible(saveButton);
         await tester.tap(saveButton);
         await tester.pumpAndSettle();
