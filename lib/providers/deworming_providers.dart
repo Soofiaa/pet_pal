@@ -68,16 +68,32 @@ class DewormingsNotifier extends FamilyAsyncNotifier<List<Deworming>, String> {
   /// Agrega una nueva desparasitación. Mismo orden que usaba
   /// add_edit_deworming_screen.dart antes de esta migración: programa el
   /// recordatorio y recién después persiste el registro.
+  ///
+  /// Después de persistir, reconcilia el recordatorio de TODO el
+  /// historial de desparasitación de la mascota según cobertura
+  /// (interna/externa/ambas, mismo criterio que deworming_screen.dart):
+  /// un registro "ambas" puede resetear la cobertura de un producto
+  /// completamente distinto, así que no alcanza con mirar solo el
+  /// registro recién agregado -antes de esto, ReminderScheduler programaba
+  /// un push por registro con fecha futura sin enterarse de que otro
+  /// registro más nuevo ya lo había superado según esta regla-.
   Future<void> addDeworming(Deworming deworming) async {
     await ReminderScheduler.scheduleDewormingReminder(deworming);
     await ref.read(dewormingRepositoryProvider).insertDeworming(deworming);
+
+    final allForPet = await ref
+        .read(dewormingRepositoryProvider)
+        .getDewormingsForPet(deworming.petId);
+    await ReminderScheduler.reconcileDewormingReminders(allForPet);
+
     await refresh();
   }
 
   /// Actualiza una desparasitación existente. Mismo orden que usaba
   /// add_edit_deworming_screen.dart: cancela el recordatorio anterior con
   /// el objeto viejo (antes de que se sobreescriba), programa el nuevo, y
-  /// recién después persiste el cambio.
+  /// recién después persiste el cambio. Reconcilia el historial completo
+  /// después, igual que en addDeworming.
   Future<void> updateDeworming(
     Deworming oldDeworming,
     Deworming updatedDeworming,
@@ -85,14 +101,29 @@ class DewormingsNotifier extends FamilyAsyncNotifier<List<Deworming>, String> {
     await ReminderScheduler.cancelDewormingReminder(oldDeworming);
     await ReminderScheduler.scheduleDewormingReminder(updatedDeworming);
     await ref.read(dewormingRepositoryProvider).updateDeworming(updatedDeworming);
+
+    final allForPet = await ref
+        .read(dewormingRepositoryProvider)
+        .getDewormingsForPet(updatedDeworming.petId);
+    await ReminderScheduler.reconcileDewormingReminders(allForPet);
+
     await refresh();
   }
 
   /// Elimina una desparasitación y cancela su recordatorio. Mismo orden
-  /// que usaba deworming_screen.dart: cancela antes de borrar.
+  /// que usaba deworming_screen.dart: cancela antes de borrar. Reconcilia
+  /// el resto del historial después: si el registro borrado era el que
+  /// tenía la cobertura vigente de algún tipo, promueve al siguiente que
+  /// corresponda (si queda alguno) a tener recordatorio activo.
   Future<void> deleteDeworming(Deworming deworming) async {
     await ReminderScheduler.cancelDewormingReminder(deworming);
     await ref.read(dewormingRepositoryProvider).deleteDeworming(deworming.id!);
+
+    final allForPet = await ref
+        .read(dewormingRepositoryProvider)
+        .getDewormingsForPet(deworming.petId);
+    await ReminderScheduler.reconcileDewormingReminders(allForPet);
+
     await refresh();
   }
 }

@@ -4,12 +4,18 @@
 // cada (medicación, horario, día) tenga un id distinto (ver
 // _medicationTimedDayId). Un test que solo ejercite NotificationService
 // pasaría siempre, sin importar si ese esquema de ids tiene un bug real.
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
+import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/services/notification_service.dart';
 import 'package:pet_pal/services/reminder_scheduler.dart';
@@ -21,13 +27,36 @@ void main() {
   const MethodChannel channel =
       MethodChannel('dexterous.com/flutter/local_notifications');
 
-  setUpAll(() {
+  late Directory tempDbDir;
+
+  setUpAll(() async {
     AndroidFlutterLocalNotificationsPlugin.registerWith();
+
+    // Solo lo necesita el grupo "rescheduleAllPending", que sí toca la
+    // base de datos real -el resto de los tests de este archivo llaman a
+    // ReminderScheduler directamente con objetos en memoria y nunca
+    // tocan DatabaseHelper-. Directorio propio (no el compartido por
+    // defecto) por el mismo motivo que ya documenta
+    // database_helper_test.dart: evitar "database is locked" con otros
+    // archivos de test que también usan sqflite_common_ffi en paralelo.
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tempDbDir = await Directory.systemTemp.createTemp('reminder_scheduler_test_db_');
+    // ignore: deprecated_member_use
+    await databaseFactory.setDatabasesPath(tempDbDir.path);
+  });
+
+  tearDownAll(() async {
+    try {
+      if (await tempDbDir.exists()) await tempDbDir.delete(recursive: true);
+    } catch (_) {
+      // Mejor esfuerzo, no crítico: ver mismo comentario en database_helper_test.dart.
+    }
   });
 
   late List<MethodCall> calls;
 
-  setUp(() {
+  setUp(() async {
     calls = [];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
@@ -43,6 +72,9 @@ void main() {
           return null;
       }
     });
+    // Vacía la base antes de cada test, igual que database_helper_test.dart
+    // -inofensivo para los grupos de este archivo que no la usan-.
+    await DatabaseHelper().deleteAllData();
   });
 
   tearDown(() {
@@ -427,5 +459,167 @@ void main() {
       expect(ids, hasLength(20));
       expect(ids.toSet().length, ids.length, reason: 'ids repetidos entre citas distintas');
     });
+  });
+
+  group('ReminderScheduler - rescheduleAllPending (reconciliación por grupo)', () {
+    // Antes de esta corrección, rescheduleAllPending programaba un push por
+    // CADA registro con fecha futura, sin agrupar -exactamente el bug
+    // diagnosticado en la sesión anterior: podían quedar 2+ notificaciones
+    // activas simultáneas para la misma vacuna o la misma cobertura de
+    // desparasitación-. Este grupo prueba la función en sí misma por
+    // primera vez (antes tenía cero cobertura directa).
+    Pet makePet(String name) => Pet(
+          name: name,
+          species: 'Perro',
+          breed: 'Mestizo',
+          dob: DateTime(2020, 1, 1),
+          color: 'Marrón',
+        );
+
+    test(
+      'dos vacunas del mismo vaccineName con fecha futura: tras '
+      'rescheduleAllPending queda exactamente 1 push activo, no 2',
+      () async {
+        final dbHelper = DatabaseHelper();
+        final pet = makePet('Olivia');
+        await dbHelper.insertPet(pet);
+
+        final vieja = Vaccination(
+          petId: pet.id,
+          vaccineName: 'Rabia',
+          date: DateTime.now().subtract(const Duration(days: 60)),
+          nextDueDate: DateTime.now().add(const Duration(days: 10)),
+        );
+        final nueva = Vaccination(
+          petId: pet.id,
+          vaccineName: 'Rabia',
+          date: DateTime.now().subtract(const Duration(days: 5)),
+          nextDueDate: DateTime.now().add(const Duration(days: 40)),
+        );
+        await dbHelper.insertVaccination(vieja);
+        await dbHelper.insertVaccination(nueva);
+
+        await ReminderScheduler.rescheduleAllPending();
+
+        final int viejaId = '${vieja.id}_next'.hashCode;
+        final int nuevaId = '${nueva.id}_next'.hashCode;
+
+        expect(scheduledIds().toSet(), {nuevaId},
+            reason: 'solo el registro más nuevo del grupo debe quedar con push activo');
+        expect(canceledIds(), contains(viejaId),
+            reason: 'el registro superado debe cancelarse explícitamente, no solo '
+                'dejar de reprogramarse');
+      },
+    );
+
+    test(
+      'desparasitación recurrente (caso garantizado): un registro recurrente '
+      'viejo superado por un "ambas" más reciente queda cancelado en vez de '
+      'perpetuarse para siempre',
+      () async {
+        final dbHelper = DatabaseHelper();
+        final pet = makePet('Olivia');
+        await dbHelper.insertPet(pet);
+
+        // Recurrente: effectiveNextDate() SIEMPRE da una fecha futura, sin
+        // importar cuánto tiempo pase -este es el caso "garantizado" del
+        // diagnóstico previo, no depende de timing como el de vacunas-.
+        final recurrenteVieja = Deworming(
+          id: const Uuid().v4(),
+          petId: pet.id,
+          product: 'Producto viejo',
+          date: DateTime.now().subtract(const Duration(days: 400)),
+          nextDate: DateTime.now().subtract(const Duration(days: 340)),
+          type: 'externa',
+          frequencyMonths: 1,
+          isRecurring: true,
+        );
+        final ambasReciente = Deworming(
+          id: const Uuid().v4(),
+          petId: pet.id,
+          product: 'Nexgard Spectra',
+          date: DateTime.now().subtract(const Duration(days: 2)),
+          nextDate: DateTime.now().add(const Duration(days: 60)),
+          type: 'ambas',
+        );
+        await dbHelper.insertDeworming(recurrenteVieja);
+        await dbHelper.insertDeworming(ambasReciente);
+
+        // Confirma la premisa: sin el fix, el recurrente SIEMPRE tiene
+        // effectiveNextDate futura -por eso el caso es "garantizado", nunca
+        // se resuelve solo con el paso del tiempo-.
+        expect(recurrenteVieja.effectiveNextDate()!.isAfter(DateTime.now()), isTrue);
+
+        await ReminderScheduler.rescheduleAllPending();
+
+        final int ambasId = '${ambasReciente.id}_next'.hashCode;
+        final int recurrenteViejaId = '${recurrenteVieja.id}_next'.hashCode;
+
+        expect(scheduledIds().toSet(), {ambasId},
+            reason: 'el "ambas" reciente resetea toda la cobertura; el recurrente '
+                'viejo no debe seguir con push activo');
+        expect(canceledIds(), contains(recurrenteViejaId));
+      },
+    );
+
+    test(
+      'medicación y citas no se ven afectadas por la reconciliación de '
+      'vacuna/desparasitación (extiende a rescheduleAllPending el mismo '
+      'test de no-colisión entre los cuatro tipos)',
+      () async {
+        final dbHelper = DatabaseHelper();
+        final pet = makePet('Firulais');
+        await dbHelper.insertPet(pet);
+
+        final appointment = Appointment(
+          petId: pet.id,
+          dateTime: DateTime.now().add(const Duration(days: 5)),
+          title: 'Control anual',
+        );
+        final medication = Medication(
+          id: const Uuid().v4(),
+          petId: pet.id,
+          name: 'MedX',
+          dosage: '1',
+          frequency: 'x',
+          notes: '',
+          startDate: DateTime.now().add(const Duration(days: 1)),
+          endDate: DateTime.now().add(const Duration(days: 3)),
+          reminderTimes: const ['09:00'],
+        );
+        final vaccination = Vaccination(
+          petId: pet.id,
+          vaccineName: 'Rabia',
+          date: DateTime.now(),
+          nextDueDate: DateTime.now().add(const Duration(days: 30)),
+        );
+        final deworming = Deworming(
+          id: const Uuid().v4(),
+          petId: pet.id,
+          product: 'ProductoX',
+          date: DateTime.now(),
+          nextDate: DateTime.now().add(const Duration(days: 30)),
+          type: 'interna',
+        );
+
+        await dbHelper.insertAppointment(appointment);
+        await dbHelper.insertMedication(medication);
+        await dbHelper.insertVaccination(vaccination);
+        await dbHelper.insertDeworming(deworming);
+
+        await ReminderScheduler.rescheduleAllPending();
+
+        final ids = scheduledIds();
+        // Al menos 1 (cita) + 1 (medicación, un solo horario sin endDate
+        // fijo por día) + 1 (vacuna) + 1 (desparasitación).
+        expect(ids.length, greaterThanOrEqualTo(4));
+        expect(ids.toSet().length, ids.length,
+            reason: 'ids repetidos entre tipos distintos tras rescheduleAllPending');
+
+        final int appointmentId = appointment.id.hashCode;
+        expect(ids, contains(appointmentId),
+            reason: 'la cita debe seguir programándose igual que antes de este cambio');
+      },
+    );
   });
 }

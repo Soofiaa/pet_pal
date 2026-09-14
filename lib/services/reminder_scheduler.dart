@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/models/appointment.dart';
+import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/vaccination.dart';
@@ -237,6 +238,41 @@ class ReminderScheduler {
     );
   }
 
+  /// Recalcula, entre TODOS los registros de vacunación de una mascota,
+  /// cuál es el ganador de cada grupo (mismo [Vaccination.vaccineName],
+  /// mismo criterio que ya usa vaccinations_screen.dart vía
+  /// [DashboardEvent.idsOfMostRecentApplicationPerName]), y deja el
+  /// recordatorio programado solo para esos ganadores: cualquier otro
+  /// registro del mismo grupo se cancela explícitamente. No cambia
+  /// [scheduleVaccinationReminder]/[cancelVaccinationReminder] -siguen
+  /// operando sobre un único registro, sin conocer el concepto de
+  /// grupo-; esta función es la capa de arriba que decide a cuál de ellas
+  /// llamar para cada registro.
+  ///
+  /// La llaman tanto VaccinationsNotifier (en cada alta/edición/baja) como
+  /// [rescheduleAllPending], para que ambos caminos terminen siempre en el
+  /// mismo estado -nunca más de un push activo por vacuna distinta- sin
+  /// duplicar el criterio de "quién es el ganador" en dos lugares. Llamar
+  /// esto repetidamente es seguro: reprogramar al ganador con el mismo id
+  /// de siempre no duplica nada (zonedSchedule reemplaza), y cancelar a
+  /// alguien sin recordatorio activo tampoco falla.
+  static Future<void> reconcileVaccinationReminders(
+    List<Vaccination> allVaccinationsForPet,
+  ) async {
+    final Set<dynamic> winnerIds = DashboardEvent.idsOfMostRecentApplicationPerName(
+      Vaccination.getEventsFromList(allVaccinationsForPet),
+      'vaccination',
+    );
+
+    for (final vaccination in allVaccinationsForPet) {
+      if (winnerIds.contains(vaccination.id)) {
+        await scheduleVaccinationReminder(vaccination);
+      } else {
+        await cancelVaccinationReminder(vaccination);
+      }
+    }
+  }
+
   static int _dewormingNextId(String dewormingId) =>
       '${dewormingId}_next'.hashCode;
 
@@ -264,6 +300,28 @@ class ReminderScheduler {
       scheduledDateTime: notifyAt,
       payload: deworming.id,
     );
+  }
+
+  /// Igual que [reconcileVaccinationReminders], pero para desparasitación:
+  /// el criterio de "ganador" no es por producto sino por cobertura
+  /// (interna/externa/ambas) según [Deworming.idsWithVisibleNextDose] -el
+  /// mismo que ya usa deworming_screen.dart-, evaluado sobre TODO el
+  /// historial de la mascota: un registro "ambas" puede resetear la
+  /// cobertura de un producto completamente distinto, así que no alcanza
+  /// con mirar solo el registro recién tocado.
+  static Future<void> reconcileDewormingReminders(
+    List<Deworming> allDewormingsForPet,
+  ) async {
+    final Set<String> winnerIds = Deworming.idsWithVisibleNextDose(allDewormingsForPet);
+
+    for (final deworming in allDewormingsForPet) {
+      final bool isWinner = deworming.id != null && winnerIds.contains(deworming.id);
+      if (isWinner) {
+        await scheduleDewormingReminder(deworming);
+      } else {
+        await cancelDewormingReminder(deworming);
+      }
+    }
   }
 
   static int _appointmentReminderId(String appointmentId) =>
@@ -367,25 +425,23 @@ class ReminderScheduler {
         await scheduleMedicationReminders(medication);
       }
 
+      // reconcileVaccinationReminders/reconcileDewormingReminders ya
+      // deciden, registro por registro, si corresponde programar (ganador
+      // del grupo) o cancelar (perdedor) -incluyendo el filtro de fecha
+      // pasada, que queda a cargo de scheduleVaccinationReminder/
+      // scheduleDewormingReminder vía NotificationService.scheduleNotificationOnce
+      // (ya se niega a agendar en el pasado). Esta es también la limpieza
+      // que hace "salir gratis" la corrección de duplicados ya programados
+      // en dispositivos con la versión vieja de la app: al arrancar,
+      // cualquier recordatorio de un registro que dejó de ser ganador se
+      // cancela acá, sin necesitar una migración aparte.
       final List<Vaccination> vaccinations =
           await dbHelper.getVaccinationsForPet(pet.id);
-      for (final vaccination in vaccinations) {
-        if (vaccination.nextDueDate == null) continue;
-        if (vaccination.nextDueDate!.isBefore(now)) continue;
-        await scheduleVaccinationReminder(vaccination);
-      }
+      await reconcileVaccinationReminders(vaccinations);
 
       final List<Deworming> dewormings =
           await dbHelper.getDewormingsForPet(pet.id);
-      for (final deworming in dewormings) {
-        // effectiveNextDate ya avanza los registros recurrentes hasta la
-        // próxima ocurrencia futura; si no es recurrente, es nextDate tal
-        // cual (mismo comportamiento de siempre: se saltea si ya venció).
-        final effectiveNextDate = deworming.effectiveNextDate(now: now);
-        if (effectiveNextDate == null) continue;
-        if (effectiveNextDate.isBefore(now)) continue;
-        await scheduleDewormingReminder(deworming);
-      }
+      await reconcileDewormingReminders(dewormings);
     }
   }
 }

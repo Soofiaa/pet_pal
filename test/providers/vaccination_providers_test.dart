@@ -283,13 +283,21 @@ void main() {
       await container.read(vaccinationsProvider('pet-1').notifier).addVaccination(v1);
       await container.read(vaccinationsProvider('pet-1').notifier).addVaccination(v2);
 
-      final scheduleCalls =
-          calls.where((c) => c.method == 'zonedSchedule').toList();
-      expect(scheduleCalls, hasLength(2));
-
-      final ids = scheduleCalls.map((c) => c.arguments['id'] as int).toList();
-      expect(ids.toSet().length, ids.length,
-          reason: 'ids repetidos entre dos vacunaciones distintas');
+      // Desde que addVaccination reconcilia el grupo completo tras cada
+      // alta (ver reconcileVaccinationReminders), reprogramar al ganador
+      // de un grupo ya existente es esperable e inofensivo -zonedSchedule
+      // reemplaza el mismo id-, así que ya no alcanza con contar llamadas:
+      // lo que importa es que cada vacuna de nombre distinto termine con
+      // exactamente un id propio, sin colisionar con el de la otra.
+      final scheduledIds = calls
+          .where((c) => c.method == 'zonedSchedule')
+          .map((c) => c.arguments['id'] as int)
+          .toSet();
+      expect(
+        scheduledIds,
+        hasLength(2),
+        reason: 'cada vacuna de nombre distinto debe terminar con su propio id activo',
+      );
     });
 
     test(
@@ -313,16 +321,71 @@ void main() {
             .read(vaccinationsProvider('pet-1').notifier)
             .updateVaccination(original, updated);
 
+        // La reconciliación posterior a la edición puede sumar una
+        // reprogramación adicional del mismo ganador (idempotente,
+        // inofensiva) -lo esencial, y lo que se verifica acá, es que la
+        // PRIMERA llamada sea el cancel, y que ninguna reprogramación
+        // posterior use un id distinto al cancelado-.
         final relevantCalls = calls
             .where((c) => c.method == 'cancel' || c.method == 'zonedSchedule')
             .toList();
-        expect(relevantCalls, hasLength(2));
-        expect(relevantCalls[0].method, 'cancel');
-        expect(relevantCalls[1].method, 'zonedSchedule');
+        expect(relevantCalls.length, greaterThanOrEqualTo(2));
+        expect(relevantCalls.first.method, 'cancel');
 
-        final cancelId = relevantCalls[0].arguments['id'] as int;
-        final scheduleId = relevantCalls[1].arguments['id'] as int;
-        expect(cancelId, scheduleId);
+        final cancelId = relevantCalls.first.arguments['id'] as int;
+        for (final call in relevantCalls.skip(1)) {
+          expect(call.method, 'zonedSchedule',
+              reason: 'tras el cancel inicial, solo deberían seguir reprogramaciones');
+          expect(call.arguments['id'], cancelId,
+              reason: 'toda reprogramación debe usar el mismo id que el cancelado '
+                  '-la vacunación no cambió de identidad, solo de fecha-');
+        }
+      },
+    );
+
+    test(
+      'addVaccination cancela el recordatorio del registro anterior del mismo '
+      'vaccineName, dejando activo solo el más reciente',
+      () async {
+        await NotificationService().init();
+        final vieja = Vaccination(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          vaccineName: 'Rabia',
+          date: DateTime.now().subtract(const Duration(days: 300)),
+          nextDueDate: DateTime.now().add(const Duration(days: 10)),
+        );
+        final container = buildContainer([vieja]);
+        calls.clear();
+
+        final nueva = Vaccination(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          vaccineName: 'Rabia',
+          date: DateTime.now(),
+          nextDueDate: DateTime.now().add(const Duration(days: 40)),
+        );
+        await container.read(vaccinationsProvider('pet-1').notifier).addVaccination(nueva);
+
+        // Fórmula calculada a mano (ver ReminderScheduler._vaccinationNextId),
+        // no reutilizando la implementación: si cambiara, este test debe
+        // fallar aunque el código de producción "se mueva junto".
+        final int viejaId = '${vieja.id}_next'.hashCode;
+        final int nuevaId = '${nueva.id}_next'.hashCode;
+
+        final canceledIds =
+            calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id'] as int).toSet();
+        final scheduledIds = calls
+            .where((c) => c.method == 'zonedSchedule')
+            .map((c) => c.arguments['id'] as int)
+            .toSet();
+
+        expect(canceledIds, contains(viejaId),
+            reason: 'el registro viejo del mismo grupo debe quedar cancelado explícitamente');
+        expect(scheduledIds, contains(nuevaId),
+            reason: 'el registro nuevo (ganador del grupo) debe quedar programado');
+        expect(scheduledIds.contains(viejaId), isFalse,
+            reason: 'solo el ganador del grupo debe terminar con push activo, no ambos');
       },
     );
   });

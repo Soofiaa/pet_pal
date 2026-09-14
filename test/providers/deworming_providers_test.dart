@@ -140,6 +140,7 @@ void main() {
           product: 'ProductoA',
           date: DateTime.now(),
           nextDate: DateTime.now().add(const Duration(days: 30)),
+          type: 'interna',
         );
         final records = <Deworming>[original];
         final container = buildContainer(records);
@@ -151,20 +152,27 @@ void main() {
             .read(dewormingsProvider('pet-1').notifier)
             .updateDeworming(original, updated);
 
+        // La reconciliación posterior a la edición (reconcileDewormingReminders)
+        // puede sumar una reprogramación adicional del mismo ganador
+        // (idempotente, inofensiva) -lo esencial es que la PRIMERA llamada
+        // sea el cancel, y que ninguna reprogramación posterior use un id
+        // distinto al cancelado-.
         final relevantCalls = calls
             .where((c) => c.method == 'cancel' || c.method == 'zonedSchedule')
             .toList();
-        expect(relevantCalls, hasLength(2));
-        expect(relevantCalls[0].method, 'cancel');
-        expect(relevantCalls[1].method, 'zonedSchedule');
+        expect(relevantCalls.length, greaterThanOrEqualTo(2));
+        expect(relevantCalls.first.method, 'cancel');
 
-        final cancelId = relevantCalls[0].arguments['id'] as int;
-        final scheduleId = relevantCalls[1].arguments['id'] as int;
-        expect(
-          cancelId,
-          scheduleId,
-          reason: 'mismo id de la desparasitación: no cambia entre ediciones',
-        );
+        final cancelId = relevantCalls.first.arguments['id'] as int;
+        for (final call in relevantCalls.skip(1)) {
+          expect(call.method, 'zonedSchedule',
+              reason: 'tras el cancel inicial, solo deberían seguir reprogramaciones');
+          expect(
+            call.arguments['id'],
+            cancelId,
+            reason: 'mismo id de la desparasitación: no cambia entre ediciones',
+          );
+        }
       },
     );
 
@@ -218,6 +226,117 @@ void main() {
           ids.length,
           reason: 'ids repetidos entre desparasitaciones de distintas mascotas',
         );
+      },
+    );
+
+    test(
+      'addDeworming: agregar un registro "ambas" cancela los recordatorios '
+      'de cualquier registro anterior, sin importar su cobertura',
+      () async {
+        await NotificationService().init();
+        final interna = Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'Desparasitante interno',
+          date: DateTime.now().subtract(const Duration(days: 200)),
+          nextDate: DateTime.now().add(const Duration(days: 5)),
+          type: 'interna',
+        );
+        final externa = Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'Simparica',
+          date: DateTime.now().subtract(const Duration(days: 100)),
+          nextDate: DateTime.now().add(const Duration(days: 20)),
+          type: 'externa',
+        );
+        final container = buildContainer([interna, externa]);
+        calls.clear();
+
+        final ambas = Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'Nexgard Spectra',
+          date: DateTime.now(),
+          nextDate: DateTime.now().add(const Duration(days: 60)),
+          type: 'ambas',
+        );
+        await container.read(dewormingsProvider('pet-1').notifier).addDeworming(ambas);
+
+        final int internaId = '${interna.id}_next'.hashCode;
+        final int externaId = '${externa.id}_next'.hashCode;
+        final int ambasId = '${ambas.id}_next'.hashCode;
+
+        final canceledIds =
+            calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id'] as int).toSet();
+        final scheduledIds = calls
+            .where((c) => c.method == 'zonedSchedule')
+            .map((c) => c.arguments['id'] as int)
+            .toSet();
+
+        expect(canceledIds, containsAll([internaId, externaId]),
+            reason: 'un "ambas" nuevo resetea la cobertura completa: ambos registros '
+                'anteriores quedan cancelados, sin importar su propio tipo');
+        expect(scheduledIds, contains(ambasId));
+        expect(scheduledIds.intersection({internaId, externaId}), isEmpty,
+            reason: 'solo el "ambas" debe terminar con push activo');
+      },
+    );
+
+    test(
+      'addDeworming: agregar un tipo único nuevo cancela solo el registro '
+      'anterior de ESE tipo, sin tocar el del otro tipo',
+      () async {
+        await NotificationService().init();
+        final internaVieja = Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'Desparasitante interno viejo',
+          date: DateTime.now().subtract(const Duration(days: 200)),
+          nextDate: DateTime.now().add(const Duration(days: 5)),
+          type: 'interna',
+        );
+        final externaVigente = Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'Simparica',
+          date: DateTime.now().subtract(const Duration(days: 100)),
+          nextDate: DateTime.now().add(const Duration(days: 20)),
+          type: 'externa',
+        );
+        final container = buildContainer([internaVieja, externaVigente]);
+        calls.clear();
+
+        final internaNueva = Deworming(
+          id: const Uuid().v4(),
+          petId: 'pet-1',
+          product: 'Desparasitante interno nuevo',
+          date: DateTime.now(),
+          nextDate: DateTime.now().add(const Duration(days: 90)),
+          type: 'interna',
+        );
+        await container.read(dewormingsProvider('pet-1').notifier).addDeworming(internaNueva);
+
+        final int internaViejaId = '${internaVieja.id}_next'.hashCode;
+        final int externaVigenteId = '${externaVigente.id}_next'.hashCode;
+        final int internaNuevaId = '${internaNueva.id}_next'.hashCode;
+
+        final canceledIds =
+            calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id'] as int).toSet();
+        final scheduledIds = calls
+            .where((c) => c.method == 'zonedSchedule')
+            .map((c) => c.arguments['id'] as int)
+            .toSet();
+
+        expect(canceledIds, contains(internaViejaId),
+            reason: 'el interno viejo perdió su clock ante el interno nuevo');
+        expect(scheduledIds, contains(internaNuevaId),
+            reason: 'el interno nuevo gana su propio clock');
+        expect(scheduledIds, contains(externaVigenteId),
+            reason: 'el externo vigente no debe verse afectado por un cambio en el '
+                'clock interno -sigue con push activo-');
+        expect(canceledIds.contains(externaVigenteId), isFalse,
+            reason: 'no debe cancelarse un registro de un tipo de cobertura no relacionado');
       },
     );
   });

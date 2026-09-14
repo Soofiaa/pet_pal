@@ -76,9 +76,22 @@ class VaccinationsNotifier
   /// permanentes -eso lo resuelve la pantalla con ImageStorageService
   /// antes de llamar acá, ya que picking/cropping son inherentemente UI-,
   /// así que no hay nada que limpiar en un alta.
+  ///
+  /// Después de persistir, reconcilia el recordatorio de TODO el grupo
+  /// (mismo vaccineName): si este registro nuevo supera a uno anterior del
+  /// mismo nombre, el anterior queda cancelado explícitamente -antes de
+  /// esto, ReminderScheduler programaba un push por registro sin
+  /// enterarse de que había quedado superado, dejando dos recordatorios
+  /// activos para la misma vacuna-.
   Future<void> addVaccination(Vaccination vaccination) async {
     await ReminderScheduler.scheduleVaccinationReminder(vaccination);
     await ref.read(vaccinationRepositoryProvider).insertVaccination(vaccination);
+
+    final allForPet = await ref
+        .read(vaccinationRepositoryProvider)
+        .getVaccinationsForPet(vaccination.petId);
+    await ReminderScheduler.reconcileVaccinationReminders(allForPet);
+
     await refresh();
   }
 
@@ -111,6 +124,16 @@ class VaccinationsNotifier
         .read(vaccinationRepositoryProvider)
         .updateVaccination(updatedVaccination);
 
+    // Reconcilia el grupo completo (mismo vaccineName tras la edición):
+    // cubre tanto "esta edición dejó de ser la ganadora" (ej. se corrigió
+    // la fecha de aplicación y ahora hay un registro más nuevo) como "esta
+    // edición cambió el nombre de la vacuna", que mueve el registro a otro
+    // grupo por completo.
+    final allForPet = await ref
+        .read(vaccinationRepositoryProvider)
+        .getVaccinationsForPet(updatedVaccination.petId);
+    await ReminderScheduler.reconcileVaccinationReminders(allForPet);
+
     if (oldVaccination.stickerPhotoPath != updatedVaccination.stickerPhotoPath) {
       await ImageStorageService.deleteFileIfExist(oldVaccination.stickerPhotoPath);
     }
@@ -131,6 +154,16 @@ class VaccinationsNotifier
     ]);
     await ReminderScheduler.cancelVaccinationReminder(vaccination);
     await ref.read(vaccinationRepositoryProvider).deleteVaccination(vaccination.id);
+
+    // Si el registro borrado era el ganador de su grupo, promueve al
+    // siguiente más reciente del mismo nombre (si queda alguno) a tener
+    // recordatorio activo -sin esto, quedaría sin ningún push aunque su
+    // propia próxima dosis siga vigente-.
+    final allForPet = await ref
+        .read(vaccinationRepositoryProvider)
+        .getVaccinationsForPet(vaccination.petId);
+    await ReminderScheduler.reconcileVaccinationReminders(allForPet);
+
     await refresh();
   }
 }
