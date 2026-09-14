@@ -1,14 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/appointment.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/providers/appointment_providers.dart';
+import 'package:pet_pal/providers/search_country_provider.dart';
+import 'package:pet_pal/services/geocoding_service.dart';
+
+/// Busca direcciones para el diálogo de ubicación. Firma compartida entre
+/// [GeocodingService().searchAddresses] (uso real, default en producción) y
+/// un fake inyectado desde tests de widget, para no golpear la red real de
+/// Nominatim en `flutter test`.
+typedef AddressSearcher = Future<List<String>> Function(String query);
 
 class AddEditAppointmentScreen extends ConsumerStatefulWidget {
   final String petId;
   final Appointment? appointment;
+  final AddressSearcher? addressSearcher;
 
-  const AddEditAppointmentScreen({super.key, required this.petId, this.appointment});
+  const AddEditAppointmentScreen({
+    super.key,
+    required this.petId,
+    this.appointment,
+    this.addressSearcher,
+  });
 
   @override
   ConsumerState<AddEditAppointmentScreen> createState() => _AddEditAppointmentScreenState();
@@ -87,35 +103,30 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
   }
 
   void _searchLocation() async {
-    final String? query = await showDialog<String>(
+    // El país sesga la búsqueda hacia ese país en Nominatim -sin esto, una
+    // dirección poco específica (ej. sin ciudad) puede devolver una
+    // coincidencia de otro país antes que la correcta, o ninguna del país
+    // esperado, ver SearchCountryNotifier-. Se lee una sola vez acá (no
+    // watch): si la persona lo cambia en el Drawer mientras este diálogo ya
+    // está abierto, no vale la pena rehacer la búsqueda en curso por eso.
+    final String countryCode = ref.read(searchCountryProvider);
+
+    final String? selectedAddress = await showDialog<String>(
       context: context,
-      builder: (context) {
-        final TextEditingController controller = TextEditingController();
-        return AlertDialog(
-          title: const Text('Buscar Ubicación'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(labelText: 'Introduce un lugar'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(controller.text),
-              child: const Text('Buscar'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => _AddressSearchDialog(
+        searchAddresses: widget.addressSearcher ??
+            (query) => GeocodingService().searchAddresses(
+                  query,
+                  countryCode: countryCode,
+                ),
+      ),
     );
 
-    if (query != null && query.isNotEmpty) {
+    if (selectedAddress != null && selectedAddress.isNotEmpty) {
       setState(() {
-        _locationController.text = 'Clínica Veterinaria "$query"';
+        _locationController.text = selectedAddress;
       });
-      if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ubicación actualizada con el lugar buscado.')),
         );
@@ -335,6 +346,121 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Diálogo de búsqueda de direcciones, con debounce (Timer, ~500ms) sobre
+/// [searchAddresses] para no disparar una request por cada tecla -importante
+/// por el rate limit de 1 req/seg de Nominatim, ver GeocodingService-. Nunca
+/// bloquea: sin resultados o con error de red (searchAddresses ya devuelve
+/// lista vacía en ambos casos, ver su doc) solo muestra "Sin sugerencias";
+/// el usuario siempre puede cerrar el diálogo y seguir escribiendo la
+/// ubicación a mano en el campo de la pantalla principal.
+class _AddressSearchDialog extends StatefulWidget {
+  const _AddressSearchDialog({required this.searchAddresses});
+
+  final AddressSearcher searchAddresses;
+
+  @override
+  State<_AddressSearchDialog> createState() => _AddressSearchDialogState();
+}
+
+class _AddressSearchDialogState extends State<_AddressSearchDialog> {
+  final TextEditingController _controller = TextEditingController();
+  Timer? _debounce;
+  List<String> _results = [];
+  bool _isSearching = false;
+  bool _hasSearched = false;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    if (value.trim().isEmpty) {
+      setState(() {
+        _results = [];
+        _isSearching = false;
+        _hasSearched = false;
+      });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 500), () => _runSearch(value));
+  }
+
+  Future<void> _runSearch(String value) async {
+    setState(() => _isSearching = true);
+    final List<String> results = await widget.searchAddresses(value);
+    if (!mounted) return;
+    setState(() {
+      _results = results;
+      _isSearching = false;
+      _hasSearched = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Buscar Ubicación'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Introduce un lugar o dirección',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: _onQueryChanged,
+            ),
+            const SizedBox(height: 12),
+            if (_isSearching)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (_hasSearched && _results.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('Sin sugerencias', style: TextStyle(color: Colors.grey)),
+              )
+            else if (_results.isNotEmpty)
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _results.length,
+                  itemBuilder: (context, index) {
+                    final String address = _results[index];
+                    return ListTile(
+                      leading: const Icon(Icons.location_on_outlined),
+                      title: Text(address),
+                      onTap: () => Navigator.of(context).pop(address),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+      ],
     );
   }
 }
