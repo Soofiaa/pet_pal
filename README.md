@@ -112,7 +112,7 @@ Próximas funcionalidades planificadas:
 
 ## Testing y CI
 
-El proyecto cuenta con una suite de más de 180 pruebas automatizadas,
+El proyecto cuenta con una suite de más de 290 pruebas automatizadas,
 centrada en los puntos donde un bug puede fallar en silencio, sin
 lanzar ningún error visible:
 
