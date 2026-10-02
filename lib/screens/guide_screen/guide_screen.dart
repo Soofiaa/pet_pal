@@ -122,6 +122,17 @@ class GuideScreen extends StatelessWidget {
             'botón + para agendar una.',
       ),
       _GuideCard(
+        icon: Icons.notification_important,
+        color: entityColorFor('appointment'),
+        title: 'Anticipación del Recordatorio de Citas',
+        group: 'Otros',
+        description:
+            'Al agendar o editar una cita, eliges con cuánta anticipación '
+            'quieres que PetPal te avise: el mismo día, 1 día antes, 3 días '
+            'antes, o 1 semana antes. La opción está justo debajo del tipo de '
+            'cita, en la pantalla donde agregas o editas una.',
+      ),
+      _GuideCard(
         icon: Icons.no_food,
         color: entityColorFor('food_allergy'),
         title: 'Alergias Alimentarias',
@@ -166,6 +177,23 @@ class GuideScreen extends StatelessWidget {
             'restaurarlo cuando lo necesites. Abre el menú lateral (ícono de '
             'las tres líneas, arriba a la izquierda) y toca \'Notificaciones '
             'y Respaldo\'.',
+      ),
+      _GuideCard(
+        icon: Icons.location_on,
+        color: primary,
+        title: 'Catálogo de Ubicaciones',
+        group: 'Otros',
+        description:
+            'Guarda lugares que usas seguido —clínicas, peluquerías, hoteles '
+            'caninos— con un nombre y un enlace de Google Maps, compartidos '
+            'entre todas tus mascotas. Abre el menú lateral (ícono de las '
+            'tres líneas, arriba a la izquierda) y toca \'Catálogo de '
+            'Ubicaciones\' para agregar, editar o eliminar lugares. Al '
+            'agendar una cita, puedes elegir uno guardado o ingresar uno '
+            'nuevo y, si quieres, guardarlo en el catálogo con un solo toque. '
+            'Editar o eliminar un lugar del catálogo nunca afecta a las citas '
+            'que ya lo usaron: cada cita conserva su propia copia del lugar '
+            'elegido en ese momento.',
       ),
     ];
 

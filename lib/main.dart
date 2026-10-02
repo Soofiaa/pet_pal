@@ -10,6 +10,7 @@ import 'package:pet_pal/providers/theme_mode_provider.dart';
 import 'package:pet_pal/data/database_helper.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Necesario para el tipo NotificationResponse
 import 'package:intl/date_symbol_data_local.dart'; // Importación necesaria
+import 'package:shared_preferences/shared_preferences.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
@@ -37,6 +38,22 @@ Future<void> main() async {
   // reinstalación/actualización), esto reprograma cualquier recordatorio
   // pendiente. Es idempotente: usa los mismos ids que ya se usan hoy, así
   // que no genera notificaciones duplicadas.
+  // Migración única: los ids de los recordatorios pasaron de String.hashCode
+  // a un hash estable (utils/stable_hash.dart). Los ids ya programados en
+  // el dispositivo ya no coinciden con los nuevos, así que se cancelan todos
+  // una sola vez y rescheduleAllPending los vuelve a programar con los ids
+  // correctos. Sin esto, tras actualizar podrían sonar dos veces (el viejo y
+  // el nuevo). Si algo falla, no debe impedir que la app abra.
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('reminder_ids_stable_v1') != true) {
+      await NotificationService().cancelAllNotifications();
+      await prefs.setBool('reminder_ids_stable_v1', true);
+    }
+  } catch (e) {
+    debugPrint('No se pudo migrar los ids de recordatorios: $e');
+  }
+
   unawaited(ReminderScheduler.rescheduleAllPending());
 
   // Limpieza única de datos heredados de antes de activar PRAGMA

@@ -28,12 +28,19 @@ documentos clínicos y estado de salud, todo organizado por mascota.
   recetas, organizados por categoría, con visualización diferenciada
   (imágenes en vista ampliada, PDFs abiertos con la app nativa del
   sistema)
+- **Catálogo de Ubicaciones**: lugares reusables (clínicas, peluquerías,
+  hoteles caninos) guardados con nombre y enlace de Google Maps,
+  compartidos entre todas las mascotas y disponibles al agendar una
+  cita — cada cita conserva su propia copia del lugar elegido, así que
+  editar o eliminar una entrada del catálogo nunca modifica citas ya
+  creadas
 - Registro de alergias alimentarias, integrado al calendario
 - **Recordatorios confiables**: notificaciones para medicación (con
   horarios múltiples configurables por el usuario), vacunas,
-  desparasitación y citas veterinarias, cada una identificando el
-  nombre de la mascota en el mensaje, que sobreviven a un reinicio del
-  dispositivo y a la restauración de un backup
+  desparasitación y citas veterinarias (con anticipación configurable
+  por el usuario), cada una identificando el nombre de la mascota en el
+  mensaje, que sobreviven a un reinicio del dispositivo y a la
+  restauración de un backup
 - **Ficha clínica exportable en PDF**, consolidando vacunas, medicación,
   desparasitación, peso y el índice de documentos — pensada para llevar
   directamente a una consulta veterinaria
@@ -91,7 +98,8 @@ propio repository y provider.
 En desarrollo activo. Funcionalidades implementadas y estables: perfiles,
 dashboard, buscador global, vacunas, desparasitación (con recordatorios
 recurrentes), medicación, peso, signos vitales, alergias, documentos,
-calendario, notas, citas, notificaciones, exportación a CSV,
+calendario, notas, citas (con recordatorio de anticipación configurable),
+catálogo de ubicaciones, notificaciones, exportación a CSV,
 backup/restore cifrado con vista previa, guía in-app, modo oscuro con
 toggle manual, y persistencia local con arquitectura completa (repository
 + Riverpod) en las 10 entidades.

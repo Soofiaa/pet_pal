@@ -8,6 +8,7 @@ incluye el problema u oportunidad real detrás, no solo la tarea técnica.
 ## Prioridad alta
 
 ### 1. Vista de "Hoy" / dashboard multi-mascota
+**Estado: ✅ hecho (dashboard descrito en el README).**
 **Problema:** toda la información (recordatorios, vencimientos, tratamientos
 activos) vive encerrada dentro de cada mascota. Con más de una mascota, no
 hay ningún lugar que muestre de un vistazo qué necesita atención hoy o esta
@@ -21,6 +22,7 @@ sesión de hoy) — es el mayor payoff visible con el menor esfuerzo nuevo.
 **Esfuerzo:** mediano. **Impacto:** alto.
 
 ### 2. Pruebas unitarias (DatabaseHelper / NotificationService)
+**Estado: ✅ hecho (+180 tests, 47 archivos, SQLite real).**
 **Problema:** en una sola sesión se encontraron tres bugs de falla
 silenciosa que llevaban tiempo sin detectarse (integridad referencial nunca
 aplicada, notificaciones sin receiver nativo, íconos de calendario rotos).
@@ -37,6 +39,7 @@ directamente demuestra pensamiento de QA, no solo desarrollo.
 ## Prioridad media
 
 ### 3. Exportar historial a CSV/Excel
+**Estado: ✅ hecho (exportación a CSV).**
 **Problema:** hay datos de salud reales y estructurados (peso, vacunas,
 medicación) sin ninguna forma de sacarlos en un formato analizable fuera de
 la app.
@@ -48,6 +51,7 @@ datos/Power BI — hoy el proyecto no tiene ninguna pieza que lo demuestre.
 (portafolio).
 
 ### 4. Módulo de Signos Vitales (temperatura y similares)
+**Estado: ✅ hecho (signos vitales en el README).**
 **Problema:** originado en comentario de entrevista — necesidad real de
 registrar mediciones frecuentes (ej. temperatura cada 2 horas) con mínima
 fricción.
@@ -60,6 +64,7 @@ de horarios múltiples ya construido para medicación.
 razonado).
 
 ### 5. GitHub Actions (CI)
+**Estado: ✅ hecho (`flutter analyze` + `flutter test` en cada push y PR).**
 **Problema:** sin validación automática en cada push.
 **Propuesta:** workflow que corra `flutter analyze` + `flutter test`.
 **Nota:** tiene más valor una vez que exista la suite de tests (ítem 2);
@@ -67,6 +72,7 @@ antes de eso, solo correría `analyze`.
 **Esfuerzo:** chico. **Impacto:** medio.
 
 ### 6. Refactor arquitectónico (repository + estado)
+**Estado: ✅ hecho (repository + Riverpod en las 10 entidades).**
 **Problema:** las pantallas llaman directo a `DatabaseHelper()`, sin capa
 intermedia; el estado se maneja con `setState` disperso.
 **Propuesta:** introducir un patrón repository y algún manejo de estado
@@ -88,18 +94,21 @@ Pendiente desde la limpieza de huérfanos: revisar manualmente
 pendiente abierto.
 
 ### 8. Conectar FoodAllergy al calendario
+**Estado: ✅ hecho según el README (alergias y calendario). Verificar en el código antes de darlo por cerrado.**
 Hoy `FoodAllergy` no tiene `getEventsFromList` ni está conectado a
 `getAllEventsForPet` — quedó deliberadamente fuera al corregir los
 íconos rotos del calendario.
 **Esfuerzo:** chico. **Impacto:** bajo-medio.
 
 ### 9. Cifrado del backup
+**Estado: ✅ hecho (backup/restore cifrado).**
 Desde que `documents` incluye archivos médicos reales (exámenes,
 cirugías), el ZIP de backup contiene información más sensible que antes.
 **Esfuerzo:** mediano. **Impacto:** bajo por ahora (nadie más accede al
 backup), pero crece si se comparte o sube a la nube.
 
 ### 10. Localización a inglés
+**Estado: ⏳ pendiente (sigue en "próximas funcionalidades" del README).**
 Proyecto bilingüe como diferenciador de portafolio frente a reclutadores
 que no leen español.
 **Esfuerzo:** mediano-grande (traducción de toda la UI). **Impacto:**
@@ -133,6 +142,10 @@ el ítem 1).
 - ✅ **Calculadora de Alimento**: Utilidad para calcular la ración diaria según el peso y recomendación del fabricante.
 - ✅ **Correcciones de Estabilidad**: Solucionado error crítico `_dependents.isEmpty` en diálogos y navegación.
 
+## Log de Mejoras (Septiembre-Octubre 2026)
+- ✅ Ítems 1 a 6 y 9 del backlog cerrados: dashboard, suite de tests, CSV, signos vitales, CI, arquitectura repository + Riverpod y backup cifrado.
+- ✅ IDs de notificación estables entre ejecuciones (`stableNotificationId`, FNV-1a), con migración única al actualizar.
+
 ---
 
-*Última actualización: agosto 2026, tras la gran actualización de catálogos y utilidades.*
+*Última actualización: octubre 2026, tras cerrar los ítems de prioridad alta y media.*

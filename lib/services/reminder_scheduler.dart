@@ -8,6 +8,7 @@ import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/utils/stable_hash.dart';
 
 /// Punto único donde se decide CUÁNDO y con QUÉ id se programa cada
 /// recordatorio (medicación, vacuna, desparasitación, cita). Se usa tanto
@@ -51,7 +52,7 @@ class ReminderScheduler {
   }
 
   static int _medicationBaseId(String medicationId) =>
-      medicationId.hashCode.abs() % 100000;
+      stableNotificationId(medicationId) % 100000;
 
   /// Id determinístico por combinación única de medicación + horario + día,
   /// para el caso con endDate. Se usa una clave de texto hasheada en vez de
@@ -60,11 +61,11 @@ class ReminderScheduler {
   /// tratamiento dura 1000 días o más.
   static int _medicationTimedDayId(
           String medicationId, int timeIndex, int dayIndex) =>
-      '${medicationId}_${timeIndex}_$dayIndex'.hashCode;
+      stableNotificationId('${medicationId}_${timeIndex}_$dayIndex');
 
   /// Id de la alarma repetible por horario, para el caso sin endDate.
   static int _medicationRepeatingId(String medicationId, int timeIndex) =>
-      '${medicationId}_$timeIndex'.hashCode;
+      stableNotificationId('${medicationId}_$timeIndex');
 
   static int _medicationDayCount(DateTime startDate, DateTime? endDate) {
     if (endDate == null) return 1;
@@ -212,7 +213,7 @@ class ReminderScheduler {
   }
 
   static int _vaccinationNextId(String vaccinationId) =>
-      '${vaccinationId}_next'.hashCode;
+      stableNotificationId('${vaccinationId}_next');
 
   static Future<void> cancelVaccinationReminder(Vaccination vaccination) async {
     await NotificationService()
@@ -274,7 +275,7 @@ class ReminderScheduler {
   }
 
   static int _dewormingNextId(String dewormingId) =>
-      '${dewormingId}_next'.hashCode;
+      stableNotificationId('${dewormingId}_next');
 
   static Future<void> cancelDewormingReminder(Deworming deworming) async {
     if (deworming.id == null) return;
@@ -325,7 +326,7 @@ class ReminderScheduler {
   }
 
   static int _appointmentReminderId(String appointmentId) =>
-      appointmentId.hashCode;
+      stableNotificationId(appointmentId);
 
   /// Cancela el recordatorio de una cita (con la anticipación que sea que
   /// tuviera configurada, ver [Appointment.reminderDaysBefore]). Nunca falla

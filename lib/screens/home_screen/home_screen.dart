@@ -234,20 +234,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               subtitle: Text(_themeModeLabel(ref.watch(themeModeProvider))),
               onTap: () => _showThemeModeDialog(context),
             ),
-            const Divider(),
             ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Catálogo de Vacunas'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const VaccinationProductsScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.medication),
+              leading: const Icon(Icons.bug_report),
               title: const Text('Catálogo de Desparasitantes'),
               onTap: () {
                 Navigator.pop(context);
@@ -257,7 +245,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 );
               },
             ),
-            const Divider(),
             ListTile(
               leading: const Icon(Icons.location_on),
               title: const Text('Catálogo de Ubicaciones'),
@@ -269,19 +256,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 );
               },
             ),
-            const Divider(),
             ListTile(
-              leading: const Icon(Icons.settings_backup_restore),
-              title: const Text('Notificaciones y Respaldo'),
+              leading: const Icon(Icons.vaccines),
+              title: const Text('Catálogo de Vacunas'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const BackupSettingsScreen()),
+                  MaterialPageRoute(builder: (context) => const VaccinationProductsScreen()),
                 );
               },
             ),
-            const Divider(),
             ListTile(
               leading: const Icon(Icons.menu_book),
               title: const Text('Guía de PetPal'),
@@ -290,6 +275,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const GuideScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_backup_restore),
+              title: const Text('Notificaciones y Respaldo'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BackupSettingsScreen()),
                 );
               },
             ),
