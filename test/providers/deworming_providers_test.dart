@@ -17,6 +17,7 @@ import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
 import 'package:pet_pal/repositories/deworming_repository.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/utils/stable_hash.dart';
 import 'package:uuid/uuid.dart';
 
 class _FakeDewormingRepository implements DewormingRepository {
@@ -263,9 +264,9 @@ void main() {
         );
         await container.read(dewormingsProvider('pet-1').notifier).addDeworming(ambas);
 
-        final int internaId = '${interna.id}_next'.hashCode;
-        final int externaId = '${externa.id}_next'.hashCode;
-        final int ambasId = '${ambas.id}_next'.hashCode;
+        final int internaId = stableNotificationId('${interna.id}_next');
+        final int externaId = stableNotificationId('${externa.id}_next');
+        final int ambasId = stableNotificationId('${ambas.id}_next');
 
         final canceledIds =
             calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id'] as int).toSet();
@@ -317,9 +318,9 @@ void main() {
         );
         await container.read(dewormingsProvider('pet-1').notifier).addDeworming(internaNueva);
 
-        final int internaViejaId = '${internaVieja.id}_next'.hashCode;
-        final int externaVigenteId = '${externaVigente.id}_next'.hashCode;
-        final int internaNuevaId = '${internaNueva.id}_next'.hashCode;
+        final int internaViejaId = stableNotificationId('${internaVieja.id}_next');
+        final int externaVigenteId = stableNotificationId('${externaVigente.id}_next');
+        final int internaNuevaId = stableNotificationId('${internaNueva.id}_next');
 
         final canceledIds =
             calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id'] as int).toSet();

@@ -18,6 +18,7 @@ import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/repositories/vaccination_repository.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/utils/stable_hash.dart';
 import 'package:uuid/uuid.dart';
 
 class _FakeVaccinationRepository implements VaccinationRepository {
@@ -370,8 +371,8 @@ void main() {
         // Fórmula calculada a mano (ver ReminderScheduler._vaccinationNextId),
         // no reutilizando la implementación: si cambiara, este test debe
         // fallar aunque el código de producción "se mueva junto".
-        final int viejaId = '${vieja.id}_next'.hashCode;
-        final int nuevaId = '${nueva.id}_next'.hashCode;
+        final int viejaId = stableNotificationId('${vieja.id}_next');
+        final int nuevaId = stableNotificationId('${nueva.id}_next');
 
         final canceledIds =
             calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id'] as int).toSet();

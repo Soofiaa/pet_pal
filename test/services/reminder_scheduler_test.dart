@@ -19,6 +19,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/services/notification_service.dart';
 import 'package:pet_pal/services/reminder_scheduler.dart';
+import 'package:pet_pal/utils/stable_hash.dart';
 import 'package:uuid/uuid.dart';
 
 void main() {
@@ -309,7 +310,7 @@ void main() {
 
   group('ReminderScheduler - Cita (centralización de Fase 3)', () {
     test(
-      'scheduleAppointmentReminder agenda con id == appointment.id.hashCode '
+      'scheduleAppointmentReminder agenda con id == stableNotificationId(appointment.id) '
       '(fórmula que ya usaban los tres lugares duplicados antes de centralizar)',
       () async {
         await NotificationService().init();
@@ -330,7 +331,7 @@ void main() {
         // Valor calculado a mano, no reutilizando la implementación: si
         // scheduleAppointmentReminder cambiara de fórmula, este test debe
         // fallar aunque el código de producción "se mueva junto".
-        expect(ids.single, appointmentId.hashCode);
+        expect(ids.single, stableNotificationId(appointmentId));
       },
     );
 
@@ -539,8 +540,8 @@ void main() {
 
         await ReminderScheduler.rescheduleAllPending();
 
-        final int viejaId = '${vieja.id}_next'.hashCode;
-        final int nuevaId = '${nueva.id}_next'.hashCode;
+        final int viejaId = stableNotificationId('${vieja.id}_next');
+        final int nuevaId = stableNotificationId('${nueva.id}_next');
 
         expect(scheduledIds().toSet(), {nuevaId},
             reason: 'solo el registro más nuevo del grupo debe quedar con push activo');
@@ -590,8 +591,8 @@ void main() {
 
         await ReminderScheduler.rescheduleAllPending();
 
-        final int ambasId = '${ambasReciente.id}_next'.hashCode;
-        final int recurrenteViejaId = '${recurrenteVieja.id}_next'.hashCode;
+        final int ambasId = stableNotificationId('${ambasReciente.id}_next');
+        final int recurrenteViejaId = stableNotificationId('${recurrenteVieja.id}_next');
 
         expect(scheduledIds().toSet(), {ambasId},
             reason: 'el "ambas" reciente resetea toda la cobertura; el recurrente '
@@ -654,7 +655,7 @@ void main() {
         expect(ids.toSet().length, ids.length,
             reason: 'ids repetidos entre tipos distintos tras rescheduleAllPending');
 
-        final int appointmentId = appointment.id.hashCode;
+        final int appointmentId = stableNotificationId(appointment.id);
         expect(ids, contains(appointmentId),
             reason: 'la cita debe seguir programándose igual que antes de este cambio');
       },
