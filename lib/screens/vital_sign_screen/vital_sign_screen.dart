@@ -46,7 +46,7 @@ class VitalSignScreen extends ConsumerWidget {
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -235,7 +235,7 @@ class VitalSignScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     'Agrega al menos un registro más para ver la evolución de ${_config.label.toLowerCase()}.',
-                    style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                    style: TextStyle(fontStyle: FontStyle.italic, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                 )
@@ -272,7 +272,7 @@ class VitalSignScreen extends ConsumerWidget {
                           ),
                           subtitle: Text(
                             'Fecha: ${DateFormat('dd/MM/yyyy').format(record.date)}',
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           trailing: isAbnormal
                               ? Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error)

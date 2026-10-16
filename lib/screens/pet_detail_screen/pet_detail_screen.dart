@@ -528,9 +528,37 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
   }
 
   static const double _maxFeatureLabelScale = 1.3;
+  static const double _minFeatureLabelScale = 0.5;
+  static const TextStyle _featureLabelStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
 
   TextScaler _featureLabelScaler(BuildContext context) =>
       MediaQuery.textScalerOf(context).clamp(maxScaleFactor: _maxFeatureLabelScale);
+
+  // Escala máxima con la que la palabra más larga cabe en una línea, para no
+  // partir palabras a mitad (p. ej. "Desparasitaciones") con fuente grande.
+  // Se mide con la escala candidata, porque el ancho no siempre es lineal.
+  TextScaler _fittingLabelScaler(BuildContext context, String title, double maxWidth) {
+    final wanted = _featureLabelScaler(context).scale(1);
+    var factor = wanted;
+
+    double longestWordWidth(double scale) {
+      var longest = 0.0;
+      for (final word in title.split(' ')) {
+        final painter = TextPainter(
+          text: TextSpan(text: word, style: _featureLabelStyle),
+          textDirection: TextDirection.ltr,
+          textScaler: TextScaler.linear(scale),
+        )..layout();
+        if (painter.width > longest) longest = painter.width;
+      }
+      return longest;
+    }
+
+    while (factor > _minFeatureLabelScale && longestWordWidth(factor) > maxWidth * 0.9) {
+      factor *= 0.95;
+    }
+    return TextScaler.linear(factor < _minFeatureLabelScale ? _minFeatureLabelScale : factor);
+  }
 
   Widget _buildFeatureCard(
       BuildContext context, {
@@ -552,13 +580,15 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                title,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
-                textAlign: TextAlign.center,
-                textScaler: _featureLabelScaler(context),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: LayoutBuilder(
+                builder: (context, constraints) => Text(
+                  title,
+                  style: _featureLabelStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                  textAlign: TextAlign.center,
+                  textScaler: _fittingLabelScaler(context, title, constraints.maxWidth),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ],

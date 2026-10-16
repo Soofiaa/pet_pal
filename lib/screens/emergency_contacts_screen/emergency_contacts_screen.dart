@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pet_pal/utils/layout_constants.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/emergency_contact.dart';
 import 'package:pet_pal/providers/emergency_contact_providers.dart';
@@ -18,24 +19,10 @@ class EmergencyContactsScreen extends ConsumerWidget {
       ),
       body: contactsAsync.when(
         data: (contacts) => contacts.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.contact_phone_outlined, size: 80, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Sin contactos de emergencia',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Guarda los datos de tu veterinario\no urgencias para acceso rápido.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
+            ? const EmptyState(
+                icon: Icons.contact_phone_outlined,
+                message: 'Sin contactos de emergencia',
+                actionHint: 'Guarda los datos de tu veterinario\no urgencias para acceso rápido.',
               )
             : ListView.builder(
                 itemCount: contacts.length,

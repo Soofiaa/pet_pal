@@ -34,7 +34,7 @@ class FoodRecordScreen extends ConsumerWidget {
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -88,7 +88,7 @@ class FoodRecordScreen extends ConsumerWidget {
             record.foodName,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          subtitle: Text(_subtitleFor(record), style: const TextStyle(color: Colors.grey)),
+          subtitle: Text(_subtitleFor(record), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           onTap: () async {
             await Navigator.push(
               context,

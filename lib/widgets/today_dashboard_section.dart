@@ -72,7 +72,7 @@ class TodayDashboardSection extends ConsumerWidget {
                     if (showPetName)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey)),
+                        child: Text(entry.key, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       ),
                     ...entry.value.map((event) => DashboardEventTile(event: event, showPetName: false)),
                     const SizedBox(height: 8),

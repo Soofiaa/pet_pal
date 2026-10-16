@@ -35,7 +35,7 @@ class FoodAllergyScreen extends ConsumerWidget {
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -107,7 +107,7 @@ class FoodAllergyScreen extends ConsumerWidget {
                     ),
                     subtitle: Text(
                       'Registrada el ${DateFormat('dd/MM/yyyy').format(allergy.dateRecorded)}',
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     onTap: () async {
                       await Navigator.push(

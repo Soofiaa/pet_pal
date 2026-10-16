@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pet_pal/utils/layout_constants.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/deworming_product.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
@@ -17,24 +18,10 @@ class DewormingProductsScreen extends ConsumerWidget {
       ),
       body: productsAsync.when(
         data: (products) => products.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Tu catálogo está vacío',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Registra tus productos habituales\npara automatizar las fechas.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
+            ? const EmptyState(
+                icon: Icons.inventory_2_outlined,
+                message: 'Tu catálogo está vacío',
+                actionHint: 'Registra tus productos habituales\npara automatizar las fechas.',
               )
             : ListView.builder(
                 itemCount: products.length,

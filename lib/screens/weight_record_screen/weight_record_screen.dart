@@ -37,7 +37,7 @@ class WeightRecordScreen extends ConsumerWidget {
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -195,11 +195,11 @@ class WeightRecordScreen extends ConsumerWidget {
           return Column(
             children: [
               if (weightRecords.length == 1)
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Text(
                     'Agrega al menos un registro más para ver la evolución del peso.',
-                    style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                    style: TextStyle(fontStyle: FontStyle.italic, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                 )
@@ -234,7 +234,7 @@ class WeightRecordScreen extends ConsumerWidget {
                           ),
                           subtitle: Text(
                             'Fecha: ${DateFormat('dd/MM/yyyy').format(record.date)}',
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           onTap: () async {
                             await Navigator.push(

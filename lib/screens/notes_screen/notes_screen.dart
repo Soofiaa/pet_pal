@@ -79,7 +79,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -256,7 +256,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Text(
                             '${note.photoPaths.length} imagen(es)',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                           ),
                         ),
                     ],
