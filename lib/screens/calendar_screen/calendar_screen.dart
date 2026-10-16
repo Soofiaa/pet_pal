@@ -187,7 +187,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ),
                                   ),
                                   trailing: isPast
-                                      ? const Icon(Icons.check_circle_outline, color: Colors.green)
+                                      ? (isOverdueEventType(eventType)
+                                          ? Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error)
+                                          : const Icon(Icons.check_circle_outline, color: Colors.green))
                                       : null,
                                 ),
                               );

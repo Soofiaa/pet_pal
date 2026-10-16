@@ -12,6 +12,14 @@ import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
 
+/// La próxima dosis está vencida si su fecha es anterior a hoy (el mismo día
+/// aún cuenta como vigente).
+bool isNextDoseOverdue(DateTime nextDueDate, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final today = DateTime(current.year, current.month, current.day);
+  return nextDueDate.isBefore(today);
+}
+
 class VaccinationsScreen extends ConsumerWidget {
   final Pet pet;
 
@@ -190,10 +198,17 @@ class VaccinationsScreen extends ConsumerWidget {
                           'Aplicada: ${DateFormat('dd/MM/yyyy').format(vaccination.date)}',
                         ),
                         if (vaccination.nextDueDate != null && showNextDose)
-                          Text(
-                            'Próxima dosis: ${DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!)}',
-                            style: TextStyle(color: Colors.green.shade700),
-                          ),
+                          Builder(builder: (context) {
+                            final overdue = isNextDoseOverdue(vaccination.nextDueDate!);
+                            final formatted = DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!);
+                            return Text(
+                              overdue ? 'Vencida desde: $formatted' : 'Próxima dosis: $formatted',
+                              style: TextStyle(
+                                color: overdue ? Theme.of(context).colorScheme.error : Colors.green.shade700,
+                                fontWeight: overdue ? FontWeight.w600 : null,
+                              ),
+                            );
+                          }),
                       ],
                     ),
                   ),

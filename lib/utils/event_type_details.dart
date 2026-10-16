@@ -13,11 +13,17 @@ final Map<String, Map<String, dynamic>> eventTypeDetails = {
   'deworming': {'icon': Icons.bug_report, 'color': Colors.red},
   'next_deworming': {'icon': Icons.next_plan, 'color': Colors.red[300]},
   'weight': {'icon': Icons.scale, 'color': Colors.teal},
+  'vital_sign': {'icon': Icons.monitor_heart, 'color': Colors.indigo},
   'document': {'icon': Icons.folder_shared, 'color': Colors.brown},
   'food_allergy': {'icon': Icons.no_food, 'color': Colors.deepOrange},
   'food_record': {'icon': Icons.restaurant, 'color': Colors.lightGreen},
   'food_record_end': {'icon': Icons.restaurant, 'color': Colors.lightGreen[300]},
 };
+
+/// Eventos que representan una dosis pendiente: si su fecha ya pasó no están
+/// "cumplidos", están vencidos.
+bool isOverdueEventType(String type) =>
+    type == 'next_vaccination' || type == 'next_deworming';
 
 IconData eventIconFor(String type) {
   return eventTypeDetails[type.toLowerCase()]?['icon'] as IconData? ??
