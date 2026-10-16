@@ -15,6 +15,7 @@ import 'package:pet_pal/providers/vital_sign_providers.dart';
 import 'package:pet_pal/providers/weight_record_providers.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/services/orphan_cleanup_service.dart';
 import 'package:pet_pal/utils/backup_password_dialog.dart';
 
 enum BackupSettingsSection { notifications, backup }
@@ -37,12 +38,102 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
 
   bool? _notificationsEnabled;
   bool? _exactAlarmsEnabled;
+  QuarantineSummary? _quarantine;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadNotificationStatus();
+    if (widget.section == BackupSettingsSection.backup) {
+      _loadQuarantine();
+    }
+  }
+
+  Future<void> _loadQuarantine() async {
+    QuarantineSummary? summary;
+    try {
+      summary = await OrphanCleanupService.quarantineSummary();
+    } catch (_) {
+      // Es información secundaria: si no se puede leer, no se muestra la tarjeta.
+    }
+    if (!mounted) return;
+    setState(() => _quarantine = summary);
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  Future<void> _confirmDeleteQuarantine() async {
+    final summary = _quarantine;
+    if (summary == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar archivos antiguos'),
+        content: Text(
+          'Se borrarán definitivamente ${summary.fileCount} archivos '
+          '(${_formatBytes(summary.totalBytes)}). Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await OrphanCleanupService.deleteQuarantine();
+      if (!mounted) return;
+      setState(() => _lastMessage = 'Archivos antiguos eliminados.');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _lastMessage = 'No se pudieron eliminar los archivos antiguos: $e');
+    }
+    await _loadQuarantine();
+  }
+
+  Widget _buildQuarantineCard(QuarantineSummary summary) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Archivos antiguos sin uso', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Una limpieza anterior apartó ${summary.fileCount} archivos '
+              '(${_formatBytes(summary.totalBytes)}) que ninguna mascota, nota, '
+              'vacuna o documento usaba. Puedes eliminarlos para liberar espacio.',
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isWorking ? null : _confirmDeleteQuarantine,
+                icon: const Icon(Icons.delete_sweep),
+                label: const Text('Eliminar archivos antiguos'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -352,6 +443,10 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
         ),
       ),
       const SizedBox(height: 16),
+      if (_quarantine != null && _quarantine!.fileCount > 0) ...[
+        _buildQuarantineCard(_quarantine!),
+        const SizedBox(height: 16),
+      ],
       if (_isWorking) const Center(child: CircularProgressIndicator()),
       if (_lastMessage != null) ...[
         const SizedBox(height: 16),

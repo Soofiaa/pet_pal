@@ -88,6 +88,9 @@ portafolio).
 ## Prioridad baja / mantenimiento
 
 ### 7. Revisar carpeta de cuarentena de archivos huérfanos
+**Estado: ✅ hecho.** Ahora, en Respaldo y restauración, aparece la tarjeta
+"Archivos antiguos sin uso" (solo si hay cuarentena) con el tamaño y un
+botón para borrarla con confirmación.
 Pendiente desde la limpieza de huérfanos: revisar manualmente
 `petpal_files/_huerfanos_*` y decidir si se borra definitivamente.
 **Esfuerzo:** trivial (revisión manual). **Impacto:** bajo, cierra un
