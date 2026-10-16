@@ -30,7 +30,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
   final _microchipController = TextEditingController();
   bool _isNeutered = false;
 
-  DateTime _selectedDateOfBirth = DateTime.now();
+  DateTime? _selectedDateOfBirth;
   String? _imagePath;
   bool _isSaving = false;
 
@@ -76,7 +76,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
   Future<void> _selectDateOfBirth(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDateOfBirth,
+      initialDate: _selectedDateOfBirth ?? DateTime.now(),
       firstDate: DateTime(1990),
       lastDate: DateTime.now(),
     );
@@ -208,7 +208,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
           name: _nameController.text.trim(),
           species: _speciesController.text.trim(),
           breed: _breedController.text.trim(),
-          dob: _selectedDateOfBirth,
+          dob: _selectedDateOfBirth!,
           color: _colorController.text.trim(),
           imageUrl: finalImagePath,
           microchipNumber: microchipNormalized,
@@ -285,7 +285,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Nombre',
+                  labelText: 'Nombre *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.pets),
                 ),
@@ -300,7 +300,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
               TextFormField(
                 controller: _speciesController,
                 decoration: const InputDecoration(
-                  labelText: 'Especie (ej. Perro, Gato)',
+                  labelText: 'Especie (ej. Perro, Gato) *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.category),
                 ),
@@ -315,7 +315,7 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
               TextFormField(
                 controller: _breedController,
                 decoration: const InputDecoration(
-                  labelText: 'Raza',
+                  labelText: 'Raza *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.pets_outlined),
                 ),
@@ -327,18 +327,37 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              ListTile(
-                title: Text(
-                  'Fecha de Nacimiento: ${DateFormat('dd/MM/yyyy').format(_selectedDateOfBirth)}',
-                ),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () => _selectDateOfBirth(context),
+              FormField<DateTime>(
+                validator: (_) => _selectedDateOfBirth == null
+                    ? 'Por favor, elige la fecha de nacimiento'
+                    : null,
+                builder: (state) {
+                  final dob = _selectedDateOfBirth;
+                  return InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Fecha de nacimiento *',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.cake),
+                      suffixIcon: const Icon(Icons.calendar_today),
+                      errorText: state.errorText,
+                    ),
+                    child: InkWell(
+                      onTap: () async {
+                        await _selectDateOfBirth(context);
+                        state.didChange(_selectedDateOfBirth);
+                      },
+                      child: Text(
+                        dob == null ? 'Toca para elegir' : DateFormat('dd/MM/yyyy').format(dob),
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _colorController,
                 decoration: const InputDecoration(
-                  labelText: 'Color',
+                  labelText: 'Color *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.color_lens),
                 ),
