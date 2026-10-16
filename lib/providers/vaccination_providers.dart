@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/vaccination.dart';
 import 'package:pet_pal/models/vaccination_product.dart';
@@ -33,16 +34,29 @@ class VaccinationProductsNotifier extends AsyncNotifier<List<VaccinationProduct>
   Future<void> addProduct(VaccinationProduct product) async {
     await ref.read(vaccinationProductRepositoryProvider).insertProduct(product);
     await refresh();
+    await _reconcileReminders();
   }
 
   Future<void> updateProduct(VaccinationProduct product) async {
     await ref.read(vaccinationProductRepositoryProvider).updateProduct(product);
     await refresh();
+    await _reconcileReminders();
   }
 
   Future<void> deleteProduct(String id) async {
     await ref.read(vaccinationProductRepositoryProvider).deleteProduct(id);
     await refresh();
+    await _reconcileReminders();
+  }
+
+  /// Los grupos de equivalencia cambian qué dosis es la vigente de cada
+  /// mascota, así que hay que recalcular los recordatorios de vacunas.
+  Future<void> _reconcileReminders() async {
+    try {
+      await ReminderScheduler.rescheduleAllPending();
+    } catch (e) {
+      debugPrint('No se pudieron reprogramar los recordatorios: $e');
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/providers/database_providers.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
+import 'package:pet_pal/providers/vaccination_providers.dart';
 
 /// Vista agregada de "qué necesita atención hoy": combina los eventos
 /// accionables (citas, próximas dosis, fin de tratamientos) de todas las
@@ -14,10 +15,16 @@ final todayDashboardProvider =
   final dbHelper = ref.watch(databaseHelperProvider);
 
   final events = <DashboardEvent>[];
+  final vaccineProducts = await ref.watch(vaccinationProductsProvider.future);
   for (final pet in pets) {
     final rawEvents = await dbHelper.getAllEventsForPet(pet.id);
     final intakes = await dbHelper.getAllIntakesForPet(pet.id);
-    events.addAll(DashboardEvent.fromEventMaps(rawEvents, pet, intakes: intakes));
+    events.addAll(DashboardEvent.fromEventMaps(
+      rawEvents,
+      pet,
+      intakes: intakes,
+      vaccineProducts: vaccineProducts,
+    ));
   }
 
   events.sort((a, b) {

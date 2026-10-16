@@ -6,6 +6,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 
 Set<dynamic> _idsWithVisibleNextDose(List<Vaccination> vaccinations) {
   return DashboardEvent.idsOfMostRecentApplicationPerName(
@@ -77,6 +78,60 @@ void main() {
 
       expect(_idsWithVisibleNextDose([sextuple, octuple]), {'v-octuple'});
       expect(_idsWithVisibleNextDose([octuple, sextuple]), {'v-octuple'});
+    });
+
+    test('el grupo del catálogo hace equivalentes vacunas de otras especies', () {
+      final productos = [
+        VaccinationProduct(name: 'Triple felina', defaultFrequencyMonths: 12, groupName: 'Felina múltiple'),
+        VaccinationProduct(name: 'Cuádruple felina', defaultFrequencyMonths: 12, groupName: 'felina multiple '),
+      ];
+      final triple = Vaccination(
+        id: 'v-triple',
+        petId: 'pet-1',
+        vaccineName: 'Triple felina',
+        date: DateTime(2025, 5, 1),
+      );
+      final cuadruple = Vaccination(
+        id: 'v-cuadruple',
+        petId: 'pet-1',
+        vaccineName: 'Cuádruple felina',
+        date: DateTime(2026, 5, 1),
+      );
+
+      final sinGrupo = DashboardEvent.idsOfMostRecentApplicationPerName(
+        Vaccination.getEventsFromList([triple, cuadruple]),
+        'vaccination',
+      );
+      final conGrupo = DashboardEvent.idsOfMostRecentApplicationPerName(
+        Vaccination.getEventsFromList([triple, cuadruple]),
+        'vaccination',
+        vaccineProducts: productos,
+      );
+
+      expect(sinGrupo, {'v-triple', 'v-cuadruple'});
+      expect(conGrupo, {'v-cuadruple'});
+    });
+
+    test('un registro encuentra su producto aunque el nombre tenga más palabras', () {
+      final productos = [
+        VaccinationProduct(name: 'Sextuple', defaultFrequencyMonths: 12, groupName: 'Canina'),
+        VaccinationProduct(name: 'Octuple', defaultFrequencyMonths: 12, groupName: 'Canina'),
+      ];
+      expect(
+        DashboardEvent.vaccineGroupKey('Vacuna Séxtuple Canina', productos),
+        DashboardEvent.vaccineGroupKey('Octuple', productos),
+      );
+    });
+
+    test('un producto sin grupo no se agrupa con los demás', () {
+      final productos = [
+        VaccinationProduct(name: 'Rabia', defaultFrequencyMonths: 12),
+        VaccinationProduct(name: 'KC', defaultFrequencyMonths: 12, groupName: '  '),
+      ];
+      expect(
+        DashboardEvent.vaccineGroupKey('Rabia', productos),
+        isNot(DashboardEvent.vaccineGroupKey('KC', productos)),
+      );
     });
 
     test('la agrupación Múltiple no mezcla Rabia ni KC', () {

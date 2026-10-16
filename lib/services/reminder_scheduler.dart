@@ -7,6 +7,7 @@ import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/models/medication.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/services/notification_service.dart';
 import 'package:pet_pal/utils/stable_hash.dart';
 
@@ -260,9 +261,16 @@ class ReminderScheduler {
   static Future<void> reconcileVaccinationReminders(
     List<Vaccination> allVaccinationsForPet,
   ) async {
+    List<VaccinationProduct> products = const [];
+    try {
+      products = await DatabaseHelper().getVaccinationProducts();
+    } catch (e) {
+      debugPrint('No se pudo leer el catálogo de vacunas para agrupar: $e');
+    }
     final Set<dynamic> winnerIds = DashboardEvent.idsOfMostRecentApplicationPerName(
       Vaccination.getEventsFromList(allVaccinationsForPet),
       'vaccination',
+      vaccineProducts: products,
     );
 
     for (final vaccination in allVaccinationsForPet) {

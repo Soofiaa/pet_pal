@@ -69,7 +69,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 32,
+      version: 33,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -250,7 +250,8 @@ class DatabaseHelper {
       CREATE TABLE $vaccinationProductsTable(
         id TEXT PRIMARY KEY,
         name TEXT,
-        defaultFrequencyMonths INTEGER
+        defaultFrequencyMonths INTEGER,
+        groupName TEXT
       )
     ''');
     debugPrint('Tabla de productos de vacunas creada');
@@ -615,6 +616,22 @@ class DatabaseHelper {
         )
       ''');
       debugPrint('Migración v32: Tabla de catálogo de ubicaciones creada');
+    }
+
+    // v33: grupo de equivalencia opcional por vacuna del catálogo.
+    if (oldVersion < 33) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $vaccinationProductsTable(
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          defaultFrequencyMonths INTEGER,
+          groupName TEXT
+        )
+      ''');
+      if (!await _columnExists(db, vaccinationProductsTable, 'groupName')) {
+        await db.execute('ALTER TABLE $vaccinationProductsTable ADD COLUMN groupName TEXT');
+      }
+      debugPrint('Migración v33: groupName agregado al catálogo de vacunas');
     }
 
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,

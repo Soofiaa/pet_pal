@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/screens/add_edit_vaccination_screen/add_edit_vaccination_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
@@ -140,10 +141,14 @@ class VaccinationsScreen extends ConsumerWidget {
   /// misma vacuna deje de mostrar su propia predicción -aunque el
   /// recordatorio real siga siendo responsabilidad exclusiva de
   /// ReminderScheduler, sin relación con esta función-.
-  Set<dynamic> _idsWithVisibleNextDose(List<Vaccination> vaccinations) {
+  Set<dynamic> _idsWithVisibleNextDose(
+    List<Vaccination> vaccinations,
+    List<VaccinationProduct> products,
+  ) {
     return DashboardEvent.idsOfMostRecentApplicationPerName(
       Vaccination.getEventsFromList(vaccinations),
       'vaccination',
+      vaccineProducts: products,
     );
   }
 
@@ -287,7 +292,10 @@ class VaccinationsScreen extends ConsumerWidget {
             );
           }
 
-          final idsWithVisibleNextDose = _idsWithVisibleNextDose(vaccinations);
+          final idsWithVisibleNextDose = _idsWithVisibleNextDose(
+            vaccinations,
+            ref.watch(vaccinationProductsProvider).valueOrNull ?? const [],
+          );
 
           return ListView.builder(
             itemCount: vaccinations.length,
