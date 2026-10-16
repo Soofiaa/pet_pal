@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/providers/dashboard_providers.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
@@ -25,7 +26,7 @@ class _PetsNotifier extends PetsNotifier {
   Future<List<Pet>> build() async => _pets;
 }
 
-Future<void> _pumpHome(WidgetTester tester, List<Pet> pets) async {
+Future<void> _pumpHome(WidgetTester tester, List<Pet> pets, {List<DashboardEvent> events = const []}) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 2.625;
   addTearDown(tester.view.reset);
@@ -34,7 +35,7 @@ Future<void> _pumpHome(WidgetTester tester, List<Pet> pets) async {
     const HomeScreen(),
     overrides: [
       petsProvider.overrideWith(() => _PetsNotifier(pets)),
-      todayDashboardProvider.overrideWith((ref) async => []),
+      todayDashboardProvider.overrideWith((ref) async => events),
     ],
   );
   await tester.pumpAndSettle();
@@ -51,6 +52,30 @@ void main() {
     expect(olivia.dy, luna.dy);
     expect(luna.dx, greaterThan(olivia.dx));
     expect(max.dy, greaterThan(olivia.dy));
+  });
+
+  testWidgets('cada tarjeta muestra los pendientes de su mascota', (tester) async {
+    final olivia = _pet('Olivia');
+    final luna = _pet('Luna');
+    await _pumpHome(
+      tester,
+      [olivia, luna],
+      events: [
+        DashboardEvent(
+          petId: olivia.id,
+          petName: 'Olivia',
+          date: DateTime.now().subtract(const Duration(days: 5)),
+          title: 'Próxima vacunación',
+          type: 'next_vaccination',
+        ),
+      ],
+    );
+
+    expect(find.byIcon(Icons.vaccines), findsOneWidget);
+    expect(
+      find.descendant(of: find.widgetWithText(PetCard, 'Olivia'), matching: find.byIcon(Icons.vaccines)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('con una sola mascota la tarjeta ocupa la mitad del ancho', (tester) async {

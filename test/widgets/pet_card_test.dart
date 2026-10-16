@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/widgets/pet_card.dart';
 
@@ -91,6 +92,53 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('petAlertsFor deja un ícono por tipo, el más urgente, y omite lo lejano', (tester) async {
+    final now = DateTime.now();
+    DashboardEvent ev(String type, int days) => DashboardEvent(
+          petId: 'p',
+          petName: 'Olivia',
+          date: now.add(Duration(days: days)),
+          title: 't',
+          type: type,
+        );
+
+    final alerts = petAlertsFor([
+      ev('next_vaccination', 3),
+      ev('next_vaccination', -10),
+      ev('next_deworming', 30),
+      ev('appointment', 2),
+    ]);
+
+    expect(alerts.map((a) => a.type), ['next_vaccination', 'appointment']);
+    expect(alerts.first.isOverdue, isTrue);
+  });
+
+  testWidgets('muestra un ícono por pendiente y lo anuncia en la etiqueta', (tester) async {
+    await _pump(
+      tester,
+      PetCard(
+        pet: _pet(),
+        onTap: () {},
+        alerts: const [
+          PetAlert(type: 'next_vaccination', urgency: DashboardUrgency.overdue),
+          PetAlert(type: 'next_deworming', urgency: DashboardUrgency.upcoming),
+        ],
+      ),
+    );
+
+    expect(find.byIcon(Icons.vaccines), findsOneWidget);
+    expect(find.byIcon(Icons.bug_report), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('Vacuna vencida, Desparasitación próxima')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('sin pendientes no dibuja íconos', (tester) async {
+    await _pump(tester, PetCard(pet: _pet(), onTap: () {}));
+
+    expect(find.byIcon(Icons.vaccines), findsNothing);
   });
 }
 

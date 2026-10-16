@@ -15,7 +15,9 @@ import 'package:pet_pal/providers/theme_mode_provider.dart';
 import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:pet_pal/widgets/pet_card.dart';
-import 'package:pet_pal/widgets/today_dashboard_section.dart';
+import 'package:pet_pal/models/dashboard_event.dart';
+import 'package:pet_pal/providers/dashboard_providers.dart';
+import 'package:pet_pal/screens/today_events_screen/today_events_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -106,6 +108,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('Mis Mascotas'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.event_note),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const TodayEventsScreen()),
+            ),
+            tooltip: 'Próximos eventos',
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.push(
@@ -199,11 +209,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             );
           }
 
+          final alertsByPet = <String, List<DashboardEvent>>{};
+          for (final event in ref.watch(todayDashboardProvider).value ?? const <DashboardEvent>[]) {
+            alertsByPet.putIfAbsent(event.petId, () => []).add(event);
+          }
+
           return CustomScrollView(
             slivers: [
-              const SliverToBoxAdapter(child: TodayDashboardSection()),
               SliverPadding(
-                padding: kFabListPadding.copyWith(left: 16, right: 16, top: 8),
+                padding: kFabListPadding.copyWith(left: 16, right: 16, top: 12),
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
@@ -214,7 +228,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final pet = pets[index];
-                      return PetCard(pet: pet, onTap: () => _openPet(pet));
+                      return PetCard(
+                        pet: pet,
+                        alerts: petAlertsFor(alertsByPet[pet.id] ?? const []),
+                        onTap: () => _openPet(pet),
+                      );
                     },
                     childCount: pets.length,
                   ),
