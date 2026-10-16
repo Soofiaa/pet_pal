@@ -15,6 +15,7 @@ import 'package:pet_pal/screens/guide_screen/guide_screen.dart';
 import 'package:pet_pal/screens/search_screen/search_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -305,15 +306,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         error: (error, _) => Center(child: Text('Error al cargar mascotas: $error')),
         data: (pets) {
           if (pets.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'Aquí aparecerán tus mascotas registradas.\nPresiona "+" para añadir una nueva.',
-                  style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            return const EmptyState(
+              icon: Icons.pets,
+              message: 'Aún no tienes mascotas',
+              actionHint: 'Presiona "+" para añadir la primera.',
             );
           }
 
