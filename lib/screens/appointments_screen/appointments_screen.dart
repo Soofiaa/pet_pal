@@ -31,7 +31,10 @@ class AppointmentsScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
               child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -110,7 +113,7 @@ class AppointmentsScreen extends ConsumerWidget {
                       if (appointment.isCompleted)
                         const Icon(Icons.check_circle, color: Colors.green),
                       IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
                         onPressed: () async {
                           await Navigator.push(
                             context,
@@ -129,7 +132,7 @@ class AppointmentsScreen extends ConsumerWidget {
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                         onPressed: () => _deleteAppointment(context, ref, appointment),
                       ),
                     ],

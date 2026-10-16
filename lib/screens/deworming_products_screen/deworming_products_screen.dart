@@ -46,7 +46,7 @@ class DewormingProductsScreen extends ConsumerWidget {
                     subtitle: Text(
                         'Frecuencia: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''} · Tipo: ${product.defaultType ?? 'No definido'}'),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
+                      icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                       onPressed: () => _confirmDelete(context, ref, product),
                     ),
                     onTap: () => _showAddEditDialog(context, product),

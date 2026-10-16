@@ -33,7 +33,7 @@ class VaccinationProductsScreen extends ConsumerWidget {
                     subtitle: Text(
                         'Frecuencia recomendada: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''}'),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
+                      icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                       onPressed: () => _confirmDelete(context, ref, product),
                     ),
                     onTap: () => _showAddEditDialog(context, product),

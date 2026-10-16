@@ -42,7 +42,10 @@ class VitalSignScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
               child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
             ),
           ],

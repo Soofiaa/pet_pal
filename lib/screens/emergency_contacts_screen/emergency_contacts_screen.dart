@@ -58,7 +58,7 @@ class EmergencyContactsScreen extends ConsumerWidget {
                             onPressed: () => _makeCall(contact.phone),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
+                            icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                             onPressed: () => _confirmDelete(context, ref, contact),
                           ),
                         ],

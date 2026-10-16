@@ -157,7 +157,10 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
               child: const Text('Restaurar', style: TextStyle(color: Colors.white)),
             ),
           ],

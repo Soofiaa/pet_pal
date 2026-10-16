@@ -43,7 +43,7 @@ class LocationEntriesScreen extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
+                      icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                       onPressed: () => _confirmDelete(context, ref, entry),
                     ),
                     onTap: () => _showAddEditDialog(context, entry),

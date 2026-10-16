@@ -212,7 +212,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
                               onPressed: () async {
                                 await Navigator.push(
                                   context,
@@ -231,7 +231,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
+                              icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                               onPressed: () => _confirmDelete(document),
                             ),
                           ],
