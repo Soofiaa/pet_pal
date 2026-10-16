@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously, duplicate_ignore
 
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication.dart';
@@ -182,6 +183,22 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _nameController.text,
+        _dosageController.text,
+        _frequencyController.text,
+        _notesController.text,
+        _startDate,
+        _endDate,
+        _timesPerDay,
+        _reminderTimes.join(','),
+      ],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.medication == null ? 'Añadir Medicación' : 'Editar Medicación'),

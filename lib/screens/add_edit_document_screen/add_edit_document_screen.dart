@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -191,6 +192,19 @@ class _AddEditDocumentScreenState extends ConsumerState<AddEditDocumentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _tituloController.text,
+        _notasController.text,
+        _categoria,
+        _fecha,
+        _filePath,
+      ],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     final String? fileName = _filePath != null ? p.basename(_filePath!) : null;
     final bool fileIsPdf =
         fileName != null && p.extension(fileName).toLowerCase() == '.pdf';

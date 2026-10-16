@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/food_record.dart';
 import 'package:pet_pal/providers/food_record_providers.dart';
@@ -170,6 +171,19 @@ class _AddEditFoodRecordScreenState extends ConsumerState<AddEditFoodRecordScree
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _foodNameController.text,
+        _notesController.text,
+        _startDate,
+        _endDate,
+        _isOngoing,
+      ],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Registro de Alimento' : 'Añadir Registro de Alimento'),

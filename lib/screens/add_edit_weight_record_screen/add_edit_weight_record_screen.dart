@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/weight_record.dart';
@@ -98,6 +99,13 @@ class _AddEditWeightRecordScreenState extends ConsumerState<AddEditWeightRecordS
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [_weightController.text, _date],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Peso' : 'Añadir Nuevo Peso'),

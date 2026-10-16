@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:pet_pal/screens/image_crop_screen/image_crop_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
@@ -259,6 +260,22 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _nameController.text,
+        _speciesController.text,
+        _breedController.text,
+        _colorController.text,
+        _microchipController.text,
+        _isNeutered,
+        _selectedDateOfBirth,
+        _imagePath,
+      ],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Mascota' : 'Añadir Nueva Mascota'),

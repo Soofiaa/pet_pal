@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
@@ -224,6 +225,21 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _productController.text,
+        _dateController.text,
+        _nextDateController.text,
+        _selectedType,
+        _selectedFrequency,
+        _reminderDaysAhead,
+        _isRecurring,
+      ],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.deworming == null ? 'Añadir Desparasitación' : 'Editar Desparasitación'),

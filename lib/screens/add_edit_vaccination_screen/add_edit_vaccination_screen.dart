@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
 import 'package:pet_pal/screens/image_crop_screen/image_crop_screen.dart';
@@ -416,6 +417,20 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _vaccineNameController.text,
+        _selectedDate,
+        _nextDueDate,
+        _reminderDaysAhead,
+        _stickerPhotoPath,
+        _extraPhotoPath,
+      ],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Vacunación' : 'Añadir Nueva Vacunación'),

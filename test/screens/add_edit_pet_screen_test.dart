@@ -20,6 +20,35 @@ void main() {
     expect(find.text('Toca para elegir'), findsOneWidget);
   });
 
+  testWidgets('salir del formulario con cambios sin guardar pide confirmación', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const AddEditPetScreen()),
+            ),
+            child: const Text('abrir'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('¿Descartar cambios?'), findsNothing);
+
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'Luna');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('¿Descartar cambios?'), findsOneWidget);
+  });
+
   testWidgets('guardar sin elegir fecha de nacimiento muestra el error', (tester) async {
     await pumpApp(tester, const AddEditPetScreen());
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/food_allergy.dart';
 import 'package:pet_pal/providers/food_allergy_providers.dart';
@@ -115,6 +116,13 @@ class _AddEditFoodAllergyScreenState extends ConsumerState<AddEditFoodAllergyScr
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [_allergyController.text, _selectedDate],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Alergia' : 'Añadir Alergia'),
