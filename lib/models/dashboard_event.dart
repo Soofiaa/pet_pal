@@ -71,7 +71,8 @@ class DashboardEvent {
   ///    qué es lo más urgente de cada tipo, no un timeline completo — si
   ///    hay varias citas o varias vacunas pendientes, solo se ve la más
   ///    próxima; a medida que se resuelve, la siguiente pasa a ocupar su
-  ///    lugar.
+  ///    lugar. Excepción: vacunas y desparasitaciones vencidas se conservan
+  ///    todas (ver `_typesKeepingOverdue`).
   static List<DashboardEvent> fromEventMaps(
     List<Map<String, dynamic>> rawEvents,
     Pet pet, {
@@ -135,10 +136,16 @@ class DashboardEvent {
     return _keepSoonestPerType(events);
   }
 
+  /// Tipos en los que un evento vencido no se oculta tras el próximo: las
+  /// vacunas y desparasitaciones ya vienen reducidas a una por nombre, así
+  /// que una dosis atrasada no puede quedar tapada por otra futura.
+  static const _typesKeepingOverdue = {'next_vaccination', 'next_deworming'};
+
   /// Se queda con un único evento por tipo: el de fecha más próxima a
   /// futuro (hoy cuenta como futuro) o, si todos los de ese tipo ya están
   /// vencidos, el menos vencido (el que pasó más recientemente) — así una
   /// tarea atrasada sigue siendo visible en vez de desaparecer del panel.
+  /// En [_typesKeepingOverdue] además se conservan todos los vencidos.
   static List<DashboardEvent> _keepSoonestPerType(
     List<DashboardEvent> events,
   ) {
@@ -149,7 +156,15 @@ class DashboardEvent {
         winnerByType[event.type] = event;
       }
     }
-    return winnerByType.values.toList();
+    final result = winnerByType.values.toList();
+    for (final event in events) {
+      if (_typesKeepingOverdue.contains(event.type) &&
+          event.urgency == DashboardUrgency.overdue &&
+          !identical(winnerByType[event.type], event)) {
+        result.add(event);
+      }
+    }
+    return result;
   }
 
   static bool _isSoonerForPanel(DashboardEvent a, DashboardEvent b) {

@@ -277,5 +277,36 @@ void main() {
       expect(appointmentEvents, hasLength(1));
       expect(appointmentEvents.first.title, 'Cita: Vencida hace poco');
     });
+
+    test(
+        'una vacuna vencida sigue visible aunque haya otra futura', () async {
+      final dbHelper = DatabaseHelper();
+      final pet = await _insertPet(dbHelper, 'Firulais');
+
+      await dbHelper.insertVaccination(Vaccination(
+        petId: pet.id,
+        vaccineName: 'Rabia',
+        date: DateTime.now().subtract(const Duration(days: 400)),
+        nextDueDate: DateTime.now().subtract(const Duration(days: 5)),
+      ));
+      await dbHelper.insertVaccination(Vaccination(
+        petId: pet.id,
+        vaccineName: 'Polivalente',
+        date: DateTime.now().subtract(const Duration(days: 5)),
+        nextDueDate: DateTime.now().add(const Duration(days: 200)),
+      ));
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final events = await container.read(todayDashboardProvider.future);
+
+      final titles = events
+          .where((e) => e.type == 'next_vaccination')
+          .map((e) => e.title)
+          .toList();
+      expect(titles, containsAll(['Próxima Dosis: Rabia', 'Próxima Dosis: Polivalente']));
+      expect(titles, hasLength(2));
+    });
   });
 }
