@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -236,6 +237,11 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     final gridItemWidth =
         (screenWidth - (horizontalPadding * 2) - (crossAxisSpacing * (crossAxisCount - 1))) / crossAxisCount;
 
+    // Alto de tarjeta calculado con la fuente ya acotada (ver _buildFeatureCard)
+    // para que no desborde con texto grande.
+    final featureLabelHeight = _featureLabelScaler(context).scale(12) * 1.4 * 2;
+    final featureCardHeight = max(gridItemWidth, 50 + 8 + featureLabelHeight + 16);
+
     final microchipText = (_pet.microchipNumber == null || _pet.microchipNumber!.isEmpty)
         ? 'No registrado'
         : _pet.microchipNumber!;
@@ -332,7 +338,9 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Column(
+                  SizedBox(
+                    width: gridItemWidth,
+                    child: Column(
                     children: [
                       SizedBox(
                         height: gridItemWidth,
@@ -355,6 +363,8 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                         label: Text(
                           _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
                           style: const TextStyle(fontSize: 10),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         avatar: Icon(
                           _pet.isNeutered ? Icons.check_circle : Icons.cancel,
@@ -363,6 +373,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                         ),
                       ),
                     ],
+                    ),
                   ),
                 ],
               ),
@@ -427,10 +438,13 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      GridView.count(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: crossAxisSpacing,
-                        mainAxisSpacing: mainAxisSpacing,
+                      GridView(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: crossAxisSpacing,
+                          mainAxisSpacing: mainAxisSpacing,
+                          mainAxisExtent: featureCardHeight,
+                        ),
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         children: features.where((feature) => feature['group'] == group).map((feature) {
@@ -453,6 +467,11 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     );
   }
 
+  static const double _maxFeatureLabelScale = 1.3;
+
+  TextScaler _featureLabelScaler(BuildContext context) =>
+      MediaQuery.textScalerOf(context).clamp(maxScaleFactor: _maxFeatureLabelScale);
+
   Widget _buildFeatureCard(
       BuildContext context, {
         required String title,
@@ -471,10 +490,16 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           children: [
             Icon(icon, size: 50, color: color),
             const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
-              textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                title,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+                textAlign: TextAlign.center,
+                textScaler: _featureLabelScaler(context),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
