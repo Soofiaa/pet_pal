@@ -188,6 +188,79 @@ void main() {
     });
 
     test(
+        'una desparasitación vencida de otro producto ya superada por una '
+        'aplicación más reciente que cubre lo mismo no aparece como vencida',
+        () async {
+      final dbHelper = DatabaseHelper();
+      final pet = await _insertPet(dbHelper, 'Olivia');
+
+      await dbHelper.insertDeworming(Deworming(
+        id: 'nexgard-viejo',
+        petId: pet.id,
+        product: 'Nexgard spectra',
+        date: DateTime.now().subtract(const Duration(days: 150)),
+        nextDate: DateTime.now().subtract(const Duration(days: 120)),
+      ));
+      await dbHelper.insertDeworming(Deworming(
+        id: 'interno-externo-viejo',
+        petId: pet.id,
+        product: 'Interno / Externo',
+        date: DateTime.now().subtract(const Duration(days: 300)),
+        nextDate: DateTime.now().subtract(const Duration(days: 270)),
+        type: 'ambas',
+      ));
+      await dbHelper.insertDeworming(Deworming(
+        id: 'simparica-reciente',
+        petId: pet.id,
+        product: 'Simparica Trio',
+        date: DateTime.now().subtract(const Duration(days: 20)),
+        nextDate: DateTime.now().add(const Duration(days: 10)),
+        type: 'ambas',
+      ));
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final events = await container.read(todayDashboardProvider.future);
+
+      final next = events.where((e) => e.type == 'next_deworming').toList();
+      expect(next, hasLength(1));
+      expect(next.first.title, contains('Simparica Trio'));
+    });
+
+    test(
+        'una desparasitación externa vencida se conserva si la más reciente '
+        'solo cubre la interna', () async {
+      final dbHelper = DatabaseHelper();
+      final pet = await _insertPet(dbHelper, 'Olivia');
+
+      await dbHelper.insertDeworming(Deworming(
+        id: 'externa-vencida',
+        petId: pet.id,
+        product: 'Pipeta',
+        date: DateTime.now().subtract(const Duration(days: 90)),
+        nextDate: DateTime.now().subtract(const Duration(days: 60)),
+        type: 'externa',
+      ));
+      await dbHelper.insertDeworming(Deworming(
+        id: 'interna-reciente',
+        petId: pet.id,
+        product: 'Drontal',
+        date: DateTime.now().subtract(const Duration(days: 10)),
+        nextDate: DateTime.now().add(const Duration(days: 80)),
+        type: 'interna',
+      ));
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final events = await container.read(todayDashboardProvider.future);
+
+      final next = events.where((e) => e.type == 'next_deworming').toList();
+      expect(next, hasLength(2));
+    });
+
+    test(
         'con vacunas de nombres DISTINTOS, el panel muestra la de próxima '
         'dosis más cercana en vez de la de la vacuna aplicada más '
         'recientemente', () async {

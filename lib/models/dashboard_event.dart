@@ -108,6 +108,11 @@ class DashboardEvent {
 
       final date = raw['date'];
       if (date is! DateTime) continue;
+      if (type == 'next_deworming' &&
+          date.isBefore(DateTime.now()) &&
+          _isSupersededDeworming(raw, rawEvents)) {
+        continue;
+      }
 
       // ✅ Lógica inteligente de toma
       bool isTaken = false;
@@ -134,6 +139,35 @@ class DashboardEvent {
     }
 
     return _keepSoonestPerType(events);
+  }
+
+  /// Una desparasitación vencida deja de ser relevante si hay una aplicación
+  /// posterior (de cualquier producto) que cubre lo mismo: 'ambas' cubre
+  /// todo, y un registro sin cobertura conocida (legado) lo supera cualquier
+  /// aplicación más nueva.
+  static bool _isSupersededDeworming(
+    Map<String, dynamic> raw,
+    List<Map<String, dynamic>> rawEvents,
+  ) {
+    final id = raw['id'];
+    final coverage = raw['coverage'] as String?;
+    final applied = rawEvents.firstWhere(
+      (e) => e['type'] == 'deworming' && e['id'] == id,
+      orElse: () => const {},
+    )['date'];
+    if (applied is! DateTime) return false;
+    final knownCoverage =
+        coverage == 'interna' || coverage == 'externa' || coverage == 'ambas';
+
+    return rawEvents.any((other) {
+      if (other['type'] != 'deworming' || other['id'] == id) return false;
+      final otherDate = other['date'];
+      if (otherDate is! DateTime || !otherDate.isAfter(applied)) return false;
+      final otherCoverage = other['coverage'] as String?;
+      return !knownCoverage ||
+          otherCoverage == 'ambas' ||
+          otherCoverage == coverage;
+    });
   }
 
   /// Tipos en los que un evento vencido no se oculta tras el próximo: las

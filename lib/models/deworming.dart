@@ -176,6 +176,7 @@ class Deworming {
         'title': 'Desparasitación$typeSuffix: ${deworming.product}',
         'date': deworming.date,
         'name': deworming.product,
+        'coverage': deworming.type,
       });
       final effectiveNextDate = deworming.effectiveNextDate();
       if (effectiveNextDate != null) {
@@ -186,6 +187,7 @@ class Deworming {
           'title': 'Próxima desparasitación$typeSuffix: ${deworming.product}',
           'date': effectiveNextDate,
           'name': deworming.product,
+          'coverage': deworming.type,
         });
       }
     }
