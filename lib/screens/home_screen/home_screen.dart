@@ -219,11 +219,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               SliverPadding(
                 padding: kFabListPadding.copyWith(left: 16, right: 16, top: 12),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: pets.length == 1 ? 1 : 2,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.0,
+                    childAspectRatio: pets.length == 1 ? 1.0 : 0.85,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
