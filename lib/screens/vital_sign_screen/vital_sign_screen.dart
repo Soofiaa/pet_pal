@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/models/vital_sign_record.dart';
+import 'package:pet_pal/utils/chart_format.dart';
 import 'package:pet_pal/providers/vital_sign_providers.dart';
 import 'package:pet_pal/screens/add_edit_vital_sign_screen/add_edit_vital_sign_screen.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
@@ -168,7 +169,7 @@ class VitalSignScreen extends ConsumerWidget {
                     return SideTitleWidget(
                       axisSide: meta.axisSide,
                       child: Text(
-                        '${value.toStringAsFixed(0)} ${_config.unit}',
+                        '${formatAxisValue(value, meta.appliedInterval)} ${_config.unit}',
                         style: const TextStyle(fontSize: 10),
                       ),
                     );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/weight_record.dart';
+import 'package:pet_pal/utils/chart_format.dart';
 import 'package:pet_pal/providers/weight_record_providers.dart';
 import 'package:pet_pal/screens/add_edit_weight_record_screen/add_edit_weight_record_screen.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
@@ -134,7 +135,7 @@ class WeightRecordScreen extends ConsumerWidget {
                     return SideTitleWidget(
                       axisSide: meta.axisSide,
                       child: Text(
-                        '${value.toStringAsFixed(0)} kg',
+                        '${formatAxisValue(value, meta.appliedInterval)} kg',
                         style: const TextStyle(fontSize: 10),
                       ),
                     );
