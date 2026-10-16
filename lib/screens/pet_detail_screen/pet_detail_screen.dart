@@ -26,6 +26,7 @@ import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/services/csv_export_service.dart';
 import 'package:pet_pal/theme/category_colors.dart';
 import 'package:pet_pal/utils/entity_colors.dart';
+import 'package:pet_pal/utils/delete_pet_flow.dart';
 
 class PetDetailScreen extends StatefulWidget {
   final Pet pet;
@@ -52,6 +53,16 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     if (updated != null && mounted) {
       setState(() => _pet = updated);
     }
+  }
+
+  Future<void> _deletePet() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final name = _pet.name;
+    final deleted = await confirmAndDeletePet(context, _pet);
+    if (!deleted) return;
+    messenger.showSnackBar(SnackBar(content: Text('$name eliminada con éxito.')));
+    navigator.pop();
   }
 
   Future<void> _generateAndShareHealthSummary() async {
@@ -264,11 +275,13 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
             )
           else
             PopupMenuButton<String>(
-              icon: const Icon(Icons.ios_share),
-              tooltip: 'Compartir y exportar',
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'Más opciones',
               onSelected: (value) {
                 if (value == 'pdf') {
                   _generateAndShareHealthSummary();
+                } else if (value == 'delete') {
+                  _deletePet();
                 } else {
                   _exportCsvHistory(value);
                 }
@@ -291,6 +304,15 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                 PopupMenuItem(value: 'vaccinations', child: Text('Historial de vacunas')),
                 PopupMenuItem(value: 'medications', child: Text('Historial de medicación')),
                 PopupMenuItem(value: 'deworming', child: Text('Historial de desparasitación')),
+                PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('Eliminar mascota'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
               ],
             ),
           IconButton(

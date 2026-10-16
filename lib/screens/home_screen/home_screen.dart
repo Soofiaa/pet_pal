@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/screens/add_edit_pet_screen/add_edit_pet_screen.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'dart:io';
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
 import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_screen.dart';
@@ -13,7 +12,6 @@ import 'package:pet_pal/screens/location_entries_screen/location_entries_screen.
 import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.dart';
 import 'package:pet_pal/screens/guide_screen/guide_screen.dart';
 import 'package:pet_pal/screens/search_screen/search_screen.dart';
-import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
@@ -26,62 +24,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  Future<bool?> _deletePet(String petId, String petName) async {
-    final bool? confirm = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar Eliminación'),
-          content: Text('¿Estás seguro de que quieres eliminar a $petName? Esta acción no se puede deshacer.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onError,
-              ),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirm == true) {
-      // Documentos y notas guardan archivos en disco (PDFs/imágenes/fotos)
-      // que SQLite nunca borra por sí solo. Hay que leerlos y borrar sus
-      // archivos ANTES de eliminar la mascota: una vez que deletePet()
-      // corre, el cascade borra esas filas y ya no habría forma de saber
-      // qué archivos correspondían a esta mascota.
-      final documents = await DatabaseHelper().getDocumentsForPet(petId);
-      for (final document in documents) {
-        await ImageStorageService.deleteFileIfExist(document.filePath);
-      }
-
-      final notes = await DatabaseHelper().getNotesForPet(petId);
-      for (final note in notes) {
-        await ImageStorageService.deleteFilesIfExist(note.photoPaths);
-      }
-
-      // petsProvider.notifier.deletePet (nunca DatabaseHelper().deletePet
-      // directo) para que PetRepository.deletePet cancele antes todos los
-      // recordatorios pendientes de la mascota.
-      await ref.read(petsProvider.notifier).deletePet(petId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$petName eliminada con éxito.')),
-        );
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-
   bool _hasValidPetImage(Pet pet) {
     final imagePath = pet.imageUrl;
     if (imagePath == null || imagePath.trim().isEmpty) return false;
@@ -127,6 +69,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _drawerSection(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerLink(IconData icon, String title, Widget page) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (context) => page));
+      },
+    );
+  }
+
   Widget _buildPetCard(Pet pet) {
     return GestureDetector(
       onTap: () async {
@@ -137,9 +105,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
         ref.read(petsProvider.notifier).refresh();
-      },
-      onLongPress: () {
-        _deletePet(pet.id, pet.name);
       },
       child: Card(
         elevation: 4.0,
@@ -172,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 6),
                     Text(
                       '${pet.species} \n${pet.detailedAge}',
-                      style: const TextStyle(fontSize: 20, color: Colors.grey),
+                      style: TextStyle(fontSize: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -232,71 +197,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+            _drawerSection('Ajustes'),
             ListTile(
               leading: const Icon(Icons.dark_mode),
               title: const Text('Apariencia'),
               subtitle: Text(_themeModeLabel(ref.watch(themeModeProvider))),
               onTap: () => _showThemeModeDialog(context),
             ),
-            ListTile(
-              leading: const Icon(Icons.bug_report),
-              title: const Text('Catálogo de Desparasitantes'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DewormingProductsScreen()),
-                );
-              },
+            _drawerLink(
+              Icons.notifications,
+              'Notificaciones',
+              const BackupSettingsScreen(section: BackupSettingsSection.notifications),
             ),
-            ListTile(
-              leading: const Icon(Icons.location_on),
-              title: const Text('Catálogo de Ubicaciones'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LocationEntriesScreen()),
-                );
-              },
+            _drawerLink(
+              Icons.settings_backup_restore,
+              'Respaldo y restauración',
+              const BackupSettingsScreen(section: BackupSettingsSection.backup),
             ),
-            ListTile(
-              leading: const Icon(Icons.vaccines),
-              title: const Text('Catálogo de Vacunas'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const VaccinationProductsScreen()),
-                );
-              },
+            const Divider(),
+            _drawerSection('Catálogos'),
+            _drawerLink(Icons.bug_report, 'Desparasitantes', const DewormingProductsScreen()),
+            _drawerLink(Icons.location_on, 'Ubicaciones', const LocationEntriesScreen()),
+            _drawerLink(Icons.vaccines, 'Vacunas', const VaccinationProductsScreen()),
+            const Divider(),
+            _drawerSection('Ayuda'),
+            _drawerLink(Icons.menu_book, 'Guía de PetPal', const GuideScreen()),
+                ],
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.menu_book),
-              title: const Text('Guía de PetPal'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const GuideScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_backup_restore),
-              title: const Text('Notificaciones y Respaldo'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BackupSettingsScreen()),
-                );
-              },
-            ),
-            const Spacer(),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('Versión 1.0.0 (v26)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Versión 1.0.0 (v26)',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+              ),
             ),
           ],
         ),
@@ -320,20 +258,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final pet = pets[index];
-                    return Dismissible(
-                      key: Key(pet.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Theme.of(context).colorScheme.error,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
-                      ),
-                      confirmDismiss: (direction) async {
-                        return await _deletePet(pet.id, pet.name);
-                      },
-                      child: _buildPetCard(pet),
-                    );
+                    return _buildPetCard(pet);
                   },
                   childCount: pets.length,
                 ),
@@ -343,6 +268,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Añadir mascota',
         onPressed: () async {
           await Navigator.push(
             context,

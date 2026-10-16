@@ -36,16 +36,17 @@ void main() {
     await _pump(tester);
 
     expect(find.byTooltip('Editar mascota'), findsOneWidget);
-    expect(find.byTooltip('Compartir y exportar'), findsOneWidget);
+    expect(find.byTooltip('Más opciones'), findsOneWidget);
     expect(find.byIcon(Icons.picture_as_pdf), findsNothing);
   });
 
-  testWidgets('el menú agrupa la ficha PDF y los CSV con etiquetas claras', (tester) async {
+  testWidgets('el menú agrupa la ficha PDF, los CSV y eliminar con etiquetas claras', (tester) async {
     await _pump(tester);
 
-    await tester.tap(find.byTooltip('Compartir y exportar'));
+    await tester.tap(find.byTooltip('Más opciones'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Eliminar mascota'), findsOneWidget);
     expect(find.text('Ficha clínica (PDF)'), findsOneWidget);
     expect(find.text('Exportar historial (CSV)'), findsOneWidget);
     expect(find.text('Historial de peso'), findsOneWidget);
