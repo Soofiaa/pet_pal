@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/screens/home_screen/home_screen.dart'; // Asegúrate de que esta sea tu pantalla principal
 import 'package:pet_pal/services/notification_service.dart'; // Importar el servicio de notificaciones
+import 'package:pet_pal/theme/app_theme.dart';
 import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:pet_pal/services/orphan_cleanup_service.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
@@ -123,102 +124,8 @@ class _PetPalAppState extends ConsumerState<PetPalApp> {
     return MaterialApp(
       navigatorKey: navigatorKey, // Asigna la GlobalKey al Navigator
       title: 'PetPal',
-      theme: ThemeData(
-        primarySwatch: Colors.blueGrey, // Puedes ajustar esto a tu gusto
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF86B6F6), // Azul cielo claro
-          foregroundColor: Colors.white,
-          centerTitle: true,
-          elevation: 4,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFF86B6F6), // Usa el mismo color principal
-          foregroundColor: Colors.white,
-        ),
-        cardTheme: CardTheme.of(context).copyWith(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF86B6F6), // Color principal para botones elevados
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFF86B6F6)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFF5278D9), width: 2), // Un poco más oscuro para enfocar
-          ),
-          labelStyle: const TextStyle(color: Color(0xFF5278D9)),
-          floatingLabelStyle: const TextStyle(color: Color(0xFF5278D9)),
-        ),
-        // Puedes añadir más personalizaciones aquí
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        colorSchemeSeed: const Color(0xFF86B6F6),
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF2C3E50),
-          foregroundColor: Colors.white,
-          centerTitle: true,
-          elevation: 4,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFF5278D9),
-          foregroundColor: Colors.white,
-        ),
-        cardTheme: CardTheme.of(context).copyWith(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF5278D9),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFF5278D9)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFF86B6F6), width: 2),
-          ),
-          labelStyle: const TextStyle(color: Color(0xFF86B6F6)),
-          floatingLabelStyle: const TextStyle(color: Color(0xFF86B6F6)),
-        ),
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       themeMode: ref.watch(themeModeProvider),
       home: const HomeScreen(), // Tu pantalla principal
     );

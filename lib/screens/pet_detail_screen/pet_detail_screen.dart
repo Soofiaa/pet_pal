@@ -24,6 +24,7 @@ import 'package:pet_pal/screens/vital_sign_screen/vital_sign_screen.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/services/csv_export_service.dart';
+import 'package:pet_pal/theme/category_colors.dart';
 import 'package:pet_pal/utils/entity_colors.dart';
 
 class PetDetailScreen extends StatefulWidget {
@@ -349,7 +350,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                           context,
                           title: 'Eventos',
                           icon: Icons.calendar_month,
-                          color: Colors.blue,
+                          color: CategoryColors.agenda,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -494,7 +495,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 title,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
                 textAlign: TextAlign.center,
                 textScaler: _featureLabelScaler(context),
                 maxLines: 2,
