@@ -259,28 +259,43 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
           else
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf),
-              tooltip: 'Compartir ficha clínica',
-              onPressed: _generateAndShareHealthSummary,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.ios_share),
+              tooltip: 'Compartir y exportar',
+              onSelected: (value) {
+                if (value == 'pdf') {
+                  _generateAndShareHealthSummary();
+                } else {
+                  _exportCsvHistory(value);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'pdf',
+                  child: ListTile(
+                    leading: Icon(Icons.picture_as_pdf),
+                    title: Text('Ficha clínica (PDF)'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuDivider(),
+                PopupMenuItem(
+                  enabled: false,
+                  child: Text('Exportar historial (CSV)'),
+                ),
+                PopupMenuItem(value: 'weight', child: Text('Historial de peso')),
+                PopupMenuItem(value: 'vaccinations', child: Text('Historial de vacunas')),
+                PopupMenuItem(value: 'medications', child: Text('Historial de medicación')),
+                PopupMenuItem(value: 'deworming', child: Text('Historial de desparasitación')),
+              ],
             ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.ios_share),
-            tooltip: 'Exportar historial a CSV',
-            onSelected: _exportCsvHistory,
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'weight', child: Text('Historial de peso')),
-              PopupMenuItem(value: 'vaccinations', child: Text('Historial de vacunas')),
-              PopupMenuItem(value: 'medications', child: Text('Historial de medicación')),
-              PopupMenuItem(value: 'deworming', child: Text('Historial de desparasitación')),
-            ],
-          ),
           IconButton(
             icon: const Icon(Icons.edit),
+            tooltip: 'Editar mascota',
             onPressed: () async {
               await Navigator.push(
                 context,
@@ -323,57 +338,67 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                               child: ImageStorageService.isValidLocalFile(_pet.imageUrl)
                                   ? Image.file(File(_pet.imageUrl!), fit: BoxFit.cover)
                                   : Container(
-                                      color: Colors.grey[200],
-                                      child: const Icon(Icons.broken_image, size: 70, color: Colors.grey),
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                      child: Icon(Icons.broken_image, size: 70, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                     ),
                             )
                           : Container(
                               decoration: BoxDecoration(
-                                color: Colors.grey[200],
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
-                                child: Icon(Icons.pets, size: 80, color: Colors.grey),
+                              child: Center(
+                                child: Icon(Icons.pets, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               ),
                             ),
                     ),
                   ),
-                  const Spacer(),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_pet.species} · ${_pet.breed}',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(_pet.detailedAge),
+                          Text('Color: ${_pet.color}'),
+                          const SizedBox(height: 8),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            label: Text(
+                              _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            avatar: Icon(
+                              _pet.isNeutered ? Icons.check_circle : Icons.remove_circle_outline,
+                              size: 14,
+                              color: _pet.isNeutered
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   SizedBox(
                     width: gridItemWidth,
-                    child: Column(
-                    children: [
-                      SizedBox(
-                        height: gridItemWidth,
-                        width: gridItemWidth,
-                        child: _buildFeatureCard(
+                    height: gridItemWidth,
+                    child: _buildFeatureCard(
+                      context,
+                      title: 'Eventos',
+                      icon: Icons.calendar_month,
+                      color: CategoryColors.agenda,
+                      onTap: () {
+                        Navigator.push(
                           context,
-                          title: 'Eventos',
-                          icon: Icons.calendar_month,
-                          color: CategoryColors.agenda,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Chip(
-                        label: Text(
-                          _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
-                          style: const TextStyle(fontSize: 10),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        avatar: Icon(
-                          _pet.isNeutered ? Icons.check_circle : Icons.cancel,
-                          size: 14,
-                          color: _pet.isNeutered ? Colors.green : Colors.red,
-                        ),
-                      ),
-                    ],
+                          MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -401,7 +426,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                             Text(
                               microchipText,
                               style: TextStyle(
-                                color: microchipHasValue ? null : Colors.grey,
+                                color: microchipHasValue ? null : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
