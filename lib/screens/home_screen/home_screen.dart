@@ -199,18 +199,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             );
           }
 
-          final single = pets.length == 1;
           return CustomScrollView(
             slivers: [
               const SliverToBoxAdapter(child: TodayDashboardSection()),
               SliverPadding(
                 padding: kFabListPadding.copyWith(left: 16, right: 16, top: 8),
                 sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: single ? 1 : 2,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: single ? 2.1 : 1.0,
+                    childAspectRatio: 1.0,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {

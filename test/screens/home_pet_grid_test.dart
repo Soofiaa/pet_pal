@@ -53,10 +53,10 @@ void main() {
     expect(max.dy, greaterThan(olivia.dy));
   });
 
-  testWidgets('con una sola mascota la tarjeta ocupa todo el ancho', (tester) async {
+  testWidgets('con una sola mascota la tarjeta ocupa la mitad del ancho', (tester) async {
     await _pumpHome(tester, [_pet('Olivia')]);
 
     final size = tester.getSize(find.byType(PetCard));
-    expect(size.width, greaterThan(350));
+    expect(size.width, lessThan(200));
   });
 }
