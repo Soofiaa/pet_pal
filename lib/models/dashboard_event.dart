@@ -230,12 +230,37 @@ class DashboardEvent {
       if (raw['type'] != applicationType) continue;
       final date = raw['date'];
       if (date is! DateTime) continue;
-      final name = raw['name'] as String? ?? '';
+      final name = applicationType == 'vaccination'
+          ? vaccineGroupKey(raw['name'] as String? ?? '')
+          : raw['name'] as String? ?? '';
       final currentLatestDate = latestByName[name]?['date'] as DateTime?;
       if (currentLatestDate == null || date.isAfter(currentLatestDate)) {
         latestByName[name] = raw;
       }
     }
     return latestByName.values.map((raw) => raw['id']).toSet();
+  }
+
+  static const _multipleVaccineWords = [
+    'sextuple',
+    'octuple',
+    'polivalente',
+    'multiple',
+  ];
+
+  /// Clave de agrupación de una vacuna: las vacunas múltiples caninas
+  /// (Séxtuple, Óctuple, Polivalente) son equivalentes y comparten clave,
+  /// así que una más nueva reemplaza a la anterior. El resto se agrupa por
+  /// su nombre tal cual.
+  static String vaccineGroupKey(String name) {
+    final normalized = name
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u');
+    if (_multipleVaccineWords.any(normalized.contains)) return 'multiple';
+    return name;
   }
 }

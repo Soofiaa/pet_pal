@@ -59,6 +59,52 @@ void main() {
       expect(winners, {'v-rabia', 'v-poli'});
     });
 
+    test('Séxtuple, Óctuple y Polivalente cuentan como la misma vacuna', () {
+      final sextuple = Vaccination(
+        id: 'v-sextuple',
+        petId: 'pet-1',
+        vaccineName: 'Vacuna Séxtuple Canina',
+        date: DateTime(2025, 9, 16),
+        nextDueDate: DateTime(2026, 9, 16),
+      );
+      final octuple = Vaccination(
+        id: 'v-octuple',
+        petId: 'pet-1',
+        vaccineName: 'Octuple',
+        date: DateTime(2026, 9, 17),
+        nextDueDate: DateTime(2027, 9, 17),
+      );
+
+      expect(_idsWithVisibleNextDose([sextuple, octuple]), {'v-octuple'});
+      expect(_idsWithVisibleNextDose([octuple, sextuple]), {'v-octuple'});
+    });
+
+    test('la agrupación Múltiple no mezcla Rabia ni KC', () {
+      final multiple = Vaccination(
+        id: 'v-multiple',
+        petId: 'pet-1',
+        vaccineName: 'Octuple',
+        date: DateTime(2026, 9, 17),
+      );
+      final rabia = Vaccination(
+        id: 'v-rabia',
+        petId: 'pet-1',
+        vaccineName: 'Vacuna De La Rabia',
+        date: DateTime(2026, 10, 1),
+      );
+      final kc = Vaccination(
+        id: 'v-kc',
+        petId: 'pet-1',
+        vaccineName: 'Vacuna Kc',
+        date: DateTime(2026, 10, 2),
+      );
+
+      expect(
+        _idsWithVisibleNextDose([multiple, rabia, kc]),
+        {'v-multiple', 'v-rabia', 'v-kc'},
+      );
+    });
+
     test('registro sin nextDueDate igual puede ser el ganador de su grupo (no tiene línea que mostrar)', () {
       final vieja = Vaccination(
         id: 'v-vieja',
