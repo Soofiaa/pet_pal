@@ -7,6 +7,7 @@ import 'package:pet_pal/models/note.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/providers/note_providers.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:io';
@@ -29,22 +30,9 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
   List<String> _photoPaths = [];
   bool _isSaving = false;
 
-  // Snapshot para detectar cambios sin guardar al salir (ver _isDirty).
-  late String _initialTitle;
-  late String _initialContent;
-  late DateTime _initialDate;
-  late List<String> _initialPhotoPaths;
-
   final ImagePicker _picker = ImagePicker();
 
   bool get _isEditing => widget.note != null;
-
-  bool get _isDirty {
-    return _titleController.text != _initialTitle ||
-        _contentController.text != _initialContent ||
-        _selectedDate != _initialDate ||
-        !listEquals(_photoPaths, _initialPhotoPaths);
-  }
 
   @override
   void initState() {
@@ -59,19 +47,6 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
       // desincronizado de la base si el usuario salía sin guardar.
       _photoPaths = List.of(widget.note!.photoPaths);
     }
-
-    _markSaved();
-  }
-
-  /// Actualiza el snapshot "guardado" a los valores actuales: usarlo tanto
-  /// al abrir la pantalla (nada sin guardar todavía) como después de un
-  /// guardado exitoso (para que la confirmación de salida no se dispare
-  /// justo cuando se hace el pop programático tras guardar).
-  void _markSaved() {
-    _initialTitle = _titleController.text;
-    _initialContent = _contentController.text;
-    _initialDate = _selectedDate;
-    _initialPhotoPaths = List.of(_photoPaths);
   }
 
   @override
@@ -186,27 +161,6 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
     });
   }
 
-  Future<bool> _confirmDiscardChanges() async {
-    final bool? discard = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Descartar cambios?'),
-        content: const Text('Tenés cambios sin guardar. Si salís ahora, se perderán.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Seguir editando'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Descartar'),
-          ),
-        ],
-      ),
-    );
-    return discard ?? false;
-  }
-
   Future<void> _saveNote() async {
     if (_isSaving) return;
 
@@ -258,8 +212,6 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
         await ImageStorageService.deleteIfTemporary(photoPath);
       }
 
-      _markSaved();
-
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -279,15 +231,13 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope<Object?>(
-      canPop: !_isDirty,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
-        if (didPop) return;
-        final bool shouldDiscard = await _confirmDiscardChanges();
-        if (shouldDiscard && mounted) {
-          Navigator.of(context).pop();
-        }
-      },
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _titleController.text,
+        _contentController.text,
+        _selectedDate,
+        ..._photoPaths,
+      ],
       child: Scaffold(
         appBar: AppBar(
           title: Text(_isEditing ? 'Editar Nota' : 'Añadir Nueva Nota'),
