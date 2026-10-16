@@ -167,6 +167,18 @@ class GuideScreen extends StatelessWidget {
             'buscas.',
       ),
       _GuideCard(
+        icon: Icons.more_vert,
+        color: primary,
+        title: 'Exportar y eliminar una mascota',
+        group: 'Otros',
+        description:
+            'En el perfil de tu mascota, toca el ícono de tres puntos (⋮) '
+            'arriba a la derecha: ahí puedes generar la ficha clínica en PDF, '
+            'exportar el historial en CSV (peso, vacunas, medicación y '
+            'desparasitación) o eliminar a la mascota. Eliminarla no se puede '
+            'deshacer, así que antes te pedimos confirmación.',
+      ),
+      _GuideCard(
         icon: Icons.lock,
         color: primary,
         title: 'Backup y Restauración',
@@ -175,8 +187,8 @@ class GuideScreen extends StatelessWidget {
             'Respalda toda la información de la app —incluyendo archivos '
             'adjuntos— en un solo archivo protegido con contraseña. Puedes '
             'restaurarlo cuando lo necesites. Abre el menú lateral (ícono de '
-            'las tres líneas, arriba a la izquierda) y toca \'Notificaciones '
-            'y Respaldo\'.',
+            'las tres líneas, arriba a la izquierda) y toca \'Respaldo y '
+            'restauración\'.',
       ),
       _GuideCard(
         icon: Icons.location_on,
@@ -187,8 +199,8 @@ class GuideScreen extends StatelessWidget {
             'Guarda lugares que usas seguido —clínicas, peluquerías, hoteles '
             'caninos— con un nombre y un enlace de Google Maps, compartidos '
             'entre todas tus mascotas. Abre el menú lateral (ícono de las '
-            'tres líneas, arriba a la izquierda) y toca \'Catálogo de '
-            'Ubicaciones\' para agregar, editar o eliminar lugares. Al '
+            'tres líneas, arriba a la izquierda) y, en \'Catálogos\', toca '
+            '\'Ubicaciones\' para agregar, editar o eliminar lugares. Al '
             'agendar una cita, puedes elegir uno guardado o ingresar uno '
             'nuevo y, si quieres, guardarlo en el catálogo con un solo toque. '
             'Editar o eliminar un lugar del catálogo nunca afecta a las citas '
