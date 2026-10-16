@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/screens/add_edit_pet_screen/add_edit_pet_screen.dart';
 import 'package:pet_pal/models/pet.dart';
-import 'dart:io';
 import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
 import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_screen.dart';
@@ -13,7 +12,9 @@ import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.da
 import 'package:pet_pal/screens/guide_screen/guide_screen.dart';
 import 'package:pet_pal/screens/search_screen/search_screen.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
+import 'package:pet_pal/widgets/pet_card.dart';
 import 'package:pet_pal/widgets/today_dashboard_section.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -24,12 +25,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _hasValidPetImage(Pet pet) {
-    final imagePath = pet.imageUrl;
-    if (imagePath == null || imagePath.trim().isEmpty) return false;
-    return File(imagePath).existsSync();
-  }
-
   String _themeModeLabel(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:
@@ -95,59 +90,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildPetCard(Pet pet) {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PetDetailScreen(pet: pet),
-          ),
-        );
-        ref.read(petsProvider.notifier).refresh();
-      },
-      child: Card(
-        elevation: 4.0,
-        margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 50.0),
-          child: Row(
-            children: [
-              _hasValidPetImage(pet)
-                  ? CircleAvatar(
-                radius: 50,
-                backgroundImage: FileImage(File(pet.imageUrl!)),
-              )
-                  : const CircleAvatar(
-                radius: 50,
-                child: Icon(Icons.pets, size: 60),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      pet.name,
-                      style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${pet.species} \n${pet.detailedAge}',
-                      style: TextStyle(fontSize: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Future<void> _openPet(Pet pet) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PetDetailScreen(pet: pet)),
     );
+    ref.read(petsProvider.notifier).refresh();
   }
 
   @override
@@ -251,16 +199,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             );
           }
 
+          final single = pets.length == 1;
           return CustomScrollView(
             slivers: [
               const SliverToBoxAdapter(child: TodayDashboardSection()),
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final pet = pets[index];
-                    return _buildPetCard(pet);
-                  },
-                  childCount: pets.length,
+              SliverPadding(
+                padding: kFabListPadding.copyWith(left: 16, right: 16, top: 8),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: single ? 1 : 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: single ? 1.5 : 0.85,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final pet = pets[index];
+                      return PetCard(pet: pet, onTap: () => _openPet(pet));
+                    },
+                    childCount: pets.length,
+                  ),
                 ),
               ),
             ],

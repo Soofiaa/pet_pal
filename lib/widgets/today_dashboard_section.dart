@@ -49,38 +49,47 @@ class TodayDashboardSection extends ConsumerWidget {
         final remaining = selection.hiddenCount;
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0),
+          child: Card(
+            elevation: 0,
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Próximos', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  if (remaining > 0)
-                    TextButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TodayEventsScreen())),
-                      child: Text('Ver todo ($remaining más)'),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Próximos', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        if (remaining > 0)
+                          TextButton(
+                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TodayEventsScreen())),
+                            child: Text('Ver todo ($remaining más)'),
+                          ),
+                      ],
                     ),
+                  ),
+                  ...selection.visibleByPet.entries.map((entry) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (showPetName)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                            child: Text(entry.key, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          ),
+                        ...entry.value.map((event) => DashboardEventTile(event: event, showPetName: false, compact: true)),
+                      ],
+                    );
+                  }),
                 ],
               ),
-              const SizedBox(height: 8),
-              ...selection.visibleByPet.entries.map((entry) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showPetName)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text(entry.key, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                      ),
-                    ...entry.value.map((event) => DashboardEventTile(event: event, showPetName: false)),
-                    const SizedBox(height: 8),
-                  ],
-                );
-              }),
-              const Divider(height: 24),
-            ],
+            ),
           ),
         );
       },
@@ -147,10 +156,15 @@ class DashboardEventTile extends ConsumerWidget {
     super.key,
     required this.event,
     this.showPetName = true,
+    this.compact = false,
   });
 
   final DashboardEvent event;
   final bool showPetName;
+
+  /// Fila sin tarjeta propia, para usarla dentro de otra tarjeta (panel
+  /// "Próximos" del Home).
+  final bool compact;
 
   Future<void> _onTap(BuildContext context, WidgetRef ref) async {
     final dbHelper = ref.read(databaseHelperProvider);
@@ -254,39 +268,51 @@ class DashboardEventTile extends ConsumerWidget {
       );
     }
 
+    final tile = ListTile(
+      dense: compact,
+      visualDensity: compact ? VisualDensity.compact : null,
+      shape: compact ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)) : null,
+      tileColor: compact
+          ? (event.isTaken
+              ? Colors.green.withValues(alpha: 0.1)
+              : (isOverdue ? colorScheme.errorContainer : null))
+          : null,
+      onTap: () => _onTap(context, ref),
+      leading: Icon(
+        event.isTaken ? Icons.check_circle : eventIconFor(event.type),
+        color: event.isTaken ? Colors.green : eventColorFor(event.type),
+      ),
+      title: Text(
+        displayTitle,
+        style: TextStyle(
+          color: event.isTaken
+              ? Colors.green[700]
+              : (isOverdue ? colorScheme.onErrorContainer : null),
+          decoration: event.isTaken ? TextDecoration.lineThrough : null,
+        ),
+      ),
+      subtitle: subtitle,
+      trailing: event.isTaken
+          ? const Icon(Icons.done_all, color: Colors.green)
+          : (isMedication
+              ? IconButton(
+                  icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                  tooltip: 'Marcar como tomada',
+                  onPressed: () => _confirmMedicationIntake(context, ref),
+                )
+              : (isOverdue
+                  ? Icon(Icons.warning_amber_rounded, color: colorScheme.error)
+                  : null)),
+    );
+
+    if (compact) return tile;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
-      color: event.isTaken 
-          ? Colors.green.withValues(alpha: 0.1) 
+      color: event.isTaken
+          ? Colors.green.withValues(alpha: 0.1)
           : (isOverdue ? colorScheme.errorContainer : null),
-      child: ListTile(
-        onTap: () => _onTap(context, ref),
-        leading: Icon(
-          event.isTaken ? Icons.check_circle : eventIconFor(event.type), 
-          color: event.isTaken ? Colors.green : eventColorFor(event.type)
-        ),
-        title: Text(
-          displayTitle,
-          style: TextStyle(
-            color: event.isTaken 
-                ? Colors.green[700] 
-                : (isOverdue ? colorScheme.onErrorContainer : null),
-            decoration: event.isTaken ? TextDecoration.lineThrough : null,
-          ),
-        ),
-        subtitle: subtitle,
-        trailing: event.isTaken
-            ? const Icon(Icons.done_all, color: Colors.green)
-            : (isMedication
-                ? IconButton(
-                    icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                    tooltip: 'Marcar como tomada',
-                    onPressed: () => _confirmMedicationIntake(context, ref),
-                  )
-                : (isOverdue
-                    ? Icon(Icons.warning_amber_rounded, color: colorScheme.error)
-                    : null)),
-      ),
+      child: tile,
     );
   }
 }
