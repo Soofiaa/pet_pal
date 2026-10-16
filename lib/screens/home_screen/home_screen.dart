@@ -324,10 +324,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       key: Key(pet.id),
                       direction: DismissDirection.endToStart,
                       background: Container(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                       ),
                       confirmDismiss: (direction) async {
                         return await _deletePet(pet.id, pet.name);

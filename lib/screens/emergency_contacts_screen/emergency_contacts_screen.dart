@@ -111,7 +111,7 @@ class EmergencyContactsScreen extends ConsumerWidget {
               ref.read(emergencyContactsProvider.notifier).deleteContact(contact.id);
               Navigator.pop(context);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Eliminar'),
           ),
         ],

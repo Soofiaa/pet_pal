@@ -252,10 +252,10 @@ class VitalSignScreen extends ConsumerWidget {
                       key: Key(record.id.toString()),
                       direction: DismissDirection.endToStart,
                       background: Container(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                       ),
                       confirmDismiss: (direction) async {
                         await _deleteRecord(context, ref, record);
@@ -263,7 +263,7 @@ class VitalSignScreen extends ConsumerWidget {
                       },
                       child: Card(
                         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        color: isAbnormal ? Colors.red[50] : null,
+                        color: isAbnormal ? Theme.of(context).colorScheme.errorContainer : null,
                         child: ListTile(
                           leading: Icon(_config.icon, color: _config.chartColor),
                           title: Text(
@@ -275,7 +275,7 @@ class VitalSignScreen extends ConsumerWidget {
                             style: const TextStyle(color: Colors.grey),
                           ),
                           trailing: isAbnormal
-                              ? const Icon(Icons.warning_amber_rounded, color: Colors.red)
+                              ? Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error)
                               : null,
                           onTap: () async {
                             await Navigator.push(

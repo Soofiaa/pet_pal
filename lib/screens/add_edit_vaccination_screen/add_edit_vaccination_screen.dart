@@ -532,7 +532,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
                             color: Colors.grey[200],
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: state.hasError ? Colors.red : Colors.grey,
+                              color: state.hasError ? Theme.of(context).colorScheme.error : Colors.grey,
                               width: 2,
                             ),
                           ),
@@ -566,7 +566,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
                           padding: const EdgeInsets.only(top: 8.0, left: 12.0),
                           child: Text(
                             state.errorText!,
-                            style: const TextStyle(color: Colors.red, fontSize: 12),
+                            style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
                           ),
                         ),
                     ],

@@ -209,18 +209,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildEventsMarker(DateTime date, List events) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 16.0,
       height: 16.0,
       decoration: BoxDecoration(
-        color: Colors.blue[300],
+        color: scheme.primary,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(
         '${events.length}',
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: scheme.onPrimary,
           fontSize: 12.0,
         ),
       ),

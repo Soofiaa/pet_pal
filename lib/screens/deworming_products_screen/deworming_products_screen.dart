@@ -41,15 +41,18 @@ class DewormingProductsScreen extends ConsumerWidget {
               padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final product = products[index];
-                  return ListTile(
-                    title: Text(product.name),
-                    subtitle: Text(
-                        'Frecuencia: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''} · Tipo: ${product.defaultType ?? 'No definido'}'),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                      onPressed: () => _confirmDelete(context, ref, product),
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: ListTile(
+                      title: Text(product.name),
+                      subtitle: Text(
+                          'Frecuencia: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''} · Tipo: ${product.defaultType ?? 'No definido'}'),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                        onPressed: () => _confirmDelete(context, ref, product),
+                      ),
+                      onTap: () => _showAddEditDialog(context, product),
                     ),
-                    onTap: () => _showAddEditDialog(context, product),
                   );
                 },
               ),
@@ -76,7 +79,7 @@ class DewormingProductsScreen extends ConsumerWidget {
               await ref.read(dewormingProductsProvider.notifier).deleteProduct(product.id);
               if (context.mounted) Navigator.pop(context);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Eliminar'),
           ),
         ],

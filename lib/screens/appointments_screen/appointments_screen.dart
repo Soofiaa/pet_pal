@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/theme/category_colors.dart';
 import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
@@ -87,7 +88,7 @@ class AppointmentsScreen extends ConsumerWidget {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: ListTile(
-                  leading: const Icon(Icons.calendar_today, color: Colors.blueAccent),
+                  leading: const Icon(Icons.calendar_today, color: CategoryColors.agenda),
                   title: Text(
                     appointment.title,
                     style: TextStyle(

@@ -33,20 +33,23 @@ class LocationEntriesScreen extends ConsumerWidget {
               padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final entry = entries[index];
-                  return ListTile(
-                    title: Text(entry.name),
-                    subtitle: entry.mapsUrl.isEmpty
-                        ? null
-                        : Text(
-                            entry.mapsUrl,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                      onPressed: () => _confirmDelete(context, ref, entry),
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: ListTile(
+                      title: Text(entry.name),
+                      subtitle: entry.mapsUrl.isEmpty
+                          ? null
+                          : Text(
+                              entry.mapsUrl,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                        onPressed: () => _confirmDelete(context, ref, entry),
+                      ),
+                      onTap: () => _showAddEditDialog(context, entry),
                     ),
-                    onTap: () => _showAddEditDialog(context, entry),
                   );
                 },
               ),
@@ -76,7 +79,7 @@ class LocationEntriesScreen extends ConsumerWidget {
               await ref.read(locationEntriesProvider.notifier).deleteEntry(entry.id);
               if (context.mounted) Navigator.pop(context);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Eliminar'),
           ),
         ],

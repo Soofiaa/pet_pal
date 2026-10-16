@@ -88,10 +88,10 @@ class FoodAllergyScreen extends ConsumerWidget {
                 key: Key(allergy.id.toString()),
                 direction: DismissDirection.endToStart,
                 background: Container(
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: const Icon(Icons.delete, color: Colors.white),
+                  child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                 ),
                 confirmDismiss: (direction) async {
                   await _deleteFoodAllergy(context, ref, allergy);

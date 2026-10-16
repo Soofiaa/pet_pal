@@ -228,12 +228,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                color: isSelected ? Colors.blue.shade50 : null,
+                color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
                 child: ListTile(
                   leading: _isSelectionMode
                       ? Icon(
                           isSelected ? Icons.check_circle : Icons.circle_outlined,
-                          color: isSelected ? Colors.blue : Colors.grey,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         )
                       : _buildNoteThumbnail(note),
                   title: Text(

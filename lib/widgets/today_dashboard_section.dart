@@ -34,7 +34,7 @@ class TodayDashboardSection extends ConsumerWidget {
         padding: const EdgeInsets.all(16.0),
         child: Text(
           'No se pudo cargar el resumen de hoy: $error',
-          style: TextStyle(color: Colors.red[700]),
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
       ),
       data: (events) {
