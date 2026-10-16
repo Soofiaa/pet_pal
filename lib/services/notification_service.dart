@@ -48,9 +48,10 @@ class NotificationService {
     // Recomendado para Android 13+ (no rompe en versiones anteriores)
     await androidPlugin?.requestNotificationsPermission();
 
-    // Requerido en Android 12+ para poder usar AndroidScheduleMode.exactAllowWhileIdle.
-    // Sin este permiso, las alarmas exactas no se agendan (sin error visible).
-    await androidPlugin?.requestExactAlarmsPermission();
+    // Las alarmas exactas (Android 12+) NO se piden aquí: ese permiso abre los
+    // ajustes del sistema y hacerlo en el primer arranque desconcierta. Sin él
+    // los recordatorios caen a modo inexacto (ver canScheduleExactAlarms) y la
+    // pantalla de Respaldo ofrece pedirlo con contexto.
   }
 
   /// Indica si la app puede programar alarmas exactas en este momento.
