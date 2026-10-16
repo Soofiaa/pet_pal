@@ -102,7 +102,7 @@ class AppointmentsScreen extends ConsumerWidget {
                     '${DateFormat('dd/MM/yyyy HH:mm').format(appointment.dateTime)}\n'
                     '${appointment.location ?? 'Sin lugar'}',
                     style: TextStyle(
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       decoration: appointment.isCompleted
                           ? TextDecoration.lineThrough
                           : TextDecoration.none,
@@ -115,6 +115,7 @@ class AppointmentsScreen extends ConsumerWidget {
                         const Icon(Icons.check_circle, color: Colors.green),
                       IconButton(
                         icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                        tooltip: 'Editar',
                         onPressed: () async {
                           await Navigator.push(
                             context,
@@ -134,6 +135,7 @@ class AppointmentsScreen extends ConsumerWidget {
                       ),
                       IconButton(
                         icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                        tooltip: 'Eliminar',
                         onPressed: () => _deleteAppointment(context, ref, appointment),
                       ),
                     ],

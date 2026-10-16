@@ -264,6 +264,7 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
                 children: [
                   IconButton(
                     icon: const Icon(Icons.remove_circle_outline),
+                    tooltip: 'Menos tomas al día',
                     onPressed: _timesPerDay > 1
                         ? () => _setTimesPerDay(_timesPerDay - 1)
                         : null,
@@ -274,6 +275,7 @@ class _AddEditMedicationScreenState extends ConsumerState<AddEditMedicationScree
                   ),
                   IconButton(
                     icon: const Icon(Icons.add_circle_outline),
+                    tooltip: 'Más tomas al día',
                     onPressed: _timesPerDay < 6
                         ? () => _setTimesPerDay(_timesPerDay + 1)
                         : null,

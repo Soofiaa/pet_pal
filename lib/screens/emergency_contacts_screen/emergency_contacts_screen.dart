@@ -42,10 +42,12 @@ class EmergencyContactsScreen extends ConsumerWidget {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.phone, color: Colors.green),
+                            tooltip: 'Llamar',
                             onPressed: () => _makeCall(contact.phone),
                           ),
                           IconButton(
                             icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                            tooltip: 'Eliminar',
                             onPressed: () => _confirmDelete(context, ref, contact),
                           ),
                         ],

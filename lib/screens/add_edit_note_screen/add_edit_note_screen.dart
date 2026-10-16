@@ -359,43 +359,59 @@ class _AddEditNoteScreenState extends ConsumerState<AddEditNoteScreen> {
                                 : Container(
                                     width: 100,
                                     height: 100,
-                                    color: Colors.grey[200],
-                                    child: const Icon(
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    child: Icon(
                                       Icons.broken_image,
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                           ),
                           Positioned(
                             right: 0,
-                            child: GestureDetector(
+                            child: Semantics(
+                              button: true,
+                              label: 'Quitar foto',
+                              child: GestureDetector(
                               onTap: () => _removePhoto(index),
                               child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(10),
+                                padding: const EdgeInsets.all(8),
+                                color: Colors.transparent,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                              ),
                               ),
                             ),
                           ),
                         ],
                       );
                     }),
-                    GestureDetector(
-                      onTap: _showImageSourceDialog, // Llama al nuevo diálogo
+                    Semantics(
+                      button: true,
+                      label: 'Añadir foto',
+                      child: GestureDetector(
+                      onTap: _showImageSourceDialog,
                       child: Container(
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
+                        child: Icon(
+                          Icons.add_a_photo,
+                          size: 50,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                       ),
                     ),
                   ],

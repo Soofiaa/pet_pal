@@ -158,6 +158,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           if (_controller.text.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.close),
+              tooltip: 'Borrar búsqueda',
               onPressed: () {
                 _controller.clear();
                 _onQueryChanged('');
@@ -199,7 +200,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               '${searchEntityTypeConfigs[entry.key]!.label} (${entry.value.length})',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
           ),

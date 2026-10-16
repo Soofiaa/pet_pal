@@ -146,7 +146,7 @@ class FoodRecordScreen extends ConsumerWidget {
                     'Fecha de inicio desconocida',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ),

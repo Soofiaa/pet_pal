@@ -523,25 +523,30 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
+                      Semantics(
+                        button: true,
+                        label: 'Elegir foto del sticker de la vacuna',
+                        child: GestureDetector(
                         onTap: () => _showImageSourceDialog(state),
                         child: Container(
                           height: 250,
                           width: 180,
                           decoration: BoxDecoration(
-                            color: Colors.grey[200],
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: state.hasError ? Theme.of(context).colorScheme.error : Colors.grey,
+                              color: state.hasError
+                                  ? Theme.of(context).colorScheme.error
+                                  : Theme.of(context).colorScheme.outline,
                               width: 2,
                             ),
                           ),
                           child: _stickerPhotoPath == null
-                              ? const Center(
+                              ? Center(
                             child: Icon(
                               Icons.add_a_photo,
                               size: 50,
-                              color: Colors.grey,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           )
                               : ClipRRect(
@@ -551,14 +556,15 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
                                     File(_stickerPhotoPath!),
                                     fit: BoxFit.cover,
                                   )
-                                : const Center(
+                                : Center(
                                     child: Icon(
                                       Icons.broken_image,
                                       size: 50,
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                           ),
+                        ),
                         ),
                       ),
                       if (state.hasError)
@@ -605,6 +611,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
                         backgroundColor: Colors.black54,
                         child: IconButton(
                           padding: EdgeInsets.zero,
+                          tooltip: 'Quitar foto',
                           icon: const Icon(
                             Icons.close,
                             color: Colors.white,
@@ -693,7 +700,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
                                 Text(
                                   'Cartilla, comprobante o información extra',
                                   style: TextStyle(
-                                    color: Colors.grey.shade700,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     fontSize: 13,
                                   ),
                                 ),

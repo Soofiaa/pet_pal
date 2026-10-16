@@ -166,9 +166,9 @@ class DewormingScreen extends ConsumerWidget {
                             ),
                             if (deworming.isRecurring) ...[
                               const SizedBox(width: 6),
-                              const Tooltip(
+                              Tooltip(
                                 message: 'Recordatorio automático recurrente',
-                                child: Icon(Icons.repeat, size: 16, color: Colors.grey),
+                                child: Icon(Icons.repeat, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               ),
                             ],
                           ],
@@ -199,6 +199,7 @@ class DewormingScreen extends ConsumerWidget {
                           children: [
                             IconButton(
                               icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                              tooltip: 'Editar',
                               onPressed: () async {
                                 await Navigator.push(
                                   context,
@@ -213,6 +214,7 @@ class DewormingScreen extends ConsumerWidget {
                             ),
                             IconButton(
                               icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                              tooltip: 'Eliminar',
                               onPressed: () => _confirmDelete(context, ref, deworming),
                             ),
                           ],

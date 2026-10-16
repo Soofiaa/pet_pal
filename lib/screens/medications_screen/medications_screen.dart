@@ -123,10 +123,12 @@ class MedicationsScreen extends ConsumerWidget {
                         children: [
                           IconButton(
                             icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                            tooltip: 'Editar',
                             onPressed: goToEdit,
                           ),
                           IconButton(
                             icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                            tooltip: 'Eliminar',
                             onPressed: () => _confirmDelete(context, ref, medication),
                           ),
                         ],

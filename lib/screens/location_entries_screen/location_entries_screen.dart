@@ -46,6 +46,7 @@ class LocationEntriesScreen extends ConsumerWidget {
                             ),
                       trailing: IconButton(
                         icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                        tooltip: 'Eliminar',
                         onPressed: () => _confirmDelete(context, ref, entry),
                       ),
                       onTap: () => _showAddEditDialog(context, entry),

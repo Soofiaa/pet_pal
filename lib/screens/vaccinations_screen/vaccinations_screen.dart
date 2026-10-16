@@ -119,10 +119,10 @@ class VaccinationsScreen extends ConsumerWidget {
               errorBuilder: (_, __, ___) => Container(
                 width: 78,
                 height: 78,
-                color: Colors.grey.shade200,
-                child: const Icon(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Icon(
                   Icons.broken_image,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -218,6 +218,7 @@ class VaccinationsScreen extends ConsumerWidget {
                   ),
                   IconButton(
                     icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                    tooltip: 'Editar',
                     onPressed: () async {
                       await Navigator.push(
                         context,

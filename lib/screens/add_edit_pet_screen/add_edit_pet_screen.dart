@@ -287,15 +287,19 @@ class _AddEditPetScreenState extends State<AddEditPetScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              GestureDetector(
+              Semantics(
+                button: true,
+                label: 'Elegir foto de la mascota',
+                child: GestureDetector(
                 onTap: _showImageSourceDialog,
                 child: CircleAvatar(
                   radius: 80,
-                  backgroundColor: Colors.grey[200],
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   backgroundImage: _hasValidImagePath ? FileImage(File(_imagePath!)) : null,
                   child: !_hasValidImagePath
-                      ? Icon(Icons.camera_alt, size: 50, color: Colors.grey[800])
+                      ? Icon(Icons.camera_alt, size: 50, color: Theme.of(context).colorScheme.onSurfaceVariant)
                       : null,
+                ),
                 ),
               ),
               const SizedBox(height: 24),

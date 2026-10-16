@@ -135,6 +135,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
+            tooltip: _isSearching ? 'Cerrar búsqueda' : 'Buscar',
             onPressed: () {
               setState(() {
                 if (_isSearching) {
@@ -213,6 +214,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           children: [
                             IconButton(
                               icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                              tooltip: 'Editar',
                               onPressed: () async {
                                 await Navigator.push(
                                   context,
@@ -232,6 +234,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                             ),
                             IconButton(
                               icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                              tooltip: 'Eliminar',
                               onPressed: () => _confirmDelete(document),
                             ),
                           ],
