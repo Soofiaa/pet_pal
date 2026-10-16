@@ -20,8 +20,6 @@ import 'package:pet_pal/utils/event_type_details.dart';
 class TodayDashboardSection extends ConsumerWidget {
   const TodayDashboardSection({super.key});
 
-  static const int _maxVisibleEvents = 5;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(todayDashboardProvider);
@@ -44,17 +42,11 @@ class TodayDashboardSection extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        final visibleEvents = events.take(_maxVisibleEvents).toList();
-        final remaining = events.length - visibleEvents.length;
-
         final petsCount = petsAsync.value?.length ?? 0;
         final showPetName = petsCount > 1;
 
-        // ✅ MEJORA SENIOR: Agrupar por mascota si hay muchas
-        final Map<String, List<DashboardEvent>> groupedEvents = {};
-        for (var event in events) {
-          groupedEvents.putIfAbsent(event.petName, () => []).add(event);
-        }
+        final selection = selectDashboardEvents(events);
+        final remaining = selection.hiddenCount;
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
@@ -64,7 +56,7 @@ class TodayDashboardSection extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Hoy', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  Text('Próximos', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                   if (remaining > 0)
                     TextButton(
                       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TodayEventsScreen())),
@@ -73,7 +65,7 @@ class TodayDashboardSection extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              ...groupedEvents.entries.take(3).map((entry) {
+              ...selection.visibleByPet.entries.map((entry) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -82,7 +74,7 @@ class TodayDashboardSection extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey)),
                       ),
-                    ...entry.value.take(2).map((event) => DashboardEventTile(event: event, showPetName: false)),
+                    ...entry.value.map((event) => DashboardEventTile(event: event, showPetName: false)),
                     const SizedBox(height: 8),
                   ],
                 );
@@ -94,6 +86,36 @@ class TodayDashboardSection extends ConsumerWidget {
       },
     );
   }
+}
+
+/// Eventos que el panel realmente dibuja, agrupados por mascota, y cuántos
+/// quedan fuera. El contador sale de lo dibujado: así "Ver todo" aparece
+/// siempre que se oculte algo (límite de mascotas o de eventos por mascota).
+class DashboardSelection {
+  const DashboardSelection(this.visibleByPet, this.hiddenCount);
+
+  final Map<String, List<DashboardEvent>> visibleByPet;
+  final int hiddenCount;
+}
+
+DashboardSelection selectDashboardEvents(
+  List<DashboardEvent> events, {
+  int maxPets = 3,
+  int maxEventsPerPet = 2,
+}) {
+  final Map<String, List<DashboardEvent>> grouped = {};
+  for (final event in events) {
+    grouped.putIfAbsent(event.petName, () => []).add(event);
+  }
+
+  final Map<String, List<DashboardEvent>> visible = {};
+  var shown = 0;
+  for (final entry in grouped.entries.take(maxPets)) {
+    final list = entry.value.take(maxEventsPerPet).toList();
+    visible[entry.key] = list;
+    shown += list.length;
+  }
+  return DashboardSelection(visible, events.length - shown);
 }
 
 /// Pantalla de la mascota que corresponde a cada tipo de evento accionable

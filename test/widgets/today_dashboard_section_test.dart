@@ -116,10 +116,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Hoy'), findsNothing);
+    expect(find.text('Próximos'), findsNothing);
   });
 
-  testWidgets('muestra el título "Hoy" y los eventos cuando hay datos', (tester) async {
+  testWidgets('muestra el título "Próximos" y los eventos cuando hay datos', (tester) async {
     final vencidoDate = DateTime.now().subtract(const Duration(days: 2));
     final futuroDate = DateTime.now().add(const Duration(days: 10));
 
@@ -136,7 +136,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Hoy'), findsOneWidget);
+    expect(find.text('Próximos'), findsOneWidget);
     expect(find.text(_appointmentDisplayTitle('Cita: Control vencido', vencidoDate)), findsOneWidget);
     expect(find.text(_appointmentDisplayTitle('Cita: Control futuro', futuroDate)), findsOneWidget);
   });
@@ -193,14 +193,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // El texto del botón cambió de "y N más..." a "Ver todo (N más)" en
-    // c3d050b, sin actualizar este test en su momento.
-    expect(find.text('Ver todo (2 más)'), findsOneWidget);
-    // El sexto y séptimo evento están recortados en la sección resumida.
-    expect(find.text('Evento 5'), findsNothing);
-    expect(find.text('Evento 6'), findsNothing);
+    expect(find.text('Ver todo (5 más)'), findsOneWidget);
+    // Solo se dibujan 2 eventos por mascota; el resto queda en "Ver todo".
+    expect(find.text(_appointmentDisplayTitle(events[1].title, events[1].date)), findsOneWidget);
+    expect(find.text(_appointmentDisplayTitle(events[2].title, events[2].date)), findsNothing);
+    expect(find.text(_appointmentDisplayTitle(events[6].title, events[6].date)), findsNothing);
 
-    await tester.tap(find.text('Ver todo (2 más)'));
+    await tester.tap(find.text('Ver todo (5 más)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Eventos de hoy'), findsOneWidget);
