@@ -5,6 +5,7 @@ import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
+import '../vaccinations_screen/vaccinations_screen.dart' show isNextDoseOverdue;
 import '../add_edit_deworming_screen/add_edit_deworming_screen.dart';
 import '../deworming_products_screen/deworming_products_screen.dart';
 import 'package:intl/intl.dart';
@@ -64,17 +65,18 @@ class DewormingScreen extends ConsumerWidget {
   /// (fondo rojo claro + ícono de advertencia), adaptado a un aviso de
   /// cabecera en vez de un indicador por registro, ya que acá el vacío es
   /// de toda la pantalla y no de un registro puntual.
-  Widget _buildMissingCoverageBanner(Set<String> missingTypes) {
+  Widget _buildMissingCoverageBanner(BuildContext context, Set<String> missingTypes) {
     if (missingTypes.isEmpty) return const SizedBox.shrink();
 
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red[50],
+        color: scheme.errorContainer,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: scheme.error),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,12 +87,12 @@ class DewormingScreen extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                  Icon(Icons.warning_amber_rounded, color: scheme.onErrorContainer, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Nunca se ha registrado desparasitación $type para ${pet.name}.',
-                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -129,7 +131,7 @@ class DewormingScreen extends ConsumerWidget {
           if (dewormingList.isEmpty) {
             return Column(
               children: [
-                _buildMissingCoverageBanner(missingCoverageTypes),
+                _buildMissingCoverageBanner(context, missingCoverageTypes),
                 Expanded(
                   child: EmptyState(
                     icon: Icons.healing,
@@ -145,7 +147,7 @@ class DewormingScreen extends ConsumerWidget {
 
           return Column(
             children: [
-              _buildMissingCoverageBanner(missingCoverageTypes),
+              _buildMissingCoverageBanner(context, missingCoverageTypes),
               Expanded(
                 child: ListView.builder(
                   itemCount: dewormingList.length,
@@ -176,7 +178,20 @@ class DewormingScreen extends ConsumerWidget {
                           children: [
                             Text('Fecha: ${DateFormat('dd/MM/yyyy').format(deworming.date)}'),
                             if (showNextDose && deworming.effectiveNextDate() != null)
-                              Text('Próxima fecha: ${DateFormat('dd/MM/yyyy').format(deworming.effectiveNextDate()!)}'),
+                              Builder(builder: (context) {
+                                final next = deworming.effectiveNextDate()!;
+                                final overdue = isNextDoseOverdue(next);
+                                final formatted = DateFormat('dd/MM/yyyy').format(next);
+                                return Text(
+                                  overdue ? 'Vencida desde: $formatted' : 'Próxima fecha: $formatted',
+                                  style: overdue
+                                      ? TextStyle(
+                                          color: Theme.of(context).colorScheme.error,
+                                          fontWeight: FontWeight.w600,
+                                        )
+                                      : null,
+                                );
+                              }),
                           ],
                         ),
                         trailing: Row(
