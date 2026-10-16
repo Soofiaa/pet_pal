@@ -360,48 +360,60 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${_pet.species} · ${_pet.breed}',
+                            _pet.species,
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                           ),
+                          Text(_pet.breed),
                           const SizedBox(height: 4),
                           Text(_pet.detailedAge),
                           Text('Color: ${_pet.color}'),
                           const SizedBox(height: 8),
-                          Chip(
-                            visualDensity: VisualDensity.compact,
-                            label: Text(
-                              _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                            avatar: Icon(
-                              _pet.isNeutered ? Icons.check_circle : Icons.remove_circle_outline,
-                              size: 14,
-                              color: _pet.isNeutered
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Icon(
+                                  _pet.isNeutered ? Icons.check_circle : Icons.remove_circle_outline,
+                                  size: 16,
+                                  color: _pet.isNeutered
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
-                  SizedBox(
-                    width: gridItemWidth,
-                    height: gridItemWidth,
-                    child: _buildFeatureCard(
-                      context,
-                      title: 'Eventos',
-                      icon: Icons.calendar_month,
-                      color: CategoryColors.agenda,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
-                        );
-                      },
-                    ),
-                  ),
                 ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                child: ListTile(
+                  leading: const Icon(Icons.calendar_month, size: 28, color: CategoryColors.agenda),
+                  title: const Text('Eventos', style: TextStyle(fontWeight: FontWeight.bold)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
+                    );
+                  },
+                ),
               ),
             ),
 
