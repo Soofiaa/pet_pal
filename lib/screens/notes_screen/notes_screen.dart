@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pet_pal/models/note.dart';
@@ -217,6 +218,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
           return ListView.builder(
             itemCount: notes.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final note = notes[index];
               final isSelected = _selectedNoteIds.contains(note.id);

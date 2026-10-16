@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/appointment.dart';
@@ -77,6 +78,7 @@ class AppointmentsScreen extends ConsumerWidget {
 
           return ListView.builder(
             itemCount: appointments.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final appointment = appointments[index];
               return Card(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/emergency_contact.dart';
 import 'package:pet_pal/providers/emergency_contact_providers.dart';
@@ -38,6 +39,7 @@ class EmergencyContactsScreen extends ConsumerWidget {
               )
             : ListView.builder(
                 itemCount: contacts.length,
+              padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final contact = contacts[index];
                   return Card(

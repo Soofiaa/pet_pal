@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
@@ -204,6 +205,7 @@ class WeightRecordScreen extends ConsumerWidget {
               Expanded(
                 child: ListView.builder(
                   itemCount: weightRecords.length,
+                  padding: kFabListPadding,
                   itemBuilder: (context, index) {
                     final record = weightRecords[index];
                     return Dismissible(

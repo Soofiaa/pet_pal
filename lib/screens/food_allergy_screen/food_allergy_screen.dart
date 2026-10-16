@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/food_allergy.dart';
@@ -77,6 +78,7 @@ class FoodAllergyScreen extends ConsumerWidget {
 
           return ListView.builder(
             itemCount: foodAllergies.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final allergy = foodAllergies[index];
               return Dismissible(

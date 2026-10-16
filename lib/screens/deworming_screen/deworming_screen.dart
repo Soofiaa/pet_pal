@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/deworming.dart';
@@ -148,6 +149,7 @@ class DewormingScreen extends ConsumerWidget {
               Expanded(
                 child: ListView.builder(
                   itemCount: dewormingList.length,
+                  padding: kFabListPadding,
                   itemBuilder: (context, index) {
                     final deworming = dewormingList[index];
                     final bool showNextDose = deworming.id != null &&

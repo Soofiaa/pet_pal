@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/deworming_product.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
@@ -37,6 +38,7 @@ class DewormingProductsScreen extends ConsumerWidget {
               )
             : ListView.builder(
                 itemCount: products.length,
+              padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final product = products[index];
                   return ListTile(

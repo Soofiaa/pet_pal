@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
@@ -240,6 +241,7 @@ class VitalSignScreen extends ConsumerWidget {
               Expanded(
                 child: ListView.builder(
                   itemCount: records.length,
+                  padding: kFabListPadding,
                   itemBuilder: (context, index) {
                     final record = records[index];
                     final bool isAbnormal = _config.isAbnormal(record.value);

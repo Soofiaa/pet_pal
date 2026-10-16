@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication.dart';
@@ -77,6 +78,7 @@ class MedicationsScreen extends ConsumerWidget {
 
           return ListView.builder(
             itemCount: medicationList.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final medication = medicationList[index];
               Future<void> goToEdit() async {

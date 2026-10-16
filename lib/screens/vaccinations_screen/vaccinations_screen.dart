@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
@@ -286,6 +287,7 @@ class VaccinationsScreen extends ConsumerWidget {
 
           return ListView.builder(
             itemCount: vaccinations.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final vaccination = vaccinations[index];
               return _buildVaccinationCard(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/location_entry.dart';
 import 'package:pet_pal/providers/location_entry_providers.dart';
@@ -29,6 +30,7 @@ class LocationEntriesScreen extends ConsumerWidget {
               )
             : ListView.builder(
                 itemCount: entries.length,
+              padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final entry = entries[index];
                   return ListTile(
