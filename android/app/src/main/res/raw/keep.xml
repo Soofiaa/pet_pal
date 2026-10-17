@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ic_notification solo se referencia por nombre desde Dart (NotificationService),
+     así que el shrinker de recursos no lo ve y lo eliminaría en release. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification" />

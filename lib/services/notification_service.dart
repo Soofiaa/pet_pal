@@ -20,7 +20,7 @@ class NotificationService {
     await _configureLocalTimeZone();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/launcher_icon');
+    AndroidInitializationSettings('ic_notification');
 
     const DarwinInitializationSettings initializationSettingsIOS =
     DarwinInitializationSettings(
