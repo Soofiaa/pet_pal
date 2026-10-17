@@ -20,7 +20,7 @@ Future<void> _pump(WidgetTester tester, Widget child, {double textScale = 1.0}) 
     MaterialApp(
       home: MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-        child: Scaffold(body: Center(child: SizedBox(width: 180, height: 200, child: child))),
+        child: Scaffold(body: Center(child: SizedBox(width: 360, height: 170 * textScale, child: child))),
       ),
     ),
   );
@@ -40,7 +40,7 @@ void main() {
     expect(taps, 1);
   });
 
-  testWidgets('sin foto muestra el ícono de mascota como fondo', (tester) async {
+  testWidgets('sin foto muestra el ícono de mascota en su lugar', (tester) async {
     await _pump(tester, PetCard(pet: _pet(), onTap: () {}));
 
     expect(find.byIcon(Icons.pets), findsOneWidget);
@@ -57,7 +57,7 @@ void main() {
     expect(find.byType(Image), findsNothing);
   });
 
-  testWidgets('con foto válida la usa de fondo', (tester) async {
+  testWidgets('con foto válida la muestra', (tester) async {
     final dir = Directory.systemTemp.createTempSync('pet_card_');
     addTearDown(() => dir.deleteSync(recursive: true));
     final file = File('${dir.path}/foto.png')..writeAsBytesSync(_transparentPng);
@@ -127,6 +127,7 @@ void main() {
       ),
     );
 
+    expect(find.text('Al día'), findsNothing);
     expect(find.byIcon(Icons.vaccines), findsOneWidget);
     expect(find.byIcon(Icons.bug_report), findsOneWidget);
     expect(
@@ -139,6 +140,7 @@ void main() {
     await _pump(tester, PetCard(pet: _pet(), onTap: () {}));
 
     expect(find.byIcon(Icons.vaccines), findsNothing);
+    expect(find.text('Al día'), findsOneWidget);
   });
 }
 

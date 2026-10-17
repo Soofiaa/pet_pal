@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/pet.dart';
 
-/// Tarjeta de una mascota para la pantalla "Mis Mascotas": la foto ocupa
-/// toda la tarjeta y el nombre, la especie y la edad van encima, sobre un
-/// degradado oscuro que asegura el contraste sin importar la foto. Sin foto
-/// válida usa un fondo de color con el ícono de mascota.
+/// Tarjeta de una mascota para la pantalla "Mis Mascotas", en dos columnas:
+/// la foto a la izquierda y, a la derecha, nombre, especie, edad y los
+/// íconos de pendientes (vacuna, desparasitación, etc.) o "Al día" si no hay
+/// ninguno. Sin foto válida usa un fondo de color con el ícono de mascota.
 class PetCard extends StatelessWidget {
   const PetCard({super.key, required this.pet, required this.onTap, this.alerts = const []});
 
@@ -24,6 +24,7 @@ class PetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final subtitle = '${pet.species} · ${pet.detailedAge}';
     final alertsLabel = alerts.isEmpty ? '' : '. ${alerts.map((a) => a.label).join(', ')}';
 
@@ -34,76 +35,75 @@ class PetCard extends StatelessWidget {
       onTap: onTap,
       child: Card(
         clipBehavior: Clip.antiAlias,
-        elevation: 3,
+        elevation: 0,
         margin: EdgeInsets.zero,
+        color: colorScheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: InkWell(
           onTap: onTap,
-          child: Stack(
-            fit: StackFit.expand,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_hasValidImage)
-                Image.file(
-                  File(pet.imageUrl!),
-                  fit: BoxFit.cover,
-                  cacheWidth: 600,
-                  errorBuilder: (_, _, _) => _Placeholder(colorScheme: colorScheme),
-                )
-              else
-                _Placeholder(colorScheme: colorScheme),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.transparent, Color(0xCC000000)],
-                    stops: [0, 0.5, 1],
-                  ),
-                ),
+              Expanded(
+                flex: 2,
+                child: _hasValidImage
+                    ? Image.file(
+                        File(pet.imageUrl!),
+                        fit: BoxFit.cover,
+                        cacheWidth: 600,
+                        errorBuilder: (_, _, _) => _Placeholder(colorScheme: colorScheme),
+                      )
+                    : _Placeholder(colorScheme: colorScheme),
               ),
-              if (alerts.isNotEmpty)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  right: 8,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [for (final alert in alerts) _AlertBadge(alert: alert)],
-                  ),
-                ),
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      pet.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pet.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      pet.species,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                    ),
-                    Text(
-                      pet.detailedAge,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                    ),
-                  ],
+                      Text(
+                        pet.species,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                      Text(
+                        pet.detailedAge,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                      const Spacer(),
+                      if (alerts.isEmpty)
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle, size: 18, color: colorScheme.primary),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Al día',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodyMedium?.copyWith(color: colorScheme.primary),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [for (final alert in alerts) _AlertBadge(alert: alert)],
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -113,7 +113,6 @@ class PetCard extends StatelessWidget {
     );
   }
 }
-
 /// Pendiente de una mascota que se muestra como ícono sobre su tarjeta.
 class PetAlert {
   const PetAlert({required this.type, required this.urgency});

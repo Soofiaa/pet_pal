@@ -220,10 +220,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: kFabListPadding.copyWith(left: 16, right: 16, top: 12),
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: pets.length == 1 ? 1 : 2,
+                    crossAxisCount: 1,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: pets.length == 1 ? 1.0 : 0.85,
+                    mainAxisExtent: 170 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {

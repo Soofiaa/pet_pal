@@ -42,18 +42,16 @@ Future<void> _pumpHome(WidgetTester tester, List<Pet> pets, {List<DashboardEvent
 }
 
 void main() {
-  testWidgets('con varias mascotas las muestra en dos columnas', (tester) async {
+  testWidgets('con varias mascotas las apila una debajo de otra a todo el ancho', (tester) async {
     await _pumpHome(tester, [_pet('Olivia'), _pet('Luna'), _pet('Max')]);
 
     expect(find.byType(PetCard), findsNWidgets(3));
     final olivia = tester.getTopLeft(find.widgetWithText(PetCard, 'Olivia'));
     final luna = tester.getTopLeft(find.widgetWithText(PetCard, 'Luna'));
-    final max = tester.getTopLeft(find.widgetWithText(PetCard, 'Max'));
-    expect(olivia.dy, luna.dy);
-    expect(luna.dx, greaterThan(olivia.dx));
-    expect(max.dy, greaterThan(olivia.dy));
+    expect(luna.dx, olivia.dx);
+    expect(luna.dy, greaterThan(olivia.dy));
+    expect(tester.getSize(find.widgetWithText(PetCard, 'Olivia')).width, greaterThan(350));
   });
-
   testWidgets('cada tarjeta muestra los pendientes de su mascota', (tester) async {
     final olivia = _pet('Olivia');
     final luna = _pet('Luna');
@@ -76,12 +74,5 @@ void main() {
       find.descendant(of: find.widgetWithText(PetCard, 'Olivia'), matching: find.byIcon(Icons.vaccines)),
       findsOneWidget,
     );
-  });
-
-  testWidgets('con una sola mascota la tarjeta ocupa todo el ancho', (tester) async {
-    await _pumpHome(tester, [_pet('Olivia')]);
-
-    final size = tester.getSize(find.byType(PetCard));
-    expect(size.width, greaterThan(350));
   });
 }
