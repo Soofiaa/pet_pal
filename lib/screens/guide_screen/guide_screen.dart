@@ -13,15 +13,17 @@ class GuideScreen extends StatelessWidget {
 
     final cards = [
       _GuideCard(
-        icon: Icons.today,
+        icon: Icons.notifications_active,
         color: primary,
-        title: 'Hoy',
+        title: 'Avisos en cada mascota',
         group: 'Otros',
         description:
-            'Al abrir PetPal, aquí ves de un vistazo qué necesita atención hoy '
-            'entre todas tus mascotas: citas, próximas dosis y tratamientos '
-            'activos, ordenados por urgencia. Aparece automáticamente al abrir '
-            'la app, no necesitas hacer nada para verla.',
+            'En la pantalla principal, cada mascota muestra pequeños íconos '
+            'cuando algo necesita atención: vacuna, desparasitación, cita o '
+            'fin de un tratamiento. Rojo significa vencido; naranja, que es '
+            'hoy o en los próximos 7 días. Si no hay nada pendiente, verás '
+            '"Al día". Para ver el detalle de todas tus mascotas, toca el '
+            'ícono de calendario arriba a la derecha.',
       ),
       _GuideCard(
         icon: Icons.pets,
@@ -31,8 +33,9 @@ class GuideScreen extends StatelessWidget {
         description:
             'Cada mascota tiene su propio perfil: foto, especie, raza, y hasta '
             'su número de microchip. La edad se calcula sola, en años, meses y '
-            'días exactos. Para agregar una, toca el botón + en la esquina '
-            'inferior derecha de la pantalla principal.',
+            'días exactos. En la pantalla principal, toca la tarjeta de una '
+            'mascota para abrir su perfil. Para agregar una, toca el botón + '
+            'en la esquina inferior derecha.',
       ),
       _GuideCard(
         icon: Icons.local_hospital,
@@ -43,7 +46,12 @@ class GuideScreen extends StatelessWidget {
             'Registra cada vacuna aplicada con su fecha y, si corresponde, la '
             'próxima dosis. PetPal te avisa cuando se acerca. Entra al perfil '
             'de tu mascota, toca \'Vacunas\', y presiona el botón + para '
-            'agregar una nueva.',
+            'agregar una nueva. Si aplicaste una vacuna parecida que reemplaza '
+            'a otra (por ejemplo, la Óctuple en lugar de la Séxtuple), PetPal '
+            'ya las trata como la misma. Para otras equivalencias, abre el '
+            'menú lateral, toca \'Vacunas\' en \'Catálogos\' y usa el campo '
+            '\'Grupo de equivalencia\': las vacunas con el mismo grupo cuentan '
+            'como una sola.',
       ),
       _GuideCard(
         icon: Icons.medical_services,
@@ -66,7 +74,9 @@ class GuideScreen extends StatelessWidget {
             'recurrente (por ejemplo, cada 3 meses) y PetPal te va a recordar '
             'sin que tengas que crear un registro nuevo cada vez. Entra al '
             'perfil de tu mascota, toca \'Desparasitaciones\', y presiona el '
-            'botón + —ahí encontrarás la opción de recurrencia.',
+            'botón + —ahí encontrarás la opción de recurrencia. Si aplicas un '
+            'producto nuevo, los avisos vencidos de productos anteriores que '
+            'ya cubre dejan de aparecer.',
       ),
       _GuideCard(
         icon: Icons.scale,
@@ -188,7 +198,8 @@ class GuideScreen extends StatelessWidget {
             'adjuntos— en un solo archivo protegido con contraseña. Puedes '
             'restaurarlo cuando lo necesites. Abre el menú lateral (ícono de '
             'las tres líneas, arriba a la izquierda) y toca \'Respaldo y '
-            'restauración\'.',
+            'restauración\'. Ahí mismo puedes borrar los archivos antiguos '
+            'sin uso que la app va apartando, para liberar espacio.',
       ),
       _GuideCard(
         icon: Icons.location_on,
