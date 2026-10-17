@@ -11,257 +11,115 @@ class GuideScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
 
-    final cards = [
-      _GuideCard(
-        icon: Icons.notifications_active,
-        color: primary,
-        title: 'Avisos en cada mascota',
-        group: 'Otros',
-        description:
-            'En la pantalla principal, cada mascota muestra pequeños íconos '
-            'cuando algo necesita atención: vacuna, desparasitación, cita o '
-            'fin de un tratamiento. Rojo significa vencido; naranja, que es '
-            'hoy o en los próximos 7 días. Si no hay nada pendiente, verás '
-            '"Al día". Para ver el detalle de todas tus mascotas, toca el '
-            'ícono de calendario arriba a la derecha.',
-      ),
-      _GuideCard(
-        icon: Icons.pets,
-        color: primary,
-        title: 'Mascotas',
-        group: 'Otros',
-        description:
-            'Cada mascota tiene su propio perfil: foto, especie, raza, y hasta '
-            'su número de microchip. La edad se calcula sola, en años, meses y '
-            'días exactos. En la pantalla principal, toca la tarjeta de una '
-            'mascota para abrir su perfil. Para agregar una, toca el botón + '
-            'en la esquina inferior derecha.',
-      ),
-      _GuideCard(
-        icon: Icons.local_hospital,
-        color: entityColorFor('vaccination'),
-        title: 'Vacunas',
-        group: 'Salud',
-        description:
-            'Registra cada vacuna aplicada con su fecha y, si corresponde, la '
-            'próxima dosis. PetPal te avisa cuando se acerca. Entra al perfil '
-            'de tu mascota, toca \'Vacunas\', y presiona el botón + para '
-            'agregar una nueva. Si aplicaste una vacuna parecida que reemplaza '
-            'a otra (por ejemplo, la Óctuple en lugar de la Séxtuple), PetPal '
-            'ya las trata como la misma. Para otras equivalencias, abre el '
-            'menú lateral, toca \'Vacunas\' en \'Catálogos\' y usa el campo '
-            '\'Grupo de equivalencia\': las vacunas con el mismo grupo cuentan '
-            'como una sola.',
-      ),
-      _GuideCard(
-        icon: Icons.medical_services,
-        color: entityColorFor('medication'),
-        title: 'Medicación',
-        group: 'Salud',
-        description:
-            'Define cuántas veces al día se da un medicamento y a qué hora '
-            'exacta — los recordatorios respetan tu horario real, no uno '
-            'genérico. Entra al perfil de tu mascota, toca \'Medicación\', y '
-            'presiona el botón + para registrar una.',
-      ),
-      _GuideCard(
-        icon: Icons.bug_report,
-        color: entityColorFor('deworming'),
-        title: 'Desparasitación',
-        group: 'Salud',
-        description:
-            'Además de registrar cada aplicación, puedes marcarla como '
-            'recurrente (por ejemplo, cada 3 meses) y PetPal te va a recordar '
-            'sin que tengas que crear un registro nuevo cada vez. Entra al '
-            'perfil de tu mascota, toca \'Desparasitaciones\', y presiona el '
-            'botón + —ahí encontrarás la opción de recurrencia. Si aplicas un '
-            'producto nuevo, los avisos vencidos de productos anteriores que '
-            'ya cubre dejan de aparecer.',
-      ),
-      _GuideCard(
-        icon: Icons.scale,
-        color: entityColorFor('weight'),
-        title: 'Peso',
-        group: 'Historial',
-        description:
-            'Cada control de peso se suma a un gráfico de tendencia, para ver '
-            'de un vistazo si tu mascota está subiendo, bajando, o estable en '
-            'el tiempo. Entra al perfil de tu mascota, toca \'Peso\', y '
-            'presiona el botón + para agregar un registro.',
-      ),
-      _GuideCard(
-        icon: Icons.monitor_heart,
-        color: entityColorFor('vital_sign'),
-        title: 'Signos Vitales',
-        group: 'Salud',
-        description:
-            'Registra la temperatura de tu mascota y recibe una alerta '
-            'automática si el valor sale del rango normal para su especie. '
-            'Entra al perfil de tu mascota, toca \'Signos Vitales\', y '
-            'presiona el botón + para registrar una medición.',
-      ),
-      _GuideCard(
-        icon: Icons.folder_shared,
-        color: entityColorFor('document'),
-        title: 'Documentos',
-        group: 'Historial',
-        description:
-            'Guarda exámenes, informes de cirugía, radiografías y recetas, '
-            'organizados por categoría — todo el historial clínico en un solo '
-            'lugar. Entra al perfil de tu mascota, toca \'Documentos\', y '
-            'presiona el botón + para adjuntar un archivo.',
-      ),
-      _GuideCard(
-        icon: Icons.description,
-        color: entityColorFor('note'),
-        title: 'Notas',
-        group: 'Historial',
-        description:
-            'Un diario de comportamiento y observaciones, con fotos, que '
-            'puedes exportar a PDF cuando lo necesites. Entra al perfil de tu '
-            'mascota, toca \'Notas\', y presiona el botón + para escribir una.',
-      ),
-      _GuideCard(
-        icon: Icons.calendar_today,
-        color: entityColorFor('appointment'),
-        title: 'Citas',
-        group: 'Otros',
-        description:
-            'Programa tus visitas al veterinario con recordatorio incluido. '
-            'Entra al perfil de tu mascota, toca \'Citas\', y presiona el '
-            'botón + para agendar una.',
-      ),
-      _GuideCard(
-        icon: Icons.notification_important,
-        color: entityColorFor('appointment'),
-        title: 'Anticipación del Recordatorio de Citas',
-        group: 'Otros',
-        description:
-            'Al agendar o editar una cita, eliges con cuánta anticipación '
-            'quieres que PetPal te avise: el mismo día, 1 día antes, 3 días '
-            'antes, o 1 semana antes. La opción está justo debajo del tipo de '
-            'cita, en la pantalla donde agregas o editas una.',
-      ),
-      _GuideCard(
-        icon: Icons.no_food,
-        color: entityColorFor('food_allergy'),
-        title: 'Alergias Alimentarias',
-        group: 'Salud',
-        description:
-            'Lleva registro de qué alimentos no le sientan bien a tu mascota, '
-            'para tenerlo siempre a mano. Entra al perfil de tu mascota, toca '
-            '\'Alergias\', y presiona el botón + para agregar una.',
-      ),
-      _GuideCard(
-        icon: Icons.calendar_month,
-        color: primary,
-        title: 'Calendario',
-        group: 'Otros',
-        description:
-            'Todo el historial de una mascota —vacunas, medicación, citas, '
-            'notas y más— en una sola vista cronológica, cada tipo con su '
-            'propio ícono y color. Entra al perfil de tu mascota y toca '
-            '\'Eventos\' en la parte superior de la pantalla.',
-      ),
-      _GuideCard(
-        icon: Icons.search,
-        color: primary,
-        title: 'Buscador',
-        group: 'Otros',
-        description:
-            '¿No recuerdas en qué vacuna o documento aparece algo puntual? El '
-            'buscador revisa todas tus mascotas y todas las secciones a la '
-            'vez. Si tienes más de una mascota, cada resultado te indica de '
-            'cuál es, para que no haya confusión. Toca el ícono de lupa en la '
-            'parte superior de la pantalla principal, y escribe lo que '
-            'buscas.',
-      ),
-      _GuideCard(
-        icon: Icons.more_vert,
-        color: primary,
-        title: 'Exportar y eliminar una mascota',
-        group: 'Otros',
-        description:
-            'En el perfil de tu mascota, toca el ícono de tres puntos (⋮) '
-            'arriba a la derecha: ahí puedes generar la ficha clínica en PDF, '
-            'exportar el historial en CSV (peso, vacunas, medicación y '
-            'desparasitación) o eliminar a la mascota. Eliminarla no se puede '
-            'deshacer, así que antes te pedimos confirmación.',
-      ),
-      _GuideCard(
-        icon: Icons.lock,
-        color: primary,
-        title: 'Backup y Restauración',
-        group: 'Otros',
-        description:
-            'Respalda toda la información de la app —incluyendo archivos '
-            'adjuntos— en un solo archivo protegido con contraseña. Puedes '
-            'restaurarlo cuando lo necesites. Abre el menú lateral (ícono de '
-            'las tres líneas, arriba a la izquierda) y toca \'Respaldo y '
-            'restauración\'. Ahí mismo puedes borrar los archivos antiguos '
-            'sin uso que la app va apartando, para liberar espacio.',
-      ),
-      _GuideCard(
-        icon: Icons.location_on,
-        color: primary,
-        title: 'Catálogo de Ubicaciones',
-        group: 'Otros',
-        description:
-            'Guarda lugares que usas seguido —clínicas, peluquerías, hoteles '
-            'caninos— con un nombre y un enlace de Google Maps, compartidos '
-            'entre todas tus mascotas. Abre el menú lateral (ícono de las '
-            'tres líneas, arriba a la izquierda) y, en \'Catálogos\', toca '
-            '\'Ubicaciones\' para agregar, editar o eliminar lugares. Al '
-            'agendar una cita, puedes elegir uno guardado o ingresar uno '
-            'nuevo y, si quieres, guardarlo en el catálogo con un solo toque. '
-            'Editar o eliminar un lugar del catálogo nunca afecta a las citas '
-            'que ya lo usaron: cada cita conserva su propia copia del lugar '
-            'elegido en ese momento.',
-      ),
-    ];
-
-    const List<String> groupOrder = ['Salud', 'Historial', 'Otros'];
-
     return Scaffold(
       appBar: AppBar(title: const Text('Guía de PetPal')),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          for (final group in groupOrder)
-            if (cards.any((card) => card.group == group))
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12.0, bottom: 4.0, left: 16.0),
-                    child: Text(
-                      group,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  ...cards.where((card) => card.group == group),
-                ],
-              ),
+          _GuideCard(
+            icon: Icons.pets,
+            color: primary,
+            title: 'Mascotas',
+            shortDescription: 'Agrega mascotas con foto, especie, raza y microchip. La edad se calcula automáticamente.',
+            fullDescription: 'Cada mascota tiene su propio perfil con toda su información. En la pantalla principal, toca la tarjeta de una mascota para ver su perfil. Para agregar una nueva, usa el botón + en la esquina inferior derecha.',
+          ),
+          _GuideCard(
+            icon: Icons.notifications_active,
+            color: primary,
+            title: 'Avisos',
+            shortDescription: 'Íconos en cada mascota cuando algo necesita atención: vacuna, desparasitación o cita.',
+            fullDescription: 'Rojo significa vencido; naranja, que es hoy o en los próximos 7 días. Si no hay nada pendiente, verás "Al día". Para ver el detalle de todas tus mascotas, toca el ícono de calendario arriba a la derecha.',
+          ),
+          _GuideCard(
+            icon: Icons.local_hospital,
+            color: entityColorFor('vaccination'),
+            title: 'Salud',
+            shortDescription: 'Registra vacunas, medicación, desparasitación, alergias y signos vitales con recordatorios.',
+            fullDescription: 'Entra al perfil de tu mascota y toca la sección que necesites. Para vacunas, puedes configurar la próxima dosis. Para desparasitación, marca la recurrencia (ej. cada 3 meses) y PetPal recuerda por ti. Los signos vitales alertan si el valor está fuera del rango normal.',
+          ),
+          _GuideCard(
+            icon: Icons.folder_shared,
+            color: entityColorFor('document'),
+            title: 'Historial',
+            shortDescription: 'Guarda peso, documentos, notas y observa tendencias en gráficos.',
+            fullDescription: 'El peso se muestra en un gráfico de tendencia. Documentos organiza exámenes, informes y recetas por categoría. Notas es un diario de comportamiento con fotos que puedes exportar a PDF.',
+          ),
+          _GuideCard(
+            icon: Icons.calendar_today,
+            color: entityColorFor('appointment'),
+            title: 'Citas',
+            shortDescription: 'Agenda visitas al veterinario con recordatorio personalizable.',
+            fullDescription: 'Elige con cuánta anticipación quieres el aviso: mismo día, 1 día antes, 3 días o 1 semana antes. La opción está al agendar o editar una cita.',
+          ),
+          _GuideCard(
+            icon: Icons.calendar_month,
+            color: primary,
+            title: 'Calendario y buscador',
+            shortDescription: 'Vista cronológica de todo el historial y búsqueda global entre mascotas.',
+            fullDescription: 'El calendario muestra vacunas, medicación, citas y notas en una línea de tiempo. El buscador revisa todas tus mascotas y secciones a la vez. Toca el ícono de lupa en la pantalla principal.',
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 24, left: 16, right: 16),
+            child: Text(
+              'Consejos avanzados',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          _GuideCard(
+            icon: Icons.info_outline,
+            color: primary,
+            title: 'Equivalencias de vacunas',
+            shortDescription: 'Agrupa vacunas similares para que cuenten como una sola.',
+            fullDescription: 'Si aplicaste una vacuna que reemplaza a otra (ej. Óctuple en lugar de Séxtuple), PetPal ya las trata como equivalentes. Para configurar otras equivalencias, abre el menú lateral, toca Vacunas en Catálogos y usa el campo "Grupo de equivalencia".',
+          ),
+          _GuideCard(
+            icon: Icons.lock,
+            color: primary,
+            title: 'Backup y restauración',
+            shortDescription: 'Respalda toda la app en un archivo protegido con contraseña.',
+            fullDescription: 'Incluye archivos adjuntos. Abre el menú lateral y toca "Respaldo y restauración". Ahí también puedes borrar archivos antiguos sin uso para liberar espacio.',
+          ),
+          _GuideCard(
+            icon: Icons.location_on,
+            color: primary,
+            title: 'Catálogo de ubicaciones',
+            shortDescription: 'Guarda clínicas, peluquerías y otros lugares para reutilizar en citas.',
+            fullDescription: 'Los lugares se comparten entre todas tus mascotas. Al agendar una cita, puedes elegir uno guardado o crear uno nuevo. Editar o eliminar un lugar del catálogo no afecta a citas que ya lo usaron.',
+          ),
+          _GuideCard(
+            icon: Icons.more_vert,
+            color: primary,
+            title: 'Exportar y eliminar',
+            shortDescription: 'Genera ficha clínica en PDF, exporta historial en CSV o elimina una mascota.',
+            fullDescription: 'En el perfil de tu mascota, toca el ícono de tres puntos (⋮) arriba a la derecha. Eliminar no se puede deshacer, así que te pedimos confirmación.',
+          ),
         ],
       ),
     );
   }
 }
 
-class _GuideCard extends StatelessWidget {
+class _GuideCard extends StatefulWidget {
   final IconData icon;
   final Color color;
   final String title;
-  final String group;
-  final String description;
+  final String shortDescription;
+  final String fullDescription;
 
   const _GuideCard({
     required this.icon,
     required this.color,
     required this.title,
-    required this.group,
-    required this.description,
+    required this.shortDescription,
+    required this.fullDescription,
   });
+
+  @override
+  State<_GuideCard> createState() => _GuideCardState();
+}
+
+class _GuideCardState extends State<_GuideCard> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -270,29 +128,36 @@ class _GuideCard extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        leading: Container(
-          width: 44,
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ListTile(
+            leading: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: widget.color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(widget.icon, color: widget.color, size: 22),
+            ),
+            title: Text(
+              widget.title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                _expanded ? widget.fullDescription : widget.shortDescription,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            trailing: TextButton(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              child: Text(_expanded ? 'Ver menos' : 'Ver más'),
             ),
           ),
         ],
