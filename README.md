@@ -23,7 +23,11 @@ documentos clínicos y estado de salud, todo organizado por mascota.
   mascota. Los signos vitales alertan visualmente cuando un valor sale
   del rango normal. La desparasitación admite recordatorios genuinamente
   recurrentes (ej. "cada 3 meses"), sin necesitar crear un registro
-  nuevo en cada ciclo
+  nuevo en cada ciclo: se programan los próximos 12 ciclos por adelantado,
+  así el aviso sigue llegando aunque no abras la app durante meses
+- **Reemplazo de vacunas**: al cargar una vacuna parecida a una ya
+  registrada, la app pregunta si la nueva la reemplaza; una vacuna
+  reemplazada deja de contar para la próxima dosis
 - **Documentos clínicos**: exámenes, informes de cirugía, radiografías y
   recetas, organizados por categoría, con visualización diferenciada
   (imágenes en vista ampliada, PDFs abiertos con la app nativa del
@@ -39,8 +43,9 @@ documentos clínicos y estado de salud, todo organizado por mascota.
   horarios múltiples configurables por el usuario), vacunas,
   desparasitación y citas veterinarias (con anticipación configurable
   por el usuario), cada una identificando el nombre de la mascota en el
-  mensaje, que sobreviven a un reinicio del dispositivo y a la
-  restauración de un backup
+  mensaje, que sobreviven a un reinicio del dispositivo, a la
+  restauración de un backup y a la actualización de la app (al
+  actualizar, se reprograman con el nuevo esquema de ids)
 - **Ficha clínica exportable en PDF**, consolidando vacunas, medicación,
   desparasitación, peso y el índice de documentos — pensada para llevar
   directamente a una consulta veterinaria
@@ -49,7 +54,14 @@ documentos clínicos y estado de salud, todo organizado por mascota.
 - **Backup y restauración completa cifrada**: todos los datos de la app
   (incluyendo imágenes y documentos adjuntos) en un solo archivo ZIP
   protegido con contraseña, con vista previa (fecha y mascotas incluidas)
-  antes de confirmar el reemplazo
+  antes de confirmar el reemplazo. La restauración es atómica: si algo
+  falla a mitad de camino, los datos actuales quedan como estaban
+- **Seguridad con biometría**: crear o restaurar un respaldo y eliminar
+  una mascota pide huella o desbloqueo del teléfono; si no hay huella
+  registrada, se puede usar el PIN o el patrón
+- **Widget de pantalla de inicio** (Android) con los recordatorios de hoy
+- **Gestos**: en citas, documentos y medicación se elimina deslizando el
+  elemento, con confirmación
 - **Guía in-app**: pantalla de ayuda con explicación de cada función y
   cómo usarla, agrupada por categoría
 - Modo oscuro, con toggle manual (claro / oscuro / según el sistema)
@@ -68,6 +80,8 @@ documentos clínicos y estado de salud, todo organizado por mascota.
   recuperación tras reinicio del dispositivo
 - **fl_chart** — gráficos de tendencia (peso, signos vitales)
 - **archive** — copia de seguridad ZIP con cifrado AES por contraseña
+- **local_auth** — autenticación con huella, rostro o PIN del teléfono
+- **home_widget** — widget de pantalla de inicio (Android)
 - **pdf / open_filex / share_plus** — generación, visualización y
   exportación de documentos
 - **image_picker / pro_image_editor / file_picker** — captura, recorte y
@@ -94,13 +108,14 @@ propio repository y provider.
 ## Estado del proyecto
 
 En desarrollo activo. Funcionalidades implementadas y estables: perfiles,
-dashboard, buscador global, vacunas, desparasitación (con recordatorios
-recurrentes), medicación, peso, signos vitales, alergias, documentos,
-calendario, notas, citas (con recordatorio de anticipación configurable),
-catálogo de ubicaciones, notificaciones,
-backup/restore cifrado con vista previa, guía in-app, modo oscuro con
-toggle manual, y persistencia local con arquitectura completa (repository
-+ Riverpod) en las 10 entidades.
+dashboard, buscador global, vacunas (con reemplazo entre aplicaciones),
+desparasitación (con recordatorios recurrentes), medicación, peso, signos
+vitales, alergias, documentos, calendario, notas, citas (con recordatorio
+de anticipación configurable), catálogo de ubicaciones, notificaciones,
+backup/restore cifrado con vista previa y protección biométrica, widget de
+pantalla de inicio, guía in-app, modo oscuro con toggle manual, y
+persistencia local con arquitectura completa (repository + Riverpod) en
+las 10 entidades.
 
 Próximas funcionalidades planificadas:
 - Localización a inglés
@@ -110,12 +125,12 @@ Próximas funcionalidades planificadas:
 
 ## Testing y CI
 
-El proyecto cuenta con una suite de más de 290 pruebas automatizadas,
+El proyecto cuenta con una suite de más de 370 pruebas automatizadas,
 centrada en los puntos donde un bug puede fallar en silencio, sin
 lanzar ningún error visible:
 
 - Integridad referencial y borrado en cascada, verificados contra
-  SQLite real (no simulado) en las 15 tablas de la base de datos
+  SQLite real (no simulado) en las 17 tablas de la base de datos
 - Programación y cancelación de recordatorios, incluyendo ausencia de
   colisión de IDs entre mascotas, horarios y rangos de fechas largos
 - Orquestación correcta entre cada provider y sus efectos secundarios
@@ -145,8 +160,13 @@ flutter pub get
 flutter run
 ```
 
-Requiere Flutter 3.38+ y un dispositivo o emulador Android (compatibilidad
-con iOS en desarrollo).
+Requiere Flutter 3.44+ (la versión que usa el CI) y un dispositivo o
+emulador Android (compatibilidad con iOS en desarrollo).
+
+Para generar una release firmada hace falta `android/key.properties` y el
+keystore correspondiente; ambos están ignorados por Git. Guardá una copia
+del keystore fuera de la PC: sin él no se pueden publicar actualizaciones
+de la app.
 
 Para correr la suite de pruebas localmente:
 ```bash
