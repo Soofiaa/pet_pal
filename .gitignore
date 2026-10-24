@@ -48,3 +48,6 @@ app.*.map.json
 CLAUDE.md
 bundletool.jar
 mi_app.apks
+
+# Respaldo local del icono anterior
+assets/icon/anterior/
