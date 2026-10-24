@@ -230,6 +230,67 @@ void main() {
       },
     );
 
+    test(
+      'si la restauración falla a mitad de camino, revierte todo: la base queda '
+      'como estaba antes de aplicar el backup',
+      () async {
+        // Estado actual del usuario: una mascota con una nota.
+        final original = Pet(
+          name: 'Original',
+          species: 'Gato',
+          breed: 'Mestizo',
+          dob: DateTime(2019, 5, 5),
+          color: 'Gris',
+        );
+        await dbHelper.insertPet(original);
+        await dbHelper.insertNote(Note(
+          petId: original.id,
+          title: 'Nota original',
+          content: 'Debe sobrevivir al fallo',
+          date: DateTime(2024, 1, 1),
+        ));
+
+        // Backup "corrupto": la primera mascota es válida, pero una nota de
+        // esa mascota tiene una fecha que no se puede parsear. La restauración
+        // ya borró y reinsertó la mascota cuando falla ahí.
+        final brokenBackup = <String, dynamic>{
+          'pets': [
+            {
+              ...Pet(
+                name: 'Restaurada',
+                species: 'Perro',
+                breed: 'Mestizo',
+                dob: DateTime(2020, 1, 1),
+                color: 'Marrón',
+              ).toJson(),
+              'notes': [
+                {
+                  'id': 'nota-rota',
+                  'petId': 'ignorado',
+                  'title': 'Rota',
+                  'content': 'x',
+                  'date': 'no-es-una-fecha',
+                },
+              ],
+            },
+          ],
+        };
+
+        final result = await backupService.applyRestoredBackup(brokenBackup);
+
+        expect(result, contains('no se modificó nada'), reason: result);
+
+        final pets = await dbHelper.getPets();
+        expect(pets, hasLength(1), reason: 'la mascota original debe seguir ahí');
+        expect(pets.single.id, original.id);
+        expect(pets.single.name, 'Original');
+
+        final notes = await dbHelper.getNotesForPet(original.id);
+        expect(notes, hasLength(1));
+        expect(notes.single.title, 'Nota original');
+      },
+    );
+
     test('con la contraseña incorrecta, la previsualización falla sin tocar la base de datos', () async {
       await dbHelper.insertPet(Pet(
         name: 'Firulais',
