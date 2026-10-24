@@ -13,6 +13,7 @@ import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/providers/vital_sign_providers.dart';
 import 'package:pet_pal/providers/weight_record_providers.dart';
+import 'package:pet_pal/services/biometric_service.dart';
 import 'package:pet_pal/services/data_backup_service.dart';
 import 'package:pet_pal/services/notification_service.dart';
 import 'package:pet_pal/services/orphan_cleanup_service.dart';
@@ -174,6 +175,20 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
   }
 
   Future<void> _exportBackup() async {
+    // Verificar autenticación biométrica antes de proceder
+    final bool authenticated = await BiometricService.authenticate(
+      localizedReason: 'Autentícate para crear un respaldo de tus datos',
+    );
+    
+    if (!authenticated || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Autenticación requerida para crear respaldo')),
+        );
+      }
+      return;
+    }
+
     final String? password = await promptForBackupPassword(
       context,
       title: 'Contraseña del respaldo',
@@ -199,6 +214,20 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
   }
 
   Future<void> _importBackup() async {
+    // Verificar autenticación biométrica antes de proceder
+    final bool authenticated = await BiometricService.authenticate(
+      localizedReason: 'Autentícate para restaurar un respaldo de datos',
+    );
+    
+    if (!authenticated || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Autenticación requerida para restaurar respaldo')),
+        );
+      }
+      return;
+    }
+
     // La contraseña se pide primero porque hace falta descifrar el ZIP para
     // poder mostrarle al usuario de qué respaldo se trata (fecha, cantidad
     // de mascotas) antes de pedirle que confirme el reemplazo destructivo.

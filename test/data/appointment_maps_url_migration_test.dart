@@ -63,6 +63,20 @@ void main() {
                 reminderDaysBefore INTEGER NOT NULL DEFAULT 1
               )
             ''');
+            // La migración v34 hace ALTER TABLE vaccinations; en un archivo
+            // real esa tabla siempre existe desde antes.
+            await db.execute('''
+              CREATE TABLE vaccinations(
+                id TEXT PRIMARY KEY,
+                petId TEXT,
+                vaccineName TEXT,
+                date TEXT,
+                nextDueDate TEXT,
+                stickerPhotoPath TEXT,
+                extraPhotoPath TEXT,
+                reminderDaysAhead INTEGER NOT NULL DEFAULT 0
+              )
+            ''');
           },
         ),
       );

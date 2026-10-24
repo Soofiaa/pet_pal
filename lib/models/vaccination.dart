@@ -9,6 +9,7 @@ class Vaccination {
   final String? stickerPhotoPath;
   final String? extraPhotoPath;
   final int reminderDaysAhead;
+  final String? replacesVaccinationId;
 
   Vaccination({
     String? id,
@@ -19,6 +20,7 @@ class Vaccination {
     this.stickerPhotoPath,
     this.extraPhotoPath,
     this.reminderDaysAhead = 0,
+    this.replacesVaccinationId,
   }) : id = id ?? const Uuid().v4();
 
   Vaccination copyWith({
@@ -30,6 +32,7 @@ class Vaccination {
     String? stickerPhotoPath,
     String? extraPhotoPath,
     int? reminderDaysAhead,
+    String? replacesVaccinationId,
   }) {
     return Vaccination(
       id: id ?? this.id,
@@ -40,6 +43,7 @@ class Vaccination {
       stickerPhotoPath: stickerPhotoPath ?? this.stickerPhotoPath,
       extraPhotoPath: extraPhotoPath ?? this.extraPhotoPath,
       reminderDaysAhead: reminderDaysAhead ?? this.reminderDaysAhead,
+      replacesVaccinationId: replacesVaccinationId ?? this.replacesVaccinationId,
     );
   }
 
@@ -53,6 +57,7 @@ class Vaccination {
       'stickerPhotoPath': stickerPhotoPath,
       'extraPhotoPath': extraPhotoPath,
       'reminderDaysAhead': reminderDaysAhead,
+      'replacesVaccinationId': replacesVaccinationId,
     };
   }
 
@@ -68,6 +73,7 @@ class Vaccination {
       stickerPhotoPath: json['stickerPhotoPath'] as String?,
       extraPhotoPath: json['extraPhotoPath'] as String?,
       reminderDaysAhead: json['reminderDaysAhead'] as int? ?? 0,
+      replacesVaccinationId: json['replacesVaccinationId'] as String?,
     );
   }
 
@@ -84,6 +90,7 @@ class Vaccination {
         'title': 'Vacunación: ${vaccination.vaccineName}',
         'type': 'vaccination',
         'name': vaccination.vaccineName,
+        'replacesVaccinationId': vaccination.replacesVaccinationId,
       });
 
       if (vaccination.nextDueDate != null) {
@@ -94,6 +101,7 @@ class Vaccination {
           'title': 'Próxima Dosis: ${vaccination.vaccineName}',
           'type': 'next_vaccination',
           'name': vaccination.vaccineName,
+          'replacesVaccinationId': vaccination.replacesVaccinationId,
         });
       }
     }

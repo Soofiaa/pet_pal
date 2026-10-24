@@ -47,9 +47,12 @@ Future<void> main() async {
   // el nuevo). Si algo falla, no debe impedir que la app abra.
   try {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('reminder_ids_stable_v1') != true) {
+    // v2: medicación pasó de baseId*1000+día a hash de la clave completa, y
+    // desparasitación pasó a ciclos múltiples (_next_N). Se cancela todo una
+    // vez y rescheduleAllPending reprograma con los ids nuevos.
+    if (prefs.getBool('reminder_ids_stable_v2') != true) {
       await NotificationService().cancelAllNotifications();
-      await prefs.setBool('reminder_ids_stable_v1', true);
+      await prefs.setBool('reminder_ids_stable_v2', true);
     }
   } catch (e) {
     debugPrint('No se pudo migrar los ids de recordatorios: $e');

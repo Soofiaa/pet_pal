@@ -22,8 +22,8 @@ import 'package:pet_pal/screens/documents_screen/documents_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/screens/vital_sign_screen/vital_sign_screen.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
+import 'package:pet_pal/services/biometric_service.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
-import 'package:pet_pal/services/csv_export_service.dart';
 import 'package:pet_pal/theme/category_colors.dart';
 import 'package:pet_pal/utils/entity_colors.dart';
 import 'package:pet_pal/utils/delete_pet_flow.dart';
@@ -40,7 +40,6 @@ class PetDetailScreen extends StatefulWidget {
 class _PetDetailScreenState extends State<PetDetailScreen> {
   late Pet _pet;
   bool _isGeneratingHealthSummary = false;
-  final CsvExportService _csvExportService = CsvExportService();
 
   @override
   void initState() {
@@ -56,6 +55,20 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
   }
 
   Future<void> _deletePet() async {
+    // Verificar autenticación biométrica antes de proceder
+    final bool authenticated = await BiometricService.authenticate(
+      localizedReason: 'Autentícate para eliminar a ${_pet.name}',
+    );
+    
+    if (!authenticated || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Autenticación requerida para eliminar mascota')),
+        );
+      }
+      return;
+    }
+
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final name = _pet.name;
@@ -109,30 +122,6 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       if (mounted) {
         setState(() => _isGeneratingHealthSummary = false);
       }
-    }
-  }
-
-  Future<void> _exportCsvHistory(String kind) async {
-    String result;
-    switch (kind) {
-      case 'weight':
-        result = await _csvExportService.exportWeightHistory(_pet);
-        break;
-      case 'vaccinations':
-        result = await _csvExportService.exportVaccinationHistory(_pet);
-        break;
-      case 'medications':
-        result = await _csvExportService.exportMedicationHistory(_pet);
-        break;
-      case 'deworming':
-        result = await _csvExportService.exportDewormingHistory(_pet);
-        break;
-      default:
-        return;
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
     }
   }
 
@@ -282,8 +271,6 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                   _generateAndShareHealthSummary();
                 } else if (value == 'delete') {
                   _deletePet();
-                } else {
-                  _exportCsvHistory(value);
                 }
               },
               itemBuilder: (context) => const [
@@ -295,15 +282,6 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
-                PopupMenuDivider(),
-                PopupMenuItem(
-                  enabled: false,
-                  child: Text('Exportar historial (CSV)'),
-                ),
-                PopupMenuItem(value: 'weight', child: Text('Historial de peso')),
-                PopupMenuItem(value: 'vaccinations', child: Text('Historial de vacunas')),
-                PopupMenuItem(value: 'medications', child: Text('Historial de medicación')),
-                PopupMenuItem(value: 'deworming', child: Text('Historial de desparasitación')),
                 PopupMenuDivider(),
                 PopupMenuItem(
                   value: 'delete',

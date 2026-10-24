@@ -220,6 +220,9 @@ class DashboardEvent {
   /// "Polivalente") tengan cada una su propia "próxima dosis" vigente, en
   /// vez de que la más recientemente aplicada tape a las demás.
   ///
+  /// Para vacunas, también excluye registros que han sido reemplazados
+  /// explícitamente por otro (campo replacesVaccinationId).
+  ///
   /// Pública (no privada del archivo): pdf_generator.dart la reutiliza tal
   /// cual para decidir qué aplicación de desparasitación muestra el badge
   /// de vigente/vencida en la ficha clínica -mismo criterio exacto que acá
@@ -231,9 +234,22 @@ class DashboardEvent {
     String applicationType, {
     List<VaccinationProduct> vaccineProducts = const [],
   }) {
+    // Para vacunas, primero identificamos cuáles IDs han sido reemplazados
+    final replacedIds = <String>{};
+    if (applicationType == 'vaccination') {
+      for (final raw in rawEvents) {
+        if (raw['type'] == 'vaccination' && raw['replacesVaccinationId'] != null) {
+          replacedIds.add(raw['replacesVaccinationId'] as String);
+        }
+      }
+    }
+
     final latestByName = <String, Map<String, dynamic>>{};
     for (final raw in rawEvents) {
       if (raw['type'] != applicationType) continue;
+      // Si este registro fue reemplazado, ignorarlo
+      if (replacedIds.contains(raw['id'])) continue;
+
       final date = raw['date'];
       if (date is! DateTime) continue;
       final name = applicationType == 'vaccination'

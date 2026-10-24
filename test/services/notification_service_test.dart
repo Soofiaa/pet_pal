@@ -95,7 +95,7 @@ void main() {
         calls.clear();
 
         await service.scheduleMedicationForDays(
-          baseId: 5,
+          key: 'med-5',
           title: 'Medicación',
           body: 'Dosis',
           firstDoseDateTime: DateTime.now().add(const Duration(days: 1)),
@@ -196,13 +196,23 @@ void main() {
       await service.init();
       calls.clear();
 
-      await service.cancelMedicationForDays(baseId: 5, days: 7);
+      await service.cancelMedicationForDays(key: 'med-5', days: 7);
 
       final cancelCalls = calls.where((c) => c.method == 'cancel').toList();
       expect(cancelCalls, hasLength(7));
 
       final ids = cancelCalls.map((c) => c.arguments['id'] as int).toList();
       expect(ids.toSet().length, ids.length);
+    });
+
+    test('ids de medicación no colisionan en tratamientos largos (>1000 días) ni entre medicaciones', () {
+      final Set<int> ids = {};
+      for (final key in ['med-a', 'med-b', 'med-c']) {
+        for (int day = 0; day < 1500; day++) {
+          ids.add(NotificationService.medicationDayNotificationId(key, day));
+        }
+      }
+      expect(ids, hasLength(3 * 1500));
     });
 
     test('cancelAllNotifications invoca cancelAll', () async {

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:pet_pal/theme/category_colors.dart';
@@ -55,6 +56,12 @@ ThemeData buildAppTheme(Brightness brightness) {
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
     visualDensity: VisualDensity.adaptivePlatformDensity,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: appBarBackground,
       foregroundColor: appBarForeground,

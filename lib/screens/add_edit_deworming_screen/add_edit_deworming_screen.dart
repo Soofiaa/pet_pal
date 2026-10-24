@@ -9,6 +9,10 @@ import '../deworming_products_screen/deworming_products_screen.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
+/// Qué hacer cuando el usuario intenta guardar una desparasitación que ya
+/// existe (mismo producto, mismo día) en vez de duplicarla.
+enum _DuplicateChoice { cancel, update, keep }
+
 class AddEditDewormingScreen extends ConsumerStatefulWidget {
   final Pet pet;
   final Deworming? deworming;
@@ -85,6 +89,7 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
       _productController.text = product.name;
       _selectedType = product.defaultType;
       _selectedFrequency = product.defaultFrequencyMonths;
+      _isRecurring = true;
       _calculateNextDate();
     });
   }
@@ -141,11 +146,61 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
 
     try {
       final date = DateFormat('dd/MM/yyyy').parse(_dateController.text);
-      final nextDate = DateTime(date.year, date.month + _selectedFrequency!, date.day);
+      final nextDate = Deworming.addMonths(date, _selectedFrequency!);
       _nextDateController.text = DateFormat('dd/MM/yyyy').format(nextDate);
     } catch (e) {
       debugPrint('Error al calcular próxima fecha: $e');
     }
+  }
+
+  /// Devuelve un registro existente de la mascota que represente la MISMA
+  /// aplicación que [candidate] (mismo producto sin importar mayúsculas y
+  /// mismo día), o null si no hay ninguno. Se usa antes de guardar un
+  /// registro nuevo: si ya existe uno igual, el calendario mostraría dos
+  /// eventos "Próxima desparasitación" idénticos el mismo día.
+  Future<Deworming?> _findDuplicateRecord(Deworming candidate) async {
+    final List<Deworming> existing =
+        await ref.read(dewormingsProvider(widget.pet.id).future);
+    for (final d in existing) {
+      if (d.id == candidate.id) continue;
+      if (d.product.trim().toLowerCase() != candidate.product.trim().toLowerCase()) {
+        continue;
+      }
+      if (_isSameDay(d.date, candidate.date)) return d;
+    }
+    return null;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Future<_DuplicateChoice?> _askDuplicate(Deworming existing) {
+    return showDialog<_DuplicateChoice>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ya existe este registro'),
+        content: Text(
+          'Guardaste "${existing.product}" el '
+          '${DateFormat('dd/MM/yyyy').format(existing.date)}. '
+          'Si guardás otro igual, el calendario mostrará la desparasitación '
+          'dos veces.\n\n¿Qué querés hacer?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, _DuplicateChoice.cancel),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _DuplicateChoice.keep),
+            child: const Text('Guardar igual'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _DuplicateChoice.update),
+            child: const Text('Actualizar la existente'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveDeworming() async {
@@ -174,6 +229,32 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
 
       try {
         if (_currentDeworming == null) {
+          // Antes de crear un registro nuevo, verifica que no exista ya la
+          // misma aplicación (mismo producto + mismo día). Sin esto, un
+          // doble guardado genera dos filas iguales y el calendario muestra
+          // dos eventos "Próxima desparasitación" duplicados.
+          final duplicate = await _findDuplicateRecord(newDeworming);
+          if (duplicate != null) {
+            final choice = await _askDuplicate(duplicate);
+            if (choice == _DuplicateChoice.update) {
+              await notifier.updateDeworming(
+                duplicate,
+                newDeworming.copyWith(id: duplicate.id),
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Desparasitación actualizada con éxito.')),
+                );
+                Navigator.pop(context);
+              }
+              return;
+            }
+            if (choice != _DuplicateChoice.keep) {
+              // Cancelado (o diálogo cerrado): no se guarda nada.
+              return;
+            }
+          }
+
           await notifier.addDeworming(newDeworming);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -328,16 +409,29 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.repeat),
                 ),
-                items: _frequencyOptions.map((opt) {
-                  return DropdownMenuItem<int?>(
-                    value: opt['value'],
-                    child: Text(opt['label']),
-                  );
-                }).toList(),
+                items: [
+                  ..._frequencyOptions.map((opt) {
+                    return DropdownMenuItem<int?>(
+                      value: opt['value'],
+                      child: Text(opt['label']),
+                    );
+                  }),
+                  // Un producto del catálogo puede tener una frecuencia que no
+                  // está en la lista fija (ej. 4 meses). Sin este item, el
+                  // dropdown lanza un assert al abrir el formulario.
+                  if (_selectedFrequency != null &&
+                      !_frequencyOptions.any((o) => o['value'] == _selectedFrequency))
+                    DropdownMenuItem<int?>(
+                      value: _selectedFrequency,
+                      child: Text('Cada $_selectedFrequency ${_selectedFrequency == 1 ? 'mes' : 'meses'}'),
+                    ),
+                ],
                 onChanged: (value) {
                   setState(() {
                     _selectedFrequency = value;
-                    if (value == null) _isRecurring = false;
+                    // Con frecuencia elegida, el recordatorio se repite solo
+                    // (la próxima fecha la calcula la app, no se carga a mano).
+                    _isRecurring = value != null;
                     _calculateNextDate();
                   });
                 },

@@ -33,8 +33,7 @@ class VaccinationProductsScreen extends ConsumerWidget {
                     child: ListTile(
                       title: Text(product.name),
                       subtitle: Text(
-                          'Frecuencia recomendada: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''}'
-                          '${(product.groupName ?? '').trim().isEmpty ? '' : '\nGrupo: ${product.groupName!.trim()}'}'),
+                          'Frecuencia recomendada: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''}'),
                       trailing: IconButton(
                         icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                         tooltip: 'Eliminar',
@@ -95,7 +94,6 @@ class _AddEditVaccinationProductDialog extends ConsumerStatefulWidget {
 class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVaccinationProductDialog> {
   late TextEditingController _nameController;
   late TextEditingController _frequencyController;
-  late TextEditingController _groupController;
   bool _isSaving = false;
 
   @override
@@ -105,14 +103,12 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
     _frequencyController = TextEditingController(
       text: widget.product?.defaultFrequencyMonths.toString() ?? '12',
     );
-    _groupController = TextEditingController(text: widget.product?.groupName ?? '');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _frequencyController.dispose();
-    _groupController.dispose();
     super.dispose();
   }
 
@@ -142,19 +138,6 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
               keyboardType: TextInputType.number,
               enabled: !_isSaving,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _groupController,
-              decoration: const InputDecoration(
-                labelText: 'Grupo de equivalencia (opcional)',
-                helperText:
-                    'Las vacunas con el mismo grupo se reemplazan entre sí (ej. "Felina múltiple").',
-                helperMaxLines: 3,
-                border: OutlineInputBorder(),
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              enabled: !_isSaving,
-            ),
           ],
         ),
       ),
@@ -176,7 +159,6 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final freq = int.tryParse(_frequencyController.text) ?? 12;
-    final group = _groupController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Introduce un nombre antes de guardar.')),
@@ -202,7 +184,7 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
               VaccinationProduct(
                 name: name,
                 defaultFrequencyMonths: freq,
-                groupName: group.isEmpty ? null : group,
+                groupName: null,
               ),
             );
       } else {
@@ -210,8 +192,8 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
               widget.product!.copyWith(
                 name: name,
                 defaultFrequencyMonths: freq,
-                groupName: group.isEmpty ? null : group,
-                clearGroup: group.isEmpty,
+                groupName: null,
+                clearGroup: true,
               ),
             );
       }

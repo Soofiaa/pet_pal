@@ -121,6 +121,30 @@ void main() {
 
       expect(resaved.effectiveNextDate(now: now), advancedOnce);
     });
+
+    test('próxima = hoy (con hora ya pasada): sigue siendo la fecha vigente, no avanza', () {
+      final deworming = _deworming(
+        nextDate: DateTime(2026, 10, 24),
+        frequencyMonths: 1,
+        isRecurring: true,
+      );
+      expect(
+        deworming.effectiveNextDate(now: DateTime(2026, 10, 24, 15, 30)),
+        DateTime(2026, 10, 24),
+      );
+    });
+
+    test('día 31 + 1 mes: usa el último día del mes siguiente, no el 1 del otro', () {
+      final deworming = _deworming(
+        nextDate: DateTime(2026, 8, 31),
+        frequencyMonths: 1,
+        isRecurring: true,
+      );
+      expect(
+        deworming.effectiveNextDate(now: DateTime(2026, 9, 1)),
+        DateTime(2026, 9, 30),
+      );
+    });
   });
 
   group('Deworming.idsWithVisibleNextDose', () {

@@ -40,18 +40,13 @@ void main() {
     expect(find.byIcon(Icons.picture_as_pdf), findsNothing);
   });
 
-  testWidgets('el menú agrupa la ficha PDF, los CSV y eliminar con etiquetas claras', (tester) async {
+  testWidgets('el menú agrupa la ficha PDF y eliminar con etiquetas claras', (tester) async {
     await _pump(tester);
 
     await tester.tap(find.byTooltip('Más opciones'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Eliminar mascota'), findsOneWidget);
     expect(find.text('Ficha clínica (PDF)'), findsOneWidget);
-    expect(find.text('Exportar historial (CSV)'), findsOneWidget);
-    expect(find.text('Historial de peso'), findsOneWidget);
-    expect(find.text('Historial de vacunas'), findsOneWidget);
-    expect(find.text('Historial de medicación'), findsOneWidget);
-    expect(find.text('Historial de desparasitación'), findsOneWidget);
+    expect(find.text('Eliminar mascota'), findsOneWidget);
   });
 }
