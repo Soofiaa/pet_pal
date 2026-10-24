@@ -273,11 +273,11 @@ void main() {
         ));
 
         final dateTimes = scheduledDateTimes();
-        expect(dateTimes, hasLength(1));
+        expect(dateTimes, hasLength(ReminderScheduler.dewormingCycleHorizon));
         expect(
-          dateTimes.single.isAfter(DateTime.now()),
+          dateTimes.every((d) => d.isAfter(DateTime.now())),
           isTrue,
-          reason: 'debe reprogramarse a futuro, no quedarse en la fecha vencida',
+          reason: 'todos los ciclos pre-programados deben ser futuros',
         );
       },
     );

@@ -156,68 +156,72 @@ class DewormingScreen extends ConsumerWidget {
                     final deworming = dewormingList[index];
                     final bool showNextDose = deworming.id != null &&
                         idsWithVisibleNextDose.contains(deworming.id);
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      child: ListTile(
-                        title: Row(
-                          children: [
-                            Flexible(
-                              child: Text(deworming.product, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            if (deworming.isRecurring) ...[
-                              const SizedBox(width: 6),
-                              Tooltip(
-                                message: 'Recordatorio automático recurrente',
-                                child: Icon(Icons.repeat, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    return Dismissible(
+                      key: ValueKey(deworming.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Theme.of(context).colorScheme.error,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
+                      ),
+                      confirmDismiss: (_) async {
+                        await _confirmDelete(context, ref, deworming);
+                        return false;
+                      },
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        child: ListTile(
+                          title: Row(
+                            children: [
+                              Flexible(
+                                child: Text(deworming.product, style: const TextStyle(fontWeight: FontWeight.bold)),
                               ),
+                              if (deworming.isRecurring) ...[
+                                const SizedBox(width: 6),
+                                Tooltip(
+                                  message: 'Recordatorio automático recurrente',
+                                  child: Icon(Icons.repeat, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Fecha: ${DateFormat('dd/MM/yyyy').format(deworming.date)}'),
-                            if (showNextDose && deworming.effectiveNextDate() != null)
-                              Builder(builder: (context) {
-                                final next = deworming.effectiveNextDate()!;
-                                final overdue = isNextDoseOverdue(next);
-                                final formatted = DateFormat('dd/MM/yyyy').format(next);
-                                return Text(
-                                  overdue ? 'Vencida desde: $formatted' : 'Próxima fecha: $formatted',
-                                  style: overdue
-                                      ? TextStyle(
-                                          color: Theme.of(context).colorScheme.error,
-                                          fontWeight: FontWeight.w600,
-                                        )
-                                      : null,
-                                );
-                              }),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
-                              tooltip: 'Editar',
-                              onPressed: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AddEditDewormingScreen(
-                                      pet: pet,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Fecha: ${DateFormat('dd/MM/yyyy').format(deworming.date)}'),
+                              if (showNextDose && deworming.effectiveNextDate() != null)
+                                Builder(builder: (context) {
+                                  final next = deworming.effectiveNextDate()!;
+                                  final overdue = isNextDoseOverdue(next);
+                                  final formatted = DateFormat('dd/MM/yyyy').format(next);
+                                  return Text(
+                                    overdue ? 'Vencida desde: $formatted' : 'Próxima fecha: $formatted',
+                                    style: overdue
+                                        ? TextStyle(
+                                            color: Theme.of(context).colorScheme.error,
+                                            fontWeight: FontWeight.w600,
+                                          )
+                                        : null,
+                                  );
+                                }),
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                            tooltip: 'Editar',
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AddEditDewormingScreen(
+                                    pet: pet,
                                       deworming: deworming,
                                     ),
                                   ),
                                 );
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                              tooltip: 'Eliminar',
-                              onPressed: () => _confirmDelete(context, ref, deworming),
-                            ),
-                          ],
+                            },
+                          ),
                         ),
                       ),
                     );

@@ -279,33 +279,60 @@ class ReminderScheduler {
     }
   }
 
-  static int _dewormingNextId(String dewormingId) =>
-      stableNotificationId('${dewormingId}_next');
+  /// Cuántos ciclos futuros se pre-programan por registro recurrente. Sin
+  /// esto, una notificación única dejaba de sonar para siempre si no se
+  /// abría la app antes del siguiente ciclo. Al abrir la app se reconcilia
+  /// de nuevo, así que el horizonte se renueva solo.
+  static const int dewormingCycleHorizon = 12;
+
+  /// Id del recordatorio del ciclo [cycleOffset] (0 = el vigente ahora).
+  /// El offset 0 conserva el id histórico ('${id}_next') para no
+  /// duplicar notificaciones ya programadas en dispositivos existentes.
+  static int _dewormingNextId(String dewormingId, [int cycleOffset = 0]) =>
+      cycleOffset == 0
+          ? stableNotificationId('${dewormingId}_next')
+          : stableNotificationId('${dewormingId}_next_$cycleOffset');
 
   static Future<void> cancelDewormingReminder(Deworming deworming) async {
     if (deworming.id == null) return;
-    await NotificationService()
-        .cancelNotification(_dewormingNextId(deworming.id!));
+    for (int offset = 0; offset < dewormingCycleHorizon; offset++) {
+      await NotificationService()
+          .cancelNotification(_dewormingNextId(deworming.id!, offset));
+    }
   }
 
   static Future<void> scheduleDewormingReminder(Deworming deworming) async {
-    final DateTime? effectiveNextDate = deworming.effectiveNextDate();
-    if (deworming.id == null || effectiveNextDate == null) return;
+    if (deworming.id == null || deworming.nextDate == null) return;
 
     final String petName = await _petDisplayName(deworming.petId);
-    final DateTime notifyAt = _atReminderHour(
-      effectiveNextDate.subtract(Duration(days: deworming.reminderDaysAhead)),
-    );
+    final bool recurring = deworming.isRecurring &&
+        deworming.frequencyMonths != null &&
+        deworming.frequencyMonths! > 0;
+    final int horizon = recurring ? dewormingCycleHorizon : 1;
+    final int firstCycle = deworming.effectiveCycleIndex();
 
-    await NotificationService().scheduleNotificationOnce(
-      id: _dewormingNextId(deworming.id!),
-      title: 'Desparasitación próxima para $petName: ${deworming.product}',
-      body: deworming.reminderDaysAhead > 0
-          ? 'Faltan ${deworming.reminderDaysAhead} días para la próxima desparasitación con ${deworming.product}.'
-          : 'Hoy corresponde la próxima desparasitación con ${deworming.product}.',
-      scheduledDateTime: notifyAt,
-      payload: deworming.id,
-    );
+    // No cancela acá: zonedSchedule reemplaza por id, y los ciclos viejos
+    // ya se cancelan en el flujo de edición/borrado (DewormingsNotifier)
+    // antes de llamar a esta función, con el objeto anterior.
+    for (int offset = 0; offset < horizon; offset++) {
+      final DateTime? occurrence =
+          deworming.occurrenceForCycle(firstCycle + offset);
+      if (occurrence == null) continue;
+
+      final DateTime notifyAt = _atReminderHour(
+        occurrence.subtract(Duration(days: deworming.reminderDaysAhead)),
+      );
+
+      await NotificationService().scheduleNotificationOnce(
+        id: _dewormingNextId(deworming.id!, offset),
+        title: 'Desparasitación próxima para $petName: ${deworming.product}',
+        body: deworming.reminderDaysAhead > 0
+            ? 'Faltan ${deworming.reminderDaysAhead} días para la próxima desparasitación con ${deworming.product}.'
+            : 'Hoy corresponde la próxima desparasitación con ${deworming.product}.',
+        scheduledDateTime: notifyAt,
+        payload: deworming.id,
+      );
+    }
   }
 
   /// Igual que [reconcileVaccinationReminders], pero para desparasitación:

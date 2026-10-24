@@ -24,14 +24,19 @@ class Deworming {
     this.isRecurring = false,
   });
 
+  /// Los flags `clearNextDate`, `clearType` y `clearFrequency` permiten
+  /// poner esos campos en null (con `??` solo no se podía).
   Deworming copyWith({
     String? id,
     String? petId,
     String? product,
     DateTime? date,
     DateTime? nextDate,
+    bool clearNextDate = false,
     String? type,
+    bool clearType = false,
     int? frequencyMonths,
+    bool clearFrequency = false,
     int? reminderDaysAhead,
     bool? isRecurring,
   }) {
@@ -40,9 +45,9 @@ class Deworming {
       petId: petId ?? this.petId,
       product: product ?? this.product,
       date: date ?? this.date,
-      nextDate: nextDate ?? this.nextDate,
-      type: type ?? this.type,
-      frequencyMonths: frequencyMonths ?? this.frequencyMonths,
+      nextDate: clearNextDate ? null : (nextDate ?? this.nextDate),
+      type: clearType ? null : (type ?? this.type),
+      frequencyMonths: clearFrequency ? null : (frequencyMonths ?? this.frequencyMonths),
       reminderDaysAhead: reminderDaysAhead ?? this.reminderDaysAhead,
       isRecurring: isRecurring ?? this.isRecurring,
     );
@@ -88,16 +93,44 @@ class Deworming {
   /// lógica ni divergir entre ellas. Puro: nunca escribe en la base de datos.
   DateTime? effectiveNextDate({DateTime? now}) {
     if (nextDate == null) return null;
-    if (!isRecurring || frequencyMonths == null || frequencyMonths! <= 0) {
+    return occurrenceForCycle(effectiveCycleIndex(now: now));
+  }
+
+  /// Índice del ciclo vigente: 0 es [nextDate] original; cada +1 avanza
+  /// [frequencyMonths]. Siempre 0 si el registro no es recurrente.
+  int effectiveCycleIndex({DateTime? now}) {
+    if (nextDate == null || !isRecurring || frequencyMonths == null || frequencyMonths! <= 0) {
+      return 0;
+    }
+    final DateTime reference = now ?? DateTime.now();
+    final DateTime today = DateTime(reference.year, reference.month, reference.day);
+    int cycle = 0;
+    while (occurrenceForCycle(cycle)!.isBefore(today)) {
+      cycle++;
+    }
+    return cycle;
+  }
+
+  /// Fecha de la aplicación número [cycle] (0 = [nextDate]). Calcula desde
+  /// [nextDate] original en cada caso, así el día del mes no se degrada
+  /// (31 -> 30 -> 30 en vez de 31 -> 30 -> 28 acumulando).
+  DateTime? occurrenceForCycle(int cycle) {
+    if (nextDate == null) return null;
+    if (!isRecurring || frequencyMonths == null || frequencyMonths! <= 0 || cycle == 0) {
       return nextDate;
     }
+    return addMonths(nextDate!, cycle * frequencyMonths!);
+  }
 
-    final DateTime reference = now ?? DateTime.now();
-    DateTime candidate = nextDate!;
-    while (candidate.isBefore(reference)) {
-      candidate = DateTime(candidate.year, candidate.month + frequencyMonths!, candidate.day);
-    }
-    return candidate;
+  /// Suma [months] meses a [date] sin desbordar: si el mes destino no tiene
+  /// ese día (31/08 + 1 mes), usa el último día del mes (30/09) en vez de
+  /// pasar al mes siguiente (1/10). Única función de suma de meses de la app.
+  static DateTime addMonths(DateTime date, int months) {
+    final int totalMonths = date.year * 12 + (date.month - 1) + months;
+    final int year = totalMonths ~/ 12;
+    final int month = totalMonths % 12 + 1;
+    final int lastDay = DateTime(year, month + 1, 0).day;
+    return DateTime(year, month, date.day > lastDay ? lastDay : date.day);
   }
 
   static const Set<String> _coverageTypes = {'interna', 'externa', 'ambas'};
@@ -161,6 +194,20 @@ class Deworming {
     return missing;
   }
 
+  /// Una aplicación queda superada si existe otra posterior que cubre lo
+  /// mismo: 'ambas' cubre todo, el mismo tipo cubre su tipo, y un registro
+  /// sin cobertura conocida (legado) lo supera cualquier aplicación más
+  /// nueva. Mismo criterio que DashboardEvent._isSupersededDeworming.
+  static bool _isSuperseded(Deworming deworming, List<Deworming> all) {
+    final bool knownCoverage = _coverageTypes.contains(deworming.type);
+    return all.any((other) {
+      if (identical(other, deworming) || !other.date.isAfter(deworming.date)) {
+        return false;
+      }
+      return !knownCoverage || other.type == 'ambas' || other.type == deworming.type;
+    });
+  }
+
   static List<Map<String, dynamic>> getEventsFromList(List<Deworming> dewormings) {
     List<Map<String, dynamic>> events = [];
     for (var deworming in dewormings) {
@@ -178,8 +225,11 @@ class Deworming {
         'name': deworming.product,
         'coverage': deworming.type,
       });
+      // La "próxima" de una aplicación ya reemplazada por otra más nueva no
+      // es un pendiente real: mostrarla duplicaría el evento en el
+      // calendario cuando ambas apuntan a la misma fecha.
       final effectiveNextDate = deworming.effectiveNextDate();
-      if (effectiveNextDate != null) {
+      if (effectiveNextDate != null && !_isSuperseded(deworming, dewormings)) {
         events.add({
           'id': deworming.id,
           'petId': deworming.petId,
