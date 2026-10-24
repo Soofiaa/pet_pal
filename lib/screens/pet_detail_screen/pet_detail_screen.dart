@@ -22,6 +22,7 @@ import 'package:pet_pal/screens/documents_screen/documents_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/screens/vital_sign_screen/vital_sign_screen.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
+import 'package:pet_pal/services/biometric_service.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/services/csv_export_service.dart';
 import 'package:pet_pal/theme/category_colors.dart';
@@ -56,6 +57,20 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
   }
 
   Future<void> _deletePet() async {
+    // Verificar autenticación biométrica antes de proceder
+    final bool authenticated = await BiometricService.authenticate(
+      localizedReason: 'Autentícate para eliminar a ${_pet.name}',
+    );
+
+    if (!authenticated || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Autenticación requerida para eliminar mascota')),
+        );
+      }
+      return;
+    }
+
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final name = _pet.name;
