@@ -194,52 +194,56 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   itemCount: filteredDocuments.length,
                   itemBuilder: (context, index) {
                     final Document document = filteredDocuments[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      child: ListTile(
-                        leading: Icon(
-                          document.isPdf ? Icons.picture_as_pdf : Icons.image,
-                          color: document.isPdf ? Colors.red : Colors.blue,
-                          size: 36,
-                        ),
-                        title: Text(
-                          document.titulo,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          '${document.categoria} · ${DateFormat('dd/MM/yyyy').format(document.fecha)}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
-                              tooltip: 'Editar',
-                              onPressed: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AddEditDocumentScreen(
-                                      pet: widget.pet,
-                                      document: document,
-                                    ),
+                    return Dismissible(
+                      key: ValueKey(document.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Theme.of(context).colorScheme.error,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
+                      ),
+                      confirmDismiss: (_) async {
+                        await _confirmDelete(document);
+                        return false;
+                      },
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        child: ListTile(
+                          leading: Icon(
+                            document.isPdf ? Icons.picture_as_pdf : Icons.image,
+                            color: document.isPdf ? Colors.red : Colors.blue,
+                            size: 36,
+                          ),
+                          title: Text(
+                            document.titulo,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            '${document.categoria} · ${DateFormat('dd/MM/yyyy').format(document.fecha)}',
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                            tooltip: 'Editar',
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AddEditDocumentScreen(
+                                    pet: widget.pet,
+                                    document: document,
                                   ),
-                                );
-                                // No hace falta refrescar acá: si se guardó
-                                // algo, DocumentsNotifier.addDocument/
-                                // updateDocument ya refrescó el estado
-                                // internamente antes de volver; si se
-                                // canceló, no hay nada que refrescar.
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                              tooltip: 'Eliminar',
-                              onPressed: () => _confirmDelete(document),
-                            ),
-                          ],
+                                ),
+                              );
+                              // No hace falta refrescar acá: si se guardó
+                              // algo, DocumentsNotifier.addDocument/
+                              // updateDocument ya refrescó el estado
+                              // internamente antes de volver; si se
+                              // canceló, no hay nada que refrescar.
+                            },
+                          ),
+                          onTap: () => _openDocument(document),
                         ),
-                        onTap: () => _openDocument(document),
                       ),
                     );
                   },
