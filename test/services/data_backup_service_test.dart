@@ -5,9 +5,7 @@
 // DataBackupService.exportAllData/importAllData mezclan esta lógica con
 // I/O de plataforma (path_provider para el directorio temporal,
 // share_plus para compartir el archivo) que no tiene mock en este repo
-// -mismo motivo por el que csv_export_service.dart tampoco tiene test de
-// servicio completo (ver test/utils/csv_export_generator_test.dart)-. Por
-// eso se prueba acá el mecanismo de cifrado en sí, que es la lógica nueva
+// -por eso se prueba acá el mecanismo de cifrado en sí, que es la lógica nueva
 // de esta fase, en vez de encadenar getTemporaryDirectory()/Share.shareXFiles.
 import 'dart:convert';
 import 'dart:typed_data';

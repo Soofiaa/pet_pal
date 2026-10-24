@@ -44,7 +44,6 @@ documentos clínicos y estado de salud, todo organizado por mascota.
 - **Ficha clínica exportable en PDF**, consolidando vacunas, medicación,
   desparasitación, peso y el índice de documentos — pensada para llevar
   directamente a una consulta veterinaria
-- **Exportación de historial** (peso, vacunas, medicación) a CSV
 - Diario de comportamiento y notas por mascota, con fotos y exportación
   a PDF
 - **Backup y restauración completa cifrada**: todos los datos de la app
@@ -69,7 +68,6 @@ documentos clínicos y estado de salud, todo organizado por mascota.
   recuperación tras reinicio del dispositivo
 - **fl_chart** — gráficos de tendencia (peso, signos vitales)
 - **archive** — copia de seguridad ZIP con cifrado AES por contraseña
-- **csv** — exportación de historiales
 - **pdf / open_filex / share_plus** — generación, visualización y
   exportación de documentos
 - **image_picker / pro_image_editor / file_picker** — captura, recorte y
@@ -99,7 +97,7 @@ En desarrollo activo. Funcionalidades implementadas y estables: perfiles,
 dashboard, buscador global, vacunas, desparasitación (con recordatorios
 recurrentes), medicación, peso, signos vitales, alergias, documentos,
 calendario, notas, citas (con recordatorio de anticipación configurable),
-catálogo de ubicaciones, notificaciones, exportación a CSV,
+catálogo de ubicaciones, notificaciones,
 backup/restore cifrado con vista previa, guía in-app, modo oscuro con
 toggle manual, y persistencia local con arquitectura completa (repository
 + Riverpod) en las 10 entidades.

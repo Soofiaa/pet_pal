@@ -39,7 +39,7 @@ directamente demuestra pensamiento de QA, no solo desarrollo.
 ## Prioridad media
 
 ### 3. Exportar historial a CSV/Excel
-**Estado: ✅ hecho (exportación a CSV).**
+**Estado: ↩️ retirado (la exportación a CSV se implementó y luego se quitó de la app).**
 **Problema:** hay datos de salud reales y estructurados (peso, vacunas,
 medicación) sin ninguna forma de sacarlos en un formato analizable fuera de
 la app.
@@ -146,7 +146,7 @@ el ítem 1).
 - ✅ **Correcciones de Estabilidad**: Solucionado error crítico `_dependents.isEmpty` en diálogos y navegación.
 
 ## Log de Mejoras (Septiembre-Octubre 2026)
-- ✅ Ítems 1 a 6 y 9 del backlog cerrados: dashboard, suite de tests, CSV, signos vitales, CI, arquitectura repository + Riverpod y backup cifrado.
+- ✅ Ítems 1 a 6 y 9 del backlog cerrados: dashboard, suite de tests, CSV (luego retirado), signos vitales, CI, arquitectura repository + Riverpod y backup cifrado.
 - ✅ IDs de notificación estables entre ejecuciones (`stableNotificationId`, FNV-1a), con migración única al actualizar.
 
 ---
