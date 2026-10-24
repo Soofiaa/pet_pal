@@ -90,7 +90,7 @@ class GuideScreen extends StatelessWidget {
             icon: Icons.more_vert,
             color: primary,
             title: 'Exportar y eliminar',
-            shortDescription: 'Genera ficha clínica en PDF, exporta historial en CSV o elimina una mascota.',
+            shortDescription: 'Genera la ficha clínica en PDF o elimina una mascota.',
             fullDescription: 'En el perfil de tu mascota, toca el ícono de tres puntos (⋮) arriba a la derecha. Eliminar no se puede deshacer, así que te pedimos confirmación.',
           ),
         ],
