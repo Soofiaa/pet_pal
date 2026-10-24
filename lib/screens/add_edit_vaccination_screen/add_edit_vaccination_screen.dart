@@ -13,6 +13,7 @@ import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/utils/vaccine_similarity.dart';
+import 'package:pet_pal/widgets/replace_vaccination_dialog.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
@@ -306,25 +307,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
   /// elegida, o null si el usuario dice que son independientes o cierra el
   /// diálogo (en ambos casos no se reemplaza nada).
   Future<Vaccination?> _pickReplacedVaccination(List<Vaccination> similar) {
-    return showDialog<Vaccination>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('¿Esta vacuna reemplaza a alguna anterior?'),
-        children: [
-          for (final v in similar)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, v),
-              child: Text(
-                '${v.vaccineName} · ${DateFormat('dd/MM/yyyy').format(v.date)}',
-              ),
-            ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('No, son independientes'),
-          ),
-        ],
-      ),
-    );
+    return showReplaceVaccinationDialog(context, similar);
   }
 
   // Menú de catálogo: reemplaza al viejo dropdown + autocompletar de nombres
