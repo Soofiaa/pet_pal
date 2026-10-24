@@ -179,7 +179,7 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
     final bool authenticated = await BiometricService.authenticate(
       localizedReason: 'Autentícate para crear un respaldo de tus datos',
     );
-
+    
     if (!authenticated || !mounted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -218,7 +218,7 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen>
     final bool authenticated = await BiometricService.authenticate(
       localizedReason: 'Autentícate para restaurar un respaldo de datos',
     );
-
+    
     if (!authenticated || !mounted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
