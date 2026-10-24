@@ -76,7 +76,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'pet_pal_v2.db');
     return await openDatabase(
       path,
-      version: 33,
+      version: 34,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -132,6 +132,7 @@ class DatabaseHelper {
         stickerPhotoPath TEXT,
         extraPhotoPath TEXT,
         reminderDaysAhead INTEGER NOT NULL DEFAULT 0,
+        replacesVaccinationId TEXT,
         FOREIGN KEY (petId) REFERENCES $petsTable (id) ON DELETE CASCADE
       )
     ''');
@@ -641,6 +642,14 @@ class DatabaseHelper {
       debugPrint('Migración v33: groupName agregado al catálogo de vacunas');
     }
 
+    // v34: reemplazo directo entre vacunas aplicadas (más intuitivo que grupos).
+    if (oldVersion < 34) {
+      if (!await _columnExists(db, vaccinationsTable, 'replacesVaccinationId')) {
+        await db.execute('ALTER TABLE $vaccinationsTable ADD COLUMN replacesVaccinationId TEXT');
+      }
+      debugPrint('Migración v34: replacesVaccinationId añadido a vaccinations');
+    }
+
     // Si tienes migraciones antiguas que antes estaban en onUpgrade,
     // van aquí también, respetando el patrón: if (oldVersion < X) { ... }
   }
@@ -716,6 +725,9 @@ class DatabaseHelper {
   /// paso lanza, todo se revierte: la base queda exactamente como estaba.
   /// Imprescindible para restaurar backups, que borran y reinsertan muchos
   /// registros; sin esto una falla a mitad de camino dejaba la base vacía.
+  ///
+  /// Los métodos de DatabaseHelper usan `database` (la misma conexión), así
+  /// que dentro de [action] las llamadas participan de la transacción.
   Future<T> runInTransaction<T>(Future<T> Function() action) async {
     // Siempre la conexión real: `database` podría devolver una transacción
     // anidada, que no tiene transaction().
