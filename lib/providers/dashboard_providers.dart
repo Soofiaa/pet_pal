@@ -3,6 +3,7 @@ import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/providers/database_providers.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
+import 'package:pet_pal/services/widget_update_service.dart';
 
 /// Vista agregada de "qué necesita atención hoy": combina los eventos
 /// accionables (citas, próximas dosis, fin de tratamientos) de todas las
@@ -32,6 +33,19 @@ final todayDashboardProvider =
     if (rankCompare != 0) return rankCompare;
     return a.date.compareTo(b.date);
   });
+
+  // Actualizar el widget de home screen con los eventos de hoy
+  final eventsForWidget = events.map((e) => {
+    'petName': e.petName,
+    'type': e.type,
+    'date': e.date.toIso8601String(),
+    'isUrgent': e.urgencyRank >= 2,
+  }).toList();
+
+  final formattedReminders = WidgetUpdateService.formatRemindersForWidget(
+    eventsForWidget,
+  );
+  await WidgetUpdateService.updateWidget(formattedReminders);
 
   return events;
 });

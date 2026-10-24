@@ -4,6 +4,7 @@
 // para múltiples mascotas, no solo la forma del provider.
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -31,6 +32,15 @@ void main() {
   late Directory tempDbDir;
 
   setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    // todayDashboardProvider también actualiza el widget de pantalla de inicio
+    // vía el canal nativo 'home_widget', que no existe en flutter test. Se
+    // responde null a todas las llamadas: el test valida la agregación de
+    // eventos, no el widget.
+    const MethodChannel homeWidgetChannel = MethodChannel('home_widget');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(homeWidgetChannel, (MethodCall call) async => null);
+
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     tempDbDir = await Directory.systemTemp.createTemp('pet_pal_test_db_');
