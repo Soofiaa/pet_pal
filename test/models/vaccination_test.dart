@@ -183,5 +183,77 @@ void main() {
       // todo, no se "hereda" la del ganador).
       expect(winners, {'v-nueva'});
     });
+
+    test('reemplazo explícito: vacuna nueva que reemplaza a vieja oculta a la vieja', () {
+      final vieja = Vaccination(
+        id: 'v-vieja',
+        petId: 'pet-1',
+        vaccineName: 'Sextuple',
+        date: DateTime(2025, 1, 1),
+        nextDueDate: DateTime(2026, 1, 1),
+      );
+      final nueva = Vaccination(
+        id: 'v-nueva',
+        petId: 'pet-1',
+        vaccineName: 'Octuple',
+        date: DateTime(2026, 6, 1),
+        nextDueDate: DateTime(2027, 6, 1),
+        replacesVaccinationId: 'v-vieja',
+      );
+
+      final winners = _idsWithVisibleNextDose([vieja, nueva]);
+
+      // La nueva reemplaza a la vieja, así que solo la nueva muestra próxima dosis
+      expect(winners, {'v-nueva'});
+    });
+
+    test('reemplazo explícito: vacuna vieja reemplazada no muestra próxima dosis', () {
+      final vieja = Vaccination(
+        id: 'v-vieja',
+        petId: 'pet-1',
+        vaccineName: 'Sextuple',
+        date: DateTime(2025, 1, 1),
+        nextDueDate: DateTime(2026, 1, 1),
+      );
+      final nueva = Vaccination(
+        id: 'v-nueva',
+        petId: 'pet-1',
+        vaccineName: 'Octuple',
+        date: DateTime(2026, 6, 1),
+        nextDueDate: DateTime(2027, 6, 1),
+        replacesVaccinationId: 'v-vieja',
+      );
+
+      final events = Vaccination.getEventsFromList([vieja, nueva]);
+      final viejaEvent = events.firstWhere((e) => e['id'] == 'v-vieja');
+      final nuevaEvent = events.firstWhere((e) => e['id'] == 'v-nueva');
+
+      // Verificar que el campo replacesVaccinationId está en los eventos
+      expect(viejaEvent['replacesVaccinationId'], isNull);
+      expect(nuevaEvent['replacesVaccinationId'], 'v-vieja');
+    });
+
+    test('reemplazo explícito con mismo nombre: la reemplazada queda oculta', () {
+      final vieja = Vaccination(
+        id: 'v-vieja',
+        petId: 'pet-1',
+        vaccineName: 'Rabia',
+        date: DateTime(2025, 1, 1),
+        nextDueDate: DateTime(2026, 1, 1),
+      );
+      final nueva = Vaccination(
+        id: 'v-nueva',
+        petId: 'pet-1',
+        vaccineName: 'Rabia',
+        date: DateTime(2026, 6, 1),
+        nextDueDate: DateTime(2027, 6, 1),
+        replacesVaccinationId: 'v-vieja',
+      );
+
+      final winners = _idsWithVisibleNextDose([vieja, nueva]);
+
+      // Solo la nueva muestra próxima dosis
+      expect(winners, {'v-nueva'});
+    });
   });
 }

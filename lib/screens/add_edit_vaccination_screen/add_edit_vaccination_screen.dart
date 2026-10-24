@@ -41,6 +41,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
 
   final ImagePicker _picker = ImagePicker();
   bool _isSaving = false;
+  String? _replacesVaccinationId;
 
   bool get _isEditing => widget.vaccination != null;
 
@@ -54,6 +55,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
       _reminderDaysAhead = widget.vaccination!.reminderDaysAhead;
       _stickerPhotoPath = widget.vaccination!.stickerPhotoPath;
       _extraPhotoPath = widget.vaccination!.extraPhotoPath;
+      _replacesVaccinationId = widget.vaccination!.replacesVaccinationId;
     }
   }
 
@@ -287,6 +289,68 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
     });
   }
 
+  /// Detecta vacunas similares que podrían ser reemplazadas por esta nueva
+  List<Vaccination> _findSimilarVaccinations(List<Vaccination> allVaccinations) {
+    final currentName = _normalizeVaccineName(_vaccineNameController.text).toLowerCase();
+    if (currentName.isEmpty) return [];
+
+    final similar = <Vaccination>[];
+    final multipleKeywords = ['sextuple', 'octuple', 'polivalente', 'multiple', 'triple', 'cuádruple'];
+
+    for (final v in allVaccinations) {
+      if (v.id == widget.vaccination?.id) continue; // No comparar consigo misma en edición
+
+      final vName = _normalizeVaccineName(v.vaccineName).toLowerCase();
+
+      // Si tienen el mismo nombre normalizado
+      if (vName == currentName) {
+        similar.add(v);
+        continue;
+      }
+
+      // Si alguna contiene palabras clave de vacunas múltiples
+      final hasMultipleKeyword = multipleKeywords.any((keyword) =>
+          currentName.contains(keyword) || vName.contains(keyword));
+
+      if (hasMultipleKeyword) {
+        similar.add(v);
+      }
+    }
+
+    return similar;
+  }
+
+  /// Muestra diálogo preguntando si la nueva vacuna reemplaza a una existente
+  Future<bool> _showReplacementDialog(Vaccination existingVaccination) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Esta vacuna reemplaza a la anterior?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Aplicaste ${existingVaccination.vaccineName} el ${DateFormat('dd/MM/yyyy').format(existingVaccination.date)}.'),
+            const SizedBox(height: 8),
+            Text('¿Esta nueva vacuna la reemplaza?'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No, son independientes'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+            child: const Text('Sí, la reemplaza'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   // Menú de catálogo: reemplaza al viejo dropdown + autocompletar de nombres
   // ya escritos (fuente de nombres inconsistentes). Si el usuario escribe un
   // nombre libre en el campo, se guarda tal cual, sin sugerencias.
@@ -342,6 +406,24 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
       final String id = _isEditing ? widget.vaccination!.id : const Uuid().v4();
 
       try {
+        // Solo en alta, detectar vacunas similares y preguntar sobre reemplazo
+        if (!_isEditing) {
+          final allVaccinations = await ref.read(vaccinationsProvider(widget.petId).future);
+          final similar = _findSimilarVaccinations(allVaccinations);
+
+          if (similar.isNotEmpty) {
+            // Por ahora, solo preguntamos por la más reciente
+            final mostRecent = similar.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
+            final shouldReplace = await _showReplacementDialog(mostRecent);
+
+            if (shouldReplace) {
+              _replacesVaccinationId = mostRecent.id;
+            } else {
+              _replacesVaccinationId = null;
+            }
+          }
+        }
+
         final String? finalStickerPhotoPath =
             await ImageStorageService.saveImageIfNeeded(
           _stickerPhotoPath,
@@ -363,6 +445,7 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           stickerPhotoPath: finalStickerPhotoPath,
           extraPhotoPath: finalExtraPhotoPath,
           reminderDaysAhead: _reminderDaysAhead,
+          replacesVaccinationId: _replacesVaccinationId,
         );
 
         final notifier = ref.read(vaccinationsProvider(widget.petId).notifier);
