@@ -43,12 +43,15 @@ class BiometricService {
     bool biometricOnly = false,
   }) async {
     try {
-      final bool canCheck = await canCheckBiometrics();
+      // isDeviceSupported() indica si el dispositivo tiene algún bloqueo de
+      // pantalla configurado (PIN, patrón, contraseña o biometría). No exigir
+      // canCheckBiometrics: un usuario sin huella registrada pero con PIN
+      // quedaba bloqueado para siempre (no podía crear respaldos ni borrar).
+      // Con biometricOnly: false el sistema ofrece el PIN/patrón como alternativa.
       final bool supported = await isDeviceSupported();
       final available = await getAvailableBiometrics();
-      debugPrint('BiometricService: canCheck=$canCheck supported=$supported available=$available');
-      final bool canAuthenticate = canCheck && supported;
-      if (!canAuthenticate) {
+      debugPrint('BiometricService: supported=$supported available=$available');
+      if (!supported) {
         return false;
       }
 
