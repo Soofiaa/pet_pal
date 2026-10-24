@@ -1,5 +1,6 @@
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication_intake.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 
 /// Tipos de evento de [DatabaseHelper.getAllEventsForPet] que representan
 /// algo pendiente de atención (recordatorio, vencimiento, fin de
@@ -71,18 +72,23 @@ class DashboardEvent {
   ///    qué es lo más urgente de cada tipo, no un timeline completo — si
   ///    hay varias citas o varias vacunas pendientes, solo se ve la más
   ///    próxima; a medida que se resuelve, la siguiente pasa a ocupar su
-  ///    lugar.
+  ///    lugar. Excepción: vacunas y desparasitaciones vencidas se conservan
+  ///    todas (ver `_typesKeepingOverdue`).
   static List<DashboardEvent> fromEventMaps(
     List<Map<String, dynamic>> rawEvents,
     Pet pet, {
     List<MedicationIntake> intakes = const [],
+    List<VaccinationProduct> vaccineProducts = const [],
   }) {
     final events = <DashboardEvent>[];
 
     final dewormingWinnerIds =
         idsOfMostRecentApplicationPerName(rawEvents, 'deworming');
-    final vaccinationWinnerIds =
-        idsOfMostRecentApplicationPerName(rawEvents, 'vaccination');
+    final vaccinationWinnerIds = idsOfMostRecentApplicationPerName(
+      rawEvents,
+      'vaccination',
+      vaccineProducts: vaccineProducts,
+    );
     // 'next_vaccination' usa '${vaccination.id}_next' as id (ver
     // Vaccination.getEventsFromList), a diferencia de 'next_deworming' que
     // reutiliza el mismo id que su registro de aplicación.
@@ -107,6 +113,11 @@ class DashboardEvent {
 
       final date = raw['date'];
       if (date is! DateTime) continue;
+      if (type == 'next_deworming' &&
+          date.isBefore(DateTime.now()) &&
+          _isSupersededDeworming(raw, rawEvents)) {
+        continue;
+      }
 
       // ✅ Lógica inteligente de toma
       bool isTaken = false;
@@ -135,10 +146,45 @@ class DashboardEvent {
     return _keepSoonestPerType(events);
   }
 
+  /// Una desparasitación vencida deja de ser relevante si hay una aplicación
+  /// posterior (de cualquier producto) que cubre lo mismo: 'ambas' cubre
+  /// todo, y un registro sin cobertura conocida (legado) lo supera cualquier
+  /// aplicación más nueva.
+  static bool _isSupersededDeworming(
+    Map<String, dynamic> raw,
+    List<Map<String, dynamic>> rawEvents,
+  ) {
+    final id = raw['id'];
+    final coverage = raw['coverage'] as String?;
+    final applied = rawEvents.firstWhere(
+      (e) => e['type'] == 'deworming' && e['id'] == id,
+      orElse: () => const {},
+    )['date'];
+    if (applied is! DateTime) return false;
+    final knownCoverage =
+        coverage == 'interna' || coverage == 'externa' || coverage == 'ambas';
+
+    return rawEvents.any((other) {
+      if (other['type'] != 'deworming' || other['id'] == id) return false;
+      final otherDate = other['date'];
+      if (otherDate is! DateTime || !otherDate.isAfter(applied)) return false;
+      final otherCoverage = other['coverage'] as String?;
+      return !knownCoverage ||
+          otherCoverage == 'ambas' ||
+          otherCoverage == coverage;
+    });
+  }
+
+  /// Tipos en los que un evento vencido no se oculta tras el próximo: las
+  /// vacunas y desparasitaciones ya vienen reducidas a una por nombre, así
+  /// que una dosis atrasada no puede quedar tapada por otra futura.
+  static const _typesKeepingOverdue = {'next_vaccination', 'next_deworming'};
+
   /// Se queda con un único evento por tipo: el de fecha más próxima a
   /// futuro (hoy cuenta como futuro) o, si todos los de ese tipo ya están
   /// vencidos, el menos vencido (el que pasó más recientemente) — así una
   /// tarea atrasada sigue siendo visible en vez de desaparecer del panel.
+  /// En [_typesKeepingOverdue] además se conservan todos los vencidos.
   static List<DashboardEvent> _keepSoonestPerType(
     List<DashboardEvent> events,
   ) {
@@ -149,7 +195,15 @@ class DashboardEvent {
         winnerByType[event.type] = event;
       }
     }
-    return winnerByType.values.toList();
+    final result = winnerByType.values.toList();
+    for (final event in events) {
+      if (_typesKeepingOverdue.contains(event.type) &&
+          event.urgency == DashboardUrgency.overdue &&
+          !identical(winnerByType[event.type], event)) {
+        result.add(event);
+      }
+    }
+    return result;
   }
 
   static bool _isSoonerForPanel(DashboardEvent a, DashboardEvent b) {
@@ -166,6 +220,9 @@ class DashboardEvent {
   /// "Polivalente") tengan cada una su propia "próxima dosis" vigente, en
   /// vez de que la más recientemente aplicada tape a las demás.
   ///
+  /// Para vacunas, también excluye registros que han sido reemplazados
+  /// explícitamente por otro (campo replacesVaccinationId).
+  ///
   /// Pública (no privada del archivo): pdf_generator.dart la reutiliza tal
   /// cual para decidir qué aplicación de desparasitación muestra el badge
   /// de vigente/vencida en la ficha clínica -mismo criterio exacto que acá
@@ -174,19 +231,86 @@ class DashboardEvent {
   /// la vigente para un mismo dato real-.
   static Set<dynamic> idsOfMostRecentApplicationPerName(
     List<Map<String, dynamic>> rawEvents,
-    String applicationType,
-  ) {
+    String applicationType, {
+    List<VaccinationProduct> vaccineProducts = const [],
+  }) {
+    // Para vacunas, primero identificamos cuáles IDs han sido reemplazados
+    final replacedIds = <String>{};
+    if (applicationType == 'vaccination') {
+      for (final raw in rawEvents) {
+        if (raw['type'] == 'vaccination' && raw['replacesVaccinationId'] != null) {
+          replacedIds.add(raw['replacesVaccinationId'] as String);
+        }
+      }
+    }
+
     final latestByName = <String, Map<String, dynamic>>{};
     for (final raw in rawEvents) {
       if (raw['type'] != applicationType) continue;
+      // Si este registro fue reemplazado, ignorarlo
+      if (replacedIds.contains(raw['id'])) continue;
+
       final date = raw['date'];
       if (date is! DateTime) continue;
-      final name = raw['name'] as String? ?? '';
+      final name = applicationType == 'vaccination'
+          ? vaccineGroupKey(raw['name'] as String? ?? '', vaccineProducts)
+          : raw['name'] as String? ?? '';
       final currentLatestDate = latestByName[name]?['date'] as DateTime?;
       if (currentLatestDate == null || date.isAfter(currentLatestDate)) {
         latestByName[name] = raw;
       }
     }
     return latestByName.values.map((raw) => raw['id']).toSet();
+  }
+
+  static const _multipleVaccineWords = [
+    'sextuple',
+    'octuple',
+    'polivalente',
+    'multiple',
+  ];
+
+  static String _normalize(String text) => text
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u')
+      .trim();
+
+  /// Clave de agrupación de una vacuna: las que comparten clave se
+  /// reemplazan entre sí (la aplicada más recientemente gana).
+  /// 1. Si el catálogo ([products]) tiene un producto con ese nombre -o cuyo
+  ///    nombre esté contenido en el de la vacuna, ej. "Vacuna Séxtuple
+  ///    Canina" ↔ "Sextuple"- y tiene grupo, la clave es el grupo.
+  /// 2. Si no, las múltiples caninas (Séxtuple, Óctuple, Polivalente) comparten
+  ///    una clave fija.
+  /// 3. El resto se agrupa por su nombre tal cual.
+  static String vaccineGroupKey(
+    String name, [
+    List<VaccinationProduct> products = const [],
+  ]) {
+    final normalized = _normalize(name);
+
+    VaccinationProduct? match;
+    for (final product in products) {
+      final productName = _normalize(product.name);
+      if (productName.isEmpty) continue;
+      if (productName == normalized) {
+        match = product;
+        break;
+      }
+      if (productName.length >= 3 &&
+          normalized.contains(productName) &&
+          (match == null || productName.length > _normalize(match.name).length)) {
+        match = product;
+      }
+    }
+
+    final group = _normalize(match?.groupName ?? '');
+    if (group.isNotEmpty) return 'group:$group';
+    if (_multipleVaccineWords.any(normalized.contains)) return 'multiple';
+    return name;
   }
 }

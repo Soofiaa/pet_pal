@@ -384,5 +384,21 @@ void main() {
       final products = await dbHelper.getVaccinationProducts();
       expect(products.where((p) => p.name == 'Sextuple'), hasLength(1));
     });
+
+   test('guarda y actualiza el grupo de equivalencia', () async {
+     final dbHelper = DatabaseHelper();
+     final product = VaccinationProduct(
+       name: 'Triple felina',
+       defaultFrequencyMonths: 12,
+       groupName: 'Felina múltiple',
+     );
+     await dbHelper.insertVaccinationProduct(product);
+
+     expect((await dbHelper.getVaccinationProducts()).single.groupName, 'Felina múltiple');
+
+     await dbHelper.updateVaccinationProduct(product.copyWith(clearGroup: true));
+
+     expect((await dbHelper.getVaccinationProducts()).single.groupName, isNull);
+   });
   });
 }

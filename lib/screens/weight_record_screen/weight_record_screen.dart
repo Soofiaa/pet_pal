@@ -1,9 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/weight_record.dart';
+import 'package:pet_pal/utils/chart_format.dart';
 import 'package:pet_pal/providers/weight_record_providers.dart';
 import 'package:pet_pal/screens/add_edit_weight_record_screen/add_edit_weight_record_screen.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
@@ -31,8 +33,11 @@ class WeightRecordScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -134,7 +139,7 @@ class WeightRecordScreen extends ConsumerWidget {
                     return SideTitleWidget(
                       axisSide: meta.axisSide,
                       child: Text(
-                        '${value.toStringAsFixed(0)} kg',
+                        '${formatAxisValue(value, meta.appliedInterval)} kg',
                         style: const TextStyle(fontSize: 10),
                       ),
                     );
@@ -190,11 +195,11 @@ class WeightRecordScreen extends ConsumerWidget {
           return Column(
             children: [
               if (weightRecords.length == 1)
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Text(
                     'Agrega al menos un registro más para ver la evolución del peso.',
-                    style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                    style: TextStyle(fontStyle: FontStyle.italic, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                 )
@@ -203,16 +208,17 @@ class WeightRecordScreen extends ConsumerWidget {
               Expanded(
                 child: ListView.builder(
                   itemCount: weightRecords.length,
+                  padding: kFabListPadding,
                   itemBuilder: (context, index) {
                     final record = weightRecords[index];
                     return Dismissible(
                       key: Key(record.id.toString()),
                       direction: DismissDirection.endToStart,
                       background: Container(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                       ),
                       confirmDismiss: (direction) async {
                         await _deleteRecord(context, ref, record);
@@ -228,7 +234,7 @@ class WeightRecordScreen extends ConsumerWidget {
                           ),
                           subtitle: Text(
                             'Fecha: ${DateFormat('dd/MM/yyyy').format(record.date)}',
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           onTap: () async {
                             await Navigator.push(

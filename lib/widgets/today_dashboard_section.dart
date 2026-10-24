@@ -20,8 +20,6 @@ import 'package:pet_pal/utils/event_type_details.dart';
 class TodayDashboardSection extends ConsumerWidget {
   const TodayDashboardSection({super.key});
 
-  static const int _maxVisibleEvents = 5;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(todayDashboardProvider);
@@ -36,7 +34,7 @@ class TodayDashboardSection extends ConsumerWidget {
         padding: const EdgeInsets.all(16.0),
         child: Text(
           'No se pudo cargar el resumen de hoy: $error',
-          style: TextStyle(color: Colors.red[700]),
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
       ),
       data: (events) {
@@ -44,56 +42,89 @@ class TodayDashboardSection extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        final visibleEvents = events.take(_maxVisibleEvents).toList();
-        final remaining = events.length - visibleEvents.length;
-
         final petsCount = petsAsync.value?.length ?? 0;
         final showPetName = petsCount > 1;
 
-        // ✅ MEJORA SENIOR: Agrupar por mascota si hay muchas
-        final Map<String, List<DashboardEvent>> groupedEvents = {};
-        for (var event in events) {
-          groupedEvents.putIfAbsent(event.petName, () => []).add(event);
-        }
+        final selection = selectDashboardEvents(events);
+        final remaining = selection.hiddenCount;
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0),
+          child: Card(
+            elevation: 0,
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Hoy', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  if (remaining > 0)
-                    TextButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TodayEventsScreen())),
-                      child: Text('Ver todo ($remaining más)'),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Próximos', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        if (remaining > 0)
+                          TextButton(
+                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TodayEventsScreen())),
+                            child: Text('Ver todo ($remaining más)'),
+                          ),
+                      ],
                     ),
+                  ),
+                  ...selection.visibleByPet.entries.map((entry) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (showPetName)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                            child: Text(entry.key, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          ),
+                        ...entry.value.map((event) => DashboardEventTile(event: event, showPetName: false, compact: true)),
+                      ],
+                    );
+                  }),
                 ],
               ),
-              const SizedBox(height: 8),
-              ...groupedEvents.entries.take(3).map((entry) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showPetName)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey)),
-                      ),
-                    ...entry.value.take(2).map((event) => DashboardEventTile(event: event, showPetName: false)),
-                    const SizedBox(height: 8),
-                  ],
-                );
-              }),
-              const Divider(height: 24),
-            ],
+            ),
           ),
         );
       },
     );
   }
+}
+
+/// Eventos que el panel realmente dibuja, agrupados por mascota, y cuántos
+/// quedan fuera. El contador sale de lo dibujado: así "Ver todo" aparece
+/// siempre que se oculte algo (límite de mascotas o de eventos por mascota).
+class DashboardSelection {
+  const DashboardSelection(this.visibleByPet, this.hiddenCount);
+
+  final Map<String, List<DashboardEvent>> visibleByPet;
+  final int hiddenCount;
+}
+
+DashboardSelection selectDashboardEvents(
+  List<DashboardEvent> events, {
+  int maxPets = 3,
+  int maxEventsPerPet = 2,
+}) {
+  final Map<String, List<DashboardEvent>> grouped = {};
+  for (final event in events) {
+    grouped.putIfAbsent(event.petName, () => []).add(event);
+  }
+
+  final Map<String, List<DashboardEvent>> visible = {};
+  var shown = 0;
+  for (final entry in grouped.entries.take(maxPets)) {
+    final list = entry.value.take(maxEventsPerPet).toList();
+    visible[entry.key] = list;
+    shown += list.length;
+  }
+  return DashboardSelection(visible, events.length - shown);
 }
 
 /// Pantalla de la mascota que corresponde a cada tipo de evento accionable
@@ -125,10 +156,15 @@ class DashboardEventTile extends ConsumerWidget {
     super.key,
     required this.event,
     this.showPetName = true,
+    this.compact = false,
   });
 
   final DashboardEvent event;
   final bool showPetName;
+
+  /// Fila sin tarjeta propia, para usarla dentro de otra tarjeta (panel
+  /// "Próximos" del Home).
+  final bool compact;
 
   Future<void> _onTap(BuildContext context, WidgetRef ref) async {
     final dbHelper = ref.read(databaseHelperProvider);
@@ -232,39 +268,51 @@ class DashboardEventTile extends ConsumerWidget {
       );
     }
 
+    final tile = ListTile(
+      dense: compact,
+      visualDensity: compact ? VisualDensity.compact : null,
+      shape: compact ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)) : null,
+      tileColor: compact
+          ? (event.isTaken
+              ? Colors.green.withValues(alpha: 0.1)
+              : (isOverdue ? colorScheme.errorContainer : null))
+          : null,
+      onTap: () => _onTap(context, ref),
+      leading: Icon(
+        event.isTaken ? Icons.check_circle : eventIconFor(event.type),
+        color: event.isTaken ? Colors.green : eventColorFor(event.type),
+      ),
+      title: Text(
+        displayTitle,
+        style: TextStyle(
+          color: event.isTaken
+              ? Colors.green[700]
+              : (isOverdue ? colorScheme.onErrorContainer : null),
+          decoration: event.isTaken ? TextDecoration.lineThrough : null,
+        ),
+      ),
+      subtitle: subtitle,
+      trailing: event.isTaken
+          ? const Icon(Icons.done_all, color: Colors.green)
+          : (isMedication
+              ? IconButton(
+                  icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                  tooltip: 'Marcar como tomada',
+                  onPressed: () => _confirmMedicationIntake(context, ref),
+                )
+              : (isOverdue
+                  ? Icon(Icons.warning_amber_rounded, color: colorScheme.error)
+                  : null)),
+    );
+
+    if (compact) return tile;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
-      color: event.isTaken 
-          ? Colors.green.withValues(alpha: 0.1) 
+      color: event.isTaken
+          ? Colors.green.withValues(alpha: 0.1)
           : (isOverdue ? colorScheme.errorContainer : null),
-      child: ListTile(
-        onTap: () => _onTap(context, ref),
-        leading: Icon(
-          event.isTaken ? Icons.check_circle : eventIconFor(event.type), 
-          color: event.isTaken ? Colors.green : eventColorFor(event.type)
-        ),
-        title: Text(
-          displayTitle,
-          style: TextStyle(
-            color: event.isTaken 
-                ? Colors.green[700] 
-                : (isOverdue ? colorScheme.onErrorContainer : null),
-            decoration: event.isTaken ? TextDecoration.lineThrough : null,
-          ),
-        ),
-        subtitle: subtitle,
-        trailing: event.isTaken
-            ? const Icon(Icons.done_all, color: Colors.green)
-            : (isMedication
-                ? IconButton(
-                    icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                    tooltip: 'Marcar como tomada',
-                    onPressed: () => _confirmMedicationIntake(context, ref),
-                  )
-                : (isOverdue
-                    ? Icon(Icons.warning_amber_rounded, color: colorScheme.error)
-                    : null)),
-      ),
+      child: tile,
     );
   }
 }

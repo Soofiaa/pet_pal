@@ -30,8 +30,11 @@ class FoodRecordScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -68,10 +71,10 @@ class FoodRecordScreen extends ConsumerWidget {
       key: Key(record.id.toString()),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red,
+        color: Theme.of(context).colorScheme.error,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
       ),
       confirmDismiss: (direction) async {
         await _deleteFoodRecord(context, ref, record);
@@ -85,7 +88,7 @@ class FoodRecordScreen extends ConsumerWidget {
             record.foodName,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          subtitle: Text(_subtitleFor(record), style: const TextStyle(color: Colors.grey)),
+          subtitle: Text(_subtitleFor(record), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           onTap: () async {
             await Navigator.push(
               context,
@@ -143,7 +146,7 @@ class FoodRecordScreen extends ConsumerWidget {
                     'Fecha de inicio desconocida',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ),

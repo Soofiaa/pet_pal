@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -21,9 +22,11 @@ import 'package:pet_pal/screens/documents_screen/documents_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/screens/vital_sign_screen/vital_sign_screen.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
+import 'package:pet_pal/services/biometric_service.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
-import 'package:pet_pal/services/csv_export_service.dart';
+import 'package:pet_pal/theme/category_colors.dart';
 import 'package:pet_pal/utils/entity_colors.dart';
+import 'package:pet_pal/utils/delete_pet_flow.dart';
 
 class PetDetailScreen extends StatefulWidget {
   final Pet pet;
@@ -37,7 +40,6 @@ class PetDetailScreen extends StatefulWidget {
 class _PetDetailScreenState extends State<PetDetailScreen> {
   late Pet _pet;
   bool _isGeneratingHealthSummary = false;
-  final CsvExportService _csvExportService = CsvExportService();
 
   @override
   void initState() {
@@ -50,6 +52,30 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     if (updated != null && mounted) {
       setState(() => _pet = updated);
     }
+  }
+
+  Future<void> _deletePet() async {
+    // Verificar autenticación biométrica antes de proceder
+    final bool authenticated = await BiometricService.authenticate(
+      localizedReason: 'Autentícate para eliminar a ${_pet.name}',
+    );
+    
+    if (!authenticated || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Autenticación requerida para eliminar mascota')),
+        );
+      }
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final name = _pet.name;
+    final deleted = await confirmAndDeletePet(context, _pet);
+    if (!deleted) return;
+    messenger.showSnackBar(SnackBar(content: Text('$name eliminada con éxito.')));
+    navigator.pop();
   }
 
   Future<void> _generateAndShareHealthSummary() async {
@@ -96,30 +122,6 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
       if (mounted) {
         setState(() => _isGeneratingHealthSummary = false);
       }
-    }
-  }
-
-  Future<void> _exportCsvHistory(String kind) async {
-    String result;
-    switch (kind) {
-      case 'weight':
-        result = await _csvExportService.exportWeightHistory(_pet);
-        break;
-      case 'vaccinations':
-        result = await _csvExportService.exportVaccinationHistory(_pet);
-        break;
-      case 'medications':
-        result = await _csvExportService.exportMedicationHistory(_pet);
-        break;
-      case 'deworming':
-        result = await _csvExportService.exportDewormingHistory(_pet);
-        break;
-      default:
-        return;
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
     }
   }
 
@@ -236,6 +238,11 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     final gridItemWidth =
         (screenWidth - (horizontalPadding * 2) - (crossAxisSpacing * (crossAxisCount - 1))) / crossAxisCount;
 
+    // Alto de tarjeta calculado con la fuente ya acotada (ver _buildFeatureCard)
+    // para que no desborde con texto grande.
+    final featureLabelHeight = _featureLabelScaler(context).scale(12) * 1.4 * 2;
+    final featureCardHeight = max(gridItemWidth, 50 + 8 + featureLabelHeight + 16);
+
     final microchipText = (_pet.microchipNumber == null || _pet.microchipNumber!.isEmpty)
         ? 'No registrado'
         : _pet.microchipNumber!;
@@ -252,28 +259,43 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
           else
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf),
-              tooltip: 'Compartir ficha clínica',
-              onPressed: _generateAndShareHealthSummary,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'Más opciones',
+              onSelected: (value) {
+                if (value == 'pdf') {
+                  _generateAndShareHealthSummary();
+                } else if (value == 'delete') {
+                  _deletePet();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'pdf',
+                  child: ListTile(
+                    leading: Icon(Icons.picture_as_pdf),
+                    title: Text('Ficha clínica (PDF)'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('Eliminar mascota'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.ios_share),
-            tooltip: 'Exportar historial a CSV',
-            onSelected: _exportCsvHistory,
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'weight', child: Text('Historial de peso')),
-              PopupMenuItem(value: 'vaccinations', child: Text('Historial de vacunas')),
-              PopupMenuItem(value: 'medications', child: Text('Historial de medicación')),
-              PopupMenuItem(value: 'deworming', child: Text('Historial de desparasitación')),
-            ],
-          ),
           IconButton(
             icon: const Icon(Icons.edit),
+            tooltip: 'Editar mascota',
             onPressed: () async {
               await Navigator.push(
                 context,
@@ -316,55 +338,82 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                               child: ImageStorageService.isValidLocalFile(_pet.imageUrl)
                                   ? Image.file(File(_pet.imageUrl!), fit: BoxFit.cover)
                                   : Container(
-                                      color: Colors.grey[200],
-                                      child: const Icon(Icons.broken_image, size: 70, color: Colors.grey),
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                      child: Icon(Icons.broken_image, size: 70, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                     ),
                             )
                           : Container(
                               decoration: BoxDecoration(
-                                color: Colors.grey[200],
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
-                                child: Icon(Icons.pets, size: 80, color: Colors.grey),
+                              child: Center(
+                                child: Icon(Icons.pets, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               ),
                             ),
                     ),
                   ),
-                  const Spacer(),
-                  Column(
-                    children: [
-                      SizedBox(
-                        height: gridItemWidth,
-                        width: gridItemWidth,
-                        child: _buildFeatureCard(
-                          context,
-                          title: 'Eventos',
-                          icon: Icons.calendar_month,
-                          color: Colors.blue,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
-                            );
-                          },
-                        ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _pet.species,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          Text(_pet.breed),
+                          const SizedBox(height: 4),
+                          Text(_pet.detailedAge),
+                          Text('Color: ${_pet.color}'),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Icon(
+                                  _pet.isNeutered ? Icons.check_circle : Icons.remove_circle_outline,
+                                  size: 16,
+                                  color: _pet.isNeutered
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Chip(
-                        label: Text(
-                          _pet.isNeutered ? 'Esterilizado' : 'No esterilizado',
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                        avatar: Icon(
-                          _pet.isNeutered ? Icons.check_circle : Icons.cancel,
-                          size: 14,
-                          color: _pet.isNeutered ? Colors.green : Colors.red,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                child: ListTile(
+                  leading: const Icon(Icons.calendar_month, size: 28, color: CategoryColors.agenda),
+                  title: const Text('Eventos', style: TextStyle(fontWeight: FontWeight.bold)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CalendarScreen(pet: _pet)),
+                    );
+                  },
+                ),
               ),
             ),
 
@@ -389,7 +438,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                             Text(
                               microchipText,
                               style: TextStyle(
-                                color: microchipHasValue ? null : Colors.grey,
+                                color: microchipHasValue ? null : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -427,10 +476,13 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      GridView.count(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: crossAxisSpacing,
-                        mainAxisSpacing: mainAxisSpacing,
+                      GridView(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: crossAxisSpacing,
+                          mainAxisSpacing: mainAxisSpacing,
+                          mainAxisExtent: featureCardHeight,
+                        ),
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         children: features.where((feature) => feature['group'] == group).map((feature) {
@@ -453,6 +505,39 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
     );
   }
 
+  static const double _maxFeatureLabelScale = 1.3;
+  static const double _minFeatureLabelScale = 0.5;
+  static const TextStyle _featureLabelStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+
+  TextScaler _featureLabelScaler(BuildContext context) =>
+      MediaQuery.textScalerOf(context).clamp(maxScaleFactor: _maxFeatureLabelScale);
+
+  // Escala máxima con la que la palabra más larga cabe en una línea, para no
+  // partir palabras a mitad (p. ej. "Desparasitaciones") con fuente grande.
+  // Se mide con la escala candidata, porque el ancho no siempre es lineal.
+  TextScaler _fittingLabelScaler(BuildContext context, String title, double maxWidth) {
+    final wanted = _featureLabelScaler(context).scale(1);
+    var factor = wanted;
+
+    double longestWordWidth(double scale) {
+      var longest = 0.0;
+      for (final word in title.split(' ')) {
+        final painter = TextPainter(
+          text: TextSpan(text: word, style: _featureLabelStyle),
+          textDirection: TextDirection.ltr,
+          textScaler: TextScaler.linear(scale),
+        )..layout();
+        if (painter.width > longest) longest = painter.width;
+      }
+      return longest;
+    }
+
+    while (factor > _minFeatureLabelScale && longestWordWidth(factor) > maxWidth * 0.9) {
+      factor *= 0.95;
+    }
+    return TextScaler.linear(factor < _minFeatureLabelScale ? _minFeatureLabelScale : factor);
+  }
+
   Widget _buildFeatureCard(
       BuildContext context, {
         required String title,
@@ -471,10 +556,18 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
           children: [
             Icon(icon, size: 50, color: color),
             const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
-              textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: LayoutBuilder(
+                builder: (context, constraints) => Text(
+                  title,
+                  style: _featureLabelStyle.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                  textAlign: TextAlign.center,
+                  textScaler: _fittingLabelScaler(context, title, constraints.maxWidth),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
           ],
         ),

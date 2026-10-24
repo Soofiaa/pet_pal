@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/location_entry.dart';
 import 'package:pet_pal/providers/location_entry_providers.dart';
@@ -29,22 +30,27 @@ class LocationEntriesScreen extends ConsumerWidget {
               )
             : ListView.builder(
                 itemCount: entries.length,
+              padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final entry = entries[index];
-                  return ListTile(
-                    title: Text(entry.name),
-                    subtitle: entry.mapsUrl.isEmpty
-                        ? null
-                        : Text(
-                            entry.mapsUrl,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _confirmDelete(context, ref, entry),
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: ListTile(
+                      title: Text(entry.name),
+                      subtitle: entry.mapsUrl.isEmpty
+                          ? null
+                          : Text(
+                              entry.mapsUrl,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                        tooltip: 'Eliminar',
+                        onPressed: () => _confirmDelete(context, ref, entry),
+                      ),
+                      onTap: () => _showAddEditDialog(context, entry),
                     ),
-                    onTap: () => _showAddEditDialog(context, entry),
                   );
                 },
               ),
@@ -74,7 +80,7 @@ class LocationEntriesScreen extends ConsumerWidget {
               await ref.read(locationEntriesProvider.notifier).deleteEntry(entry.id);
               if (context.mounted) Navigator.pop(context);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Eliminar'),
           ),
         ],

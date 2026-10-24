@@ -187,7 +187,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ),
                                   ),
                                   trailing: isPast
-                                      ? const Icon(Icons.check_circle_outline, color: Colors.green)
+                                      ? (isOverdueEventType(eventType)
+                                          ? Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error)
+                                          : const Icon(Icons.check_circle_outline, color: Colors.green))
                                       : null,
                                 ),
                               );
@@ -207,18 +209,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildEventsMarker(DateTime date, List events) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 16.0,
       height: 16.0,
       decoration: BoxDecoration(
-        color: Colors.blue[300],
+        color: scheme.primary,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(
         '${events.length}',
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: scheme.onPrimary,
           fontSize: 12.0,
         ),
       ),

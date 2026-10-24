@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/medication.dart';
@@ -77,6 +78,7 @@ class MedicationsScreen extends ConsumerWidget {
 
           return ListView.builder(
             itemCount: medicationList.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final medication = medicationList[index];
               Future<void> goToEdit() async {
@@ -95,41 +97,46 @@ class MedicationsScreen extends ConsumerWidget {
                 // canceló, no hay nada que refrescar.
               }
 
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Column(
-                  children: [
-                    ListTile(
-                      title: Text(medication.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Dosis: ${medication.dosage}'),
-                          if (medication.frequency.isNotEmpty)
-                            Text('Frecuencia: ${medication.frequency}'),
-                          Text('Inicio: ${DateFormat('dd/MM/yyyy').format(medication.startDate)}'),
-                          if (medication.endDate != null)
-                            Text('Fin: ${DateFormat('dd/MM/yyyy').format(medication.endDate!)}'),
-                          if (medication.reminderTimes.isNotEmpty)
-                            Text('Horarios: ${medication.reminderTimes.join(', ')}'),
-                          if (medication.notes.isNotEmpty)
-                            Text('Notas: ${medication.notes}'),
-                        ],
+              return Dismissible(
+                key: ValueKey(medication.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Theme.of(context).colorScheme.error,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
+                ),
+                confirmDismiss: (_) async {
+                  await _confirmDelete(context, ref, medication);
+                  return false;
+                },
+                child: Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Text(medication.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Dosis: ${medication.dosage}'),
+                            if (medication.frequency.isNotEmpty)
+                              Text('Frecuencia: ${medication.frequency}'),
+                            Text('Inicio: ${DateFormat('dd/MM/yyyy').format(medication.startDate)}'),
+                            if (medication.endDate != null)
+                              Text('Fin: ${DateFormat('dd/MM/yyyy').format(medication.endDate!)}'),
+                            if (medication.reminderTimes.isNotEmpty)
+                              Text('Horarios: ${medication.reminderTimes.join(', ')}'),
+                            if (medication.notes.isNotEmpty)
+                              Text('Notas: ${medication.notes}'),
+                          ],
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                          tooltip: 'Editar',
+                          onPressed: goToEdit,
+                        ),
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: goToEdit,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _confirmDelete(context, ref, medication),
-                          ),
-                        ],
-                      ),
-                    ),
                     if (medication.reminderTimes.isEmpty)
                       InkWell(
                         onTap: goToEdit,
@@ -160,8 +167,9 @@ class MedicationsScreen extends ConsumerWidget {
                       ),
                   ],
                 ),
-              );
-            },
+              ),
+            );
+          },
           );
         },
       ),

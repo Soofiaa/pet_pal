@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/deworming_product.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
@@ -16,38 +18,29 @@ class DewormingProductsScreen extends ConsumerWidget {
       ),
       body: productsAsync.when(
         data: (products) => products.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Tu catálogo está vacío',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Registra tus productos habituales\npara automatizar las fechas.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
+            ? const EmptyState(
+                icon: Icons.inventory_2_outlined,
+                message: 'Tu catálogo está vacío',
+                actionHint: 'Registra tus productos habituales\npara automatizar las fechas.',
               )
             : ListView.builder(
                 itemCount: products.length,
+              padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final product = products[index];
-                  return ListTile(
-                    title: Text(product.name),
-                    subtitle: Text(
-                        'Frecuencia: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''} · Tipo: ${product.defaultType ?? 'No definido'}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _confirmDelete(context, ref, product),
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: ListTile(
+                      title: Text(product.name),
+                      subtitle: Text(
+                          'Frecuencia: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''} · Tipo: ${product.defaultType ?? 'No definido'}'),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                        tooltip: 'Eliminar',
+                        onPressed: () => _confirmDelete(context, ref, product),
+                      ),
+                      onTap: () => _showAddEditDialog(context, product),
                     ),
-                    onTap: () => _showAddEditDialog(context, product),
                   );
                 },
               ),
@@ -74,7 +67,7 @@ class DewormingProductsScreen extends ConsumerWidget {
               await ref.read(dewormingProductsProvider.notifier).deleteProduct(product.id);
               if (context.mounted) Navigator.pop(context);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Eliminar'),
           ),
         ],

@@ -9,6 +9,12 @@
 
     <uses-permission android:name="android.permission.CAMERA"/>
 
+    <!-- Autenticación biométrica (huella/desbloqueo) requerida para crear y
+         restaurar respaldos. Sin este permiso, local_auth no puede ni
+         consultar la biometría disponible y el guardado falla en silencio. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" android:maxSdkVersion="28"/>
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -17,10 +23,6 @@
         android:label="pet_pal"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
-
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/launcher_icon" />
 
         <activity
             android:name=".MainActivity"
@@ -54,6 +56,15 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
+        </receiver>
+
+        <receiver android:name=".PetPalWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/pet_pal_widget_info" />
         </receiver>
 
     </application>

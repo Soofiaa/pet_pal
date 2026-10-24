@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/theme/category_colors.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/appointment.dart';
@@ -30,8 +32,11 @@ class AppointmentsScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -77,72 +82,84 @@ class AppointmentsScreen extends ConsumerWidget {
 
           return ListView.builder(
             itemCount: appointments.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final appointment = appointments[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: ListTile(
-                  leading: const Icon(Icons.calendar_today, color: Colors.blueAccent),
-                  title: Text(
-                    appointment.title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      decoration: appointment.isCompleted
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
+              return Dismissible(
+                key: ValueKey(appointment.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Theme.of(context).colorScheme.error,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
+                ),
+                confirmDismiss: (_) async {
+                  await _deleteAppointment(context, ref, appointment);
+                  return false;
+                },
+                child: Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: ListTile(
+                    leading: const Icon(Icons.calendar_today, color: CategoryColors.agenda),
+                    title: Text(
+                      appointment.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        decoration: appointment.isCompleted
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    '${DateFormat('dd/MM/yyyy HH:mm').format(appointment.dateTime)}\n'
-                    '${appointment.location ?? 'Sin lugar'}',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      decoration: appointment.isCompleted
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
+                    subtitle: Text(
+                      '${DateFormat('dd/MM/yyyy HH:mm').format(appointment.dateTime)}\n'
+                      '${appointment.location ?? 'Sin lugar'}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        decoration: appointment.isCompleted
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
                     ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (appointment.isCompleted)
-                        const Icon(Icons.check_circle, color: Colors.green),
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AddEditAppointmentScreen(
-                                petId: pet.id,
-                                appointment: appointment,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (appointment.isCompleted)
+                          const Icon(Icons.check_circle, color: Colors.green),
+                        IconButton(
+                          icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                          tooltip: 'Editar',
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddEditAppointmentScreen(
+                                  petId: pet.id,
+                                  appointment: appointment,
+                                ),
                               ),
-                            ),
-                          );
-                          // No hace falta refrescar acá: si se guardó algo,
-                          // AppointmentsNotifier.addAppointment/
-                          // updateAppointment ya refrescó el estado
-                          // internamente antes de volver; si se canceló, no
-                          // hay nada que refrescar.
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteAppointment(context, ref, appointment),
-                      ),
-                    ],
-                  ),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddEditAppointmentScreen(
-                          petId: pet.id,
-                          appointment: appointment,
+                            );
+                            // No hace falta refrescar acá: si se guardó algo,
+                            // AppointmentsNotifier.addAppointment/
+                            // updateAppointment ya refrescó el estado
+                            // internamente antes de volver; si se canceló, no
+                            // hay nada que refrescar.
+                          },
                         ),
-                      ),
-                    );
-                  },
+                      ],
+                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddEditAppointmentScreen(
+                            petId: pet.id,
+                            appointment: appointment,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               );
             },

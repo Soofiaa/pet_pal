@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pet_pal/models/note.dart';
@@ -74,8 +75,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -217,18 +221,21 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
           return ListView.builder(
             itemCount: notes.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final note = notes[index];
               final isSelected = _selectedNoteIds.contains(note.id);
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                color: isSelected ? Colors.blue.shade50 : null,
+                color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
                 child: ListTile(
                   leading: _isSelectionMode
                       ? Icon(
                           isSelected ? Icons.check_circle : Icons.circle_outlined,
-                          color: isSelected ? Colors.blue : Colors.grey,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         )
                       : _buildNoteThumbnail(note),
                   title: Text(
@@ -249,7 +256,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Text(
                             '${note.photoPaths.length} imagen(es)',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                           ),
                         ),
                     ],

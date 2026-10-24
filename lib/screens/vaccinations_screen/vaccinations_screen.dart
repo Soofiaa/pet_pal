@@ -1,16 +1,26 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/dashboard_event.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vaccination.dart';
+import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/screens/add_edit_vaccination_screen/add_edit_vaccination_screen.dart';
 import 'package:pet_pal/screens/image_preview_screen/image_preview_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
+
+/// La próxima dosis está vencida si su fecha es anterior a hoy (el mismo día
+/// aún cuenta como vigente).
+bool isNextDoseOverdue(DateTime nextDueDate, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final today = DateTime(current.year, current.month, current.day);
+  return nextDueDate.isBefore(today);
+}
 
 class VaccinationsScreen extends ConsumerWidget {
   final Pet pet;
@@ -49,7 +59,10 @@ class VaccinationsScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
               child: const Text(
                 'Eliminar',
                 style: TextStyle(color: Colors.white),
@@ -107,10 +120,10 @@ class VaccinationsScreen extends ConsumerWidget {
               errorBuilder: (_, __, ___) => Container(
                 width: 78,
                 height: 78,
-                color: Colors.grey.shade200,
-                child: const Icon(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Icon(
                   Icons.broken_image,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -128,10 +141,14 @@ class VaccinationsScreen extends ConsumerWidget {
   /// misma vacuna deje de mostrar su propia predicción -aunque el
   /// recordatorio real siga siendo responsabilidad exclusiva de
   /// ReminderScheduler, sin relación con esta función-.
-  Set<dynamic> _idsWithVisibleNextDose(List<Vaccination> vaccinations) {
+  Set<dynamic> _idsWithVisibleNextDose(
+    List<Vaccination> vaccinations,
+    List<VaccinationProduct> products,
+  ) {
     return DashboardEvent.idsOfMostRecentApplicationPerName(
       Vaccination.getEventsFromList(vaccinations),
       'vaccination',
+      vaccineProducts: products,
     );
   }
 
@@ -151,10 +168,10 @@ class VaccinationsScreen extends ConsumerWidget {
       key: ValueKey(vaccination.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red,
+        color: Theme.of(context).colorScheme.error,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
       ),
       confirmDismiss: (_) async {
         await _deleteVaccination(context, ref, vaccination);
@@ -190,15 +207,23 @@ class VaccinationsScreen extends ConsumerWidget {
                           'Aplicada: ${DateFormat('dd/MM/yyyy').format(vaccination.date)}',
                         ),
                         if (vaccination.nextDueDate != null && showNextDose)
-                          Text(
-                            'Próxima dosis: ${DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!)}',
-                            style: TextStyle(color: Colors.green.shade700),
-                          ),
+                          Builder(builder: (context) {
+                            final overdue = isNextDoseOverdue(vaccination.nextDueDate!);
+                            final formatted = DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!);
+                            return Text(
+                              overdue ? 'Vencida desde: $formatted' : 'Próxima dosis: $formatted',
+                              style: TextStyle(
+                                color: overdue ? Theme.of(context).colorScheme.error : Colors.green.shade700,
+                                fontWeight: overdue ? FontWeight.w600 : null,
+                              ),
+                            );
+                          }),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                    tooltip: 'Editar',
                     onPressed: () async {
                       await Navigator.push(
                         context,
@@ -267,10 +292,14 @@ class VaccinationsScreen extends ConsumerWidget {
             );
           }
 
-          final idsWithVisibleNextDose = _idsWithVisibleNextDose(vaccinations);
+          final idsWithVisibleNextDose = _idsWithVisibleNextDose(
+            vaccinations,
+            ref.watch(vaccinationProductsProvider).valueOrNull ?? const [],
+          );
 
           return ListView.builder(
             itemCount: vaccinations.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final vaccination = vaccinations[index];
               return _buildVaccinationCard(

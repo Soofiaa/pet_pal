@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
@@ -24,17 +25,22 @@ class VaccinationProductsScreen extends ConsumerWidget {
               )
             : ListView.builder(
                 itemCount: products.length,
+              padding: kFabListPadding,
                 itemBuilder: (context, index) {
                   final product = products[index];
-                  return ListTile(
-                    title: Text(product.name),
-                    subtitle: Text(
-                        'Frecuencia recomendada: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _confirmDelete(context, ref, product),
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: ListTile(
+                      title: Text(product.name),
+                      subtitle: Text(
+                          'Frecuencia recomendada: cada ${product.defaultFrequencyMonths} mes${product.defaultFrequencyMonths > 1 ? 'es' : ''}'),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                        tooltip: 'Eliminar',
+                        onPressed: () => _confirmDelete(context, ref, product),
+                      ),
+                      onTap: () => _showAddEditDialog(context, product),
                     ),
-                    onTap: () => _showAddEditDialog(context, product),
                   );
                 },
               ),
@@ -61,7 +67,7 @@ class VaccinationProductsScreen extends ConsumerWidget {
               await ref.read(vaccinationProductsProvider.notifier).deleteProduct(product.id);
               if (context.mounted) Navigator.pop(context);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Eliminar'),
           ),
         ],
@@ -178,6 +184,7 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
               VaccinationProduct(
                 name: name,
                 defaultFrequencyMonths: freq,
+                groupName: null,
               ),
             );
       } else {
@@ -185,6 +192,8 @@ class __AddEditVaccinationProductDialogState extends ConsumerState<_AddEditVacci
               widget.product!.copyWith(
                 name: name,
                 defaultFrequencyMonths: freq,
+                groupName: null,
+                clearGroup: true,
               ),
             );
       }

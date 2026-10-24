@@ -1,0 +1,86 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart';
+
+class BiometricService {
+  static final LocalAuthentication _auth = LocalAuthentication();
+
+  /// Verifica si el dispositivo soporta autenticación biométrica
+  static Future<bool> canCheckBiometrics() async {
+    try {
+      return await _auth.canCheckBiometrics;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Verifica si hay biometría configurada en el dispositivo
+  static Future<bool> isDeviceSupported() async {
+    try {
+      return await _auth.isDeviceSupported();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Lista de biometrías disponibles
+  static Future<List<BiometricType>> getAvailableBiometrics() async {
+    try {
+      return await _auth.getAvailableBiometrics();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Autentica al usuario usando biometría
+  /// 
+  /// [localizedReason] es el mensaje que se muestra al usuario
+  /// Returns true si la autenticación fue exitosa, false en caso contrario
+  static Future<bool> authenticate({
+    required String localizedReason,
+    bool useErrorDialogs = true,
+    bool stickyAuth = false,
+    bool biometricOnly = false,
+  }) async {
+    try {
+      // isDeviceSupported() indica si el dispositivo tiene algún bloqueo de
+      // pantalla configurado (PIN, patrón, contraseña o biometría). No exigir
+      // canCheckBiometrics: un usuario sin huella registrada pero con PIN
+      // quedaba bloqueado para siempre (no podía crear respaldos ni borrar).
+      // Con biometricOnly: false el sistema ofrece el PIN/patrón como alternativa.
+      final bool supported = await isDeviceSupported();
+      final available = await getAvailableBiometrics();
+      debugPrint('BiometricService: supported=$supported available=$available');
+      if (!supported) {
+        return false;
+      }
+
+      final bool authenticated = await _auth.authenticate(
+        localizedReason: localizedReason,
+        options: AuthenticationOptions(
+          useErrorDialogs: useErrorDialogs,
+          stickyAuth: stickyAuth,
+          biometricOnly: biometricOnly,
+        ),
+      );
+      debugPrint('BiometricService: authenticated=$authenticated');
+      return authenticated;
+    } on PlatformException catch (e) {
+      // El usuario canceló o hubo un error
+      debugPrint('BiometricService: PlatformException code=${e.code} message=${e.message}');
+      return false;
+    } catch (e) {
+      debugPrint('BiometricService: error $e');
+      return false;
+    }
+  }
+
+  /// Cancela cualquier autenticación en progreso
+  static Future<void> cancelAuthentication() async {
+    try {
+      await _auth.stopAuthentication();
+    } catch (e) {
+      // Ignorar errores al cancelar
+    }
+  }
+}

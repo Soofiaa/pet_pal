@@ -5,6 +5,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:rxdart/subjects.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:pet_pal/utils/stable_hash.dart';
 
 class NotificationService {
   NotificationService._internal();
@@ -20,7 +21,7 @@ class NotificationService {
     await _configureLocalTimeZone();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/launcher_icon');
+    AndroidInitializationSettings('ic_notification');
 
     const DarwinInitializationSettings initializationSettingsIOS =
     DarwinInitializationSettings(
@@ -48,9 +49,10 @@ class NotificationService {
     // Recomendado para Android 13+ (no rompe en versiones anteriores)
     await androidPlugin?.requestNotificationsPermission();
 
-    // Requerido en Android 12+ para poder usar AndroidScheduleMode.exactAllowWhileIdle.
-    // Sin este permiso, las alarmas exactas no se agendan (sin error visible).
-    await androidPlugin?.requestExactAlarmsPermission();
+    // Las alarmas exactas (Android 12+) NO se piden aquí: ese permiso abre los
+    // ajustes del sistema y hacerlo en el primer arranque desconcierta. Sin él
+    // los recordatorios caen a modo inexacto (ver canScheduleExactAlarms) y la
+    // pantalla de Respaldo ofrece pedirlo con contexto.
   }
 
   /// Indica si la app puede programar alarmas exactas en este momento.
@@ -170,7 +172,7 @@ class NotificationService {
   /// Medicación por varios días (misma hora cada día).
   /// Genera 1 notificación por día para tener control total del rango.
   Future<void> scheduleMedicationForDays({
-    required int baseId, // ej: id del medicamento
+    required String key, // ej: id del medicamento (clave estable)
     required String title,
     required String body,
     required DateTime firstDoseDateTime, // fecha + hora de la primera dosis
@@ -188,8 +190,10 @@ class NotificationService {
       final DateTime doseDateTime = firstDoseDateTime.add(Duration(days: i));
       if (doseDateTime.isBefore(DateTime.now())) continue;
 
-      // ID único por cada día del tratamiento
-      final int id = baseId * 1000 + i;
+      // ID derivado de la clave completa + día. No se usa baseId * 1000 + i:
+      // ese cálculo colisiona en tratamientos de más de 1000 días y con
+      // baseId recortado a módulo 100000 entre medicaciones distintas.
+      final int id = medicationDayNotificationId(key, i);
 
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         id,
@@ -238,14 +242,19 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.cancel(id);
   }
 
+  /// Id de la notificación de un día de tratamiento. Función pura y pública
+  /// para que el scheduler y los tests usen exactamente la misma fórmula.
+  static int medicationDayNotificationId(String key, int dayIndex) =>
+      stableNotificationId('${key}_day_$dayIndex');
+
   /// Cancela todas las notificaciones de un tratamiento creado con scheduleMedicationForDays.
   Future<void> cancelMedicationForDays({
-    required int baseId,
+    required String key,
     required int days,
   }) async {
     for (int i = 0; i < days; i++) {
-      final int id = baseId * 1000 + i;
-      await _flutterLocalNotificationsPlugin.cancel(id);
+      await _flutterLocalNotificationsPlugin
+          .cancel(medicationDayNotificationId(key, i));
     }
   }
 

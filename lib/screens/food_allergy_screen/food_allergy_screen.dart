@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/food_allergy.dart';
@@ -30,8 +31,11 @@ class FoodAllergyScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -77,16 +81,17 @@ class FoodAllergyScreen extends ConsumerWidget {
 
           return ListView.builder(
             itemCount: foodAllergies.length,
+            padding: kFabListPadding,
             itemBuilder: (context, index) {
               final allergy = foodAllergies[index];
               return Dismissible(
                 key: Key(allergy.id.toString()),
                 direction: DismissDirection.endToStart,
                 background: Container(
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: const Icon(Icons.delete, color: Colors.white),
+                  child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                 ),
                 confirmDismiss: (direction) async {
                   await _deleteFoodAllergy(context, ref, allergy);
@@ -102,7 +107,7 @@ class FoodAllergyScreen extends ConsumerWidget {
                     ),
                     subtitle: Text(
                       'Registrada el ${DateFormat('dd/MM/yyyy').format(allergy.dateRecorded)}',
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     onTap: () async {
                       await Navigator.push(

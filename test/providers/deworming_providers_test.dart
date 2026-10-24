@@ -17,6 +17,7 @@ import 'package:pet_pal/models/deworming.dart';
 import 'package:pet_pal/providers/deworming_providers.dart';
 import 'package:pet_pal/repositories/deworming_repository.dart';
 import 'package:pet_pal/services/notification_service.dart';
+import 'package:pet_pal/services/reminder_scheduler.dart';
 import 'package:pet_pal/utils/stable_hash.dart';
 import 'package:uuid/uuid.dart';
 
@@ -161,17 +162,21 @@ void main() {
         final relevantCalls = calls
             .where((c) => c.method == 'cancel' || c.method == 'zonedSchedule')
             .toList();
-        expect(relevantCalls.length, greaterThanOrEqualTo(2));
         expect(relevantCalls.first.method, 'cancel');
 
-        final cancelId = relevantCalls.first.arguments['id'] as int;
-        for (final call in relevantCalls.skip(1)) {
-          expect(call.method, 'zonedSchedule',
-              reason: 'tras el cancel inicial, solo deberían seguir reprogramaciones');
+        // Los cancel iniciales cubren el horizonte completo del registro viejo;
+        // toda reprogramación posterior debe usar un id ya cancelado.
+        final cancelledIds = relevantCalls
+            .where((c) => c.method == 'cancel')
+            .map((c) => c.arguments['id'] as int)
+            .toSet();
+        final scheduled = relevantCalls.where((c) => c.method == 'zonedSchedule');
+        expect(scheduled, isNotEmpty);
+        for (final call in scheduled) {
           expect(
-            call.arguments['id'],
-            cancelId,
-            reason: 'mismo id de la desparasitación: no cambia entre ediciones',
+            cancelledIds.contains(call.arguments['id'] as int),
+            isTrue,
+            reason: 'reprogramar un id que no se canceló antes deja huérfanos',
           );
         }
       },
@@ -192,7 +197,10 @@ void main() {
 
       await container.read(dewormingsProvider('pet-1').notifier).deleteDeworming(deworming);
 
-      expect(calls.where((c) => c.method == 'cancel'), hasLength(1));
+      expect(
+        calls.where((c) => c.method == 'cancel'),
+        hasLength(ReminderScheduler.dewormingCycleHorizon),
+      );
       expect(calls.where((c) => c.method == 'zonedSchedule'), isEmpty);
     });
 

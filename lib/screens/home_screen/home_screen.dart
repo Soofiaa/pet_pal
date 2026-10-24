@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/screens/add_edit_pet_screen/add_edit_pet_screen.dart';
 import 'package:pet_pal/models/pet.dart';
-import 'dart:io';
-import 'package:pet_pal/data/database_helper.dart';
 import 'package:pet_pal/providers/pets_providers.dart';
 import 'package:pet_pal/screens/pet_detail_screen/pet_detail_screen.dart';
 import 'package:pet_pal/screens/emergency_contacts_screen/emergency_contacts_screen.dart';
@@ -13,9 +11,13 @@ import 'package:pet_pal/screens/location_entries_screen/location_entries_screen.
 import 'package:pet_pal/screens/backup_settings_screen/backup_settings_screen.dart';
 import 'package:pet_pal/screens/guide_screen/guide_screen.dart';
 import 'package:pet_pal/screens/search_screen/search_screen.dart';
-import 'package:pet_pal/services/image_storage_service.dart';
 import 'package:pet_pal/providers/theme_mode_provider.dart';
-import 'package:pet_pal/widgets/today_dashboard_section.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
+import 'package:pet_pal/widgets/empty_state.dart';
+import 'package:pet_pal/widgets/pet_card.dart';
+import 'package:pet_pal/models/dashboard_event.dart';
+import 'package:pet_pal/providers/dashboard_providers.dart';
+import 'package:pet_pal/screens/today_events_screen/today_events_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -25,65 +27,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  Future<bool?> _deletePet(String petId, String petName) async {
-    final bool? confirm = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar Eliminación'),
-          content: Text('¿Estás seguro de que quieres eliminar a $petName? Esta acción no se puede deshacer.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirm == true) {
-      // Documentos y notas guardan archivos en disco (PDFs/imágenes/fotos)
-      // que SQLite nunca borra por sí solo. Hay que leerlos y borrar sus
-      // archivos ANTES de eliminar la mascota: una vez que deletePet()
-      // corre, el cascade borra esas filas y ya no habría forma de saber
-      // qué archivos correspondían a esta mascota.
-      final documents = await DatabaseHelper().getDocumentsForPet(petId);
-      for (final document in documents) {
-        await ImageStorageService.deleteFileIfExist(document.filePath);
-      }
-
-      final notes = await DatabaseHelper().getNotesForPet(petId);
-      for (final note in notes) {
-        await ImageStorageService.deleteFilesIfExist(note.photoPaths);
-      }
-
-      // petsProvider.notifier.deletePet (nunca DatabaseHelper().deletePet
-      // directo) para que PetRepository.deletePet cancele antes todos los
-      // recordatorios pendientes de la mascota.
-      await ref.read(petsProvider.notifier).deletePet(petId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$petName eliminada con éxito.')),
-        );
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  bool _hasValidPetImage(Pet pet) {
-    final imagePath = pet.imageUrl;
-    if (imagePath == null || imagePath.trim().isEmpty) return false;
-    return File(imagePath).existsSync();
-  }
-
   String _themeModeLabel(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:
@@ -123,62 +66,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildPetCard(Pet pet) {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PetDetailScreen(pet: pet),
-          ),
-        );
-        ref.read(petsProvider.notifier).refresh();
-      },
-      onLongPress: () {
-        _deletePet(pet.id, pet.name);
-      },
-      child: Card(
-        elevation: 4.0,
-        margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 50.0),
-          child: Row(
-            children: [
-              _hasValidPetImage(pet)
-                  ? CircleAvatar(
-                radius: 50,
-                backgroundImage: FileImage(File(pet.imageUrl!)),
-              )
-                  : const CircleAvatar(
-                radius: 50,
-                child: Icon(Icons.pets, size: 60),
+  Widget _drawerSection(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      pet.name,
-                      style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${pet.species} \n${pet.detailedAge}',
-                      style: const TextStyle(fontSize: 20, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
+  }
+
+  Widget _drawerLink(IconData icon, String title, Widget page) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (context) => page));
+      },
+    );
+  }
+
+  Future<void> _openPet(Pet pet) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PetDetailScreen(pet: pet)),
+    );
+    ref.read(petsProvider.notifier).refresh();
   }
 
   @override
@@ -189,6 +108,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('Mis Mascotas'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.event_note),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const TodayEventsScreen()),
+            ),
+            tooltip: 'Próximos eventos',
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.push(
@@ -228,71 +155,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+            _drawerSection('Ajustes'),
             ListTile(
               leading: const Icon(Icons.dark_mode),
               title: const Text('Apariencia'),
               subtitle: Text(_themeModeLabel(ref.watch(themeModeProvider))),
               onTap: () => _showThemeModeDialog(context),
             ),
-            ListTile(
-              leading: const Icon(Icons.bug_report),
-              title: const Text('Catálogo de Desparasitantes'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DewormingProductsScreen()),
-                );
-              },
+            _drawerLink(
+              Icons.notifications,
+              'Notificaciones',
+              const BackupSettingsScreen(section: BackupSettingsSection.notifications),
             ),
-            ListTile(
-              leading: const Icon(Icons.location_on),
-              title: const Text('Catálogo de Ubicaciones'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LocationEntriesScreen()),
-                );
-              },
+            _drawerLink(
+              Icons.settings_backup_restore,
+              'Respaldo y restauración',
+              const BackupSettingsScreen(section: BackupSettingsSection.backup),
             ),
-            ListTile(
-              leading: const Icon(Icons.vaccines),
-              title: const Text('Catálogo de Vacunas'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const VaccinationProductsScreen()),
-                );
-              },
+            const Divider(),
+            _drawerSection('Catálogos'),
+            _drawerLink(Icons.bug_report, 'Desparasitantes', const DewormingProductsScreen()),
+            _drawerLink(Icons.location_on, 'Ubicaciones', const LocationEntriesScreen()),
+            _drawerLink(Icons.vaccines, 'Vacunas', const VaccinationProductsScreen()),
+            const Divider(),
+            _drawerSection('Ayuda'),
+            _drawerLink(Icons.menu_book, 'Guía de PetPal', const GuideScreen()),
+                ],
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.menu_book),
-              title: const Text('Guía de PetPal'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const GuideScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_backup_restore),
-              title: const Text('Notificaciones y Respaldo'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BackupSettingsScreen()),
-                );
-              },
-            ),
-            const Spacer(),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('Versión 1.0.0 (v26)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Versión 1.0.0 (v26)',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+              ),
             ),
           ],
         ),
@@ -302,41 +202,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         error: (error, _) => Center(child: Text('Error al cargar mascotas: $error')),
         data: (pets) {
           if (pets.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'Aquí aparecerán tus mascotas registradas.\nPresiona "+" para añadir una nueva.',
-                  style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            return const EmptyState(
+              icon: Icons.pets,
+              message: 'Aún no tienes mascotas',
+              actionHint: 'Presiona "+" para añadir la primera.',
             );
+          }
+
+          final alertsByPet = <String, List<DashboardEvent>>{};
+          for (final event in ref.watch(todayDashboardProvider).value ?? const <DashboardEvent>[]) {
+            alertsByPet.putIfAbsent(event.petId, () => []).add(event);
           }
 
           return CustomScrollView(
             slivers: [
-              const SliverToBoxAdapter(child: TodayDashboardSection()),
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final pet = pets[index];
-                    return Dismissible(
-                      key: Key(pet.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Colors.red,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      confirmDismiss: (direction) async {
-                        return await _deletePet(pet.id, pet.name);
-                      },
-                      child: _buildPetCard(pet),
-                    );
-                  },
-                  childCount: pets.length,
+              SliverPadding(
+                padding: kFabListPadding.copyWith(left: 16, right: 16, top: 12),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 1,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    mainAxisExtent: 170 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final pet = pets[index];
+                      return PetCard(
+                        pet: pet,
+                        alerts: petAlertsFor(alertsByPet[pet.id] ?? const []),
+                        onTap: () => _openPet(pet),
+                      );
+                    },
+                    childCount: pets.length,
+                  ),
                 ),
               ),
             ],
@@ -344,6 +243,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Añadir mascota',
         onPressed: () async {
           await Navigator.push(
             context,

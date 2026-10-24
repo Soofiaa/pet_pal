@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_pal/widgets/unsaved_changes_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pet_pal/models/appointment.dart';
 import 'package:pet_pal/models/location_entry.dart';
@@ -301,6 +302,24 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedChangesGuard(
+      snapshot: () => [
+        _titleController.text,
+        _descriptionController.text,
+        _locationController.text,
+        _locationMapsUrlController.text,
+        _typeController.text,
+        _selectedDateTime,
+        _reminderDaysBefore,
+        _useCatalogLocation,
+        _selectedCatalogEntryId,
+        _saveToCatalog,
+      ],
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.appointment == null ? 'Añadir Nueva Cita' : 'Editar Cita'),

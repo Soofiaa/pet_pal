@@ -1,10 +1,12 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_pal/models/pet.dart';
 import 'package:pet_pal/models/vital_sign_config.dart';
 import 'package:pet_pal/models/vital_sign_record.dart';
+import 'package:pet_pal/utils/chart_format.dart';
 import 'package:pet_pal/providers/vital_sign_providers.dart';
 import 'package:pet_pal/screens/add_edit_vital_sign_screen/add_edit_vital_sign_screen.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
@@ -40,8 +42,11 @@ class VitalSignScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Eliminar'),
             ),
           ],
         );
@@ -168,7 +173,7 @@ class VitalSignScreen extends ConsumerWidget {
                     return SideTitleWidget(
                       axisSide: meta.axisSide,
                       child: Text(
-                        '${value.toStringAsFixed(0)} ${_config.unit}',
+                        '${formatAxisValue(value, meta.appliedInterval)} ${_config.unit}',
                         style: const TextStyle(fontSize: 10),
                       ),
                     );
@@ -230,7 +235,7 @@ class VitalSignScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     'Agrega al menos un registro más para ver la evolución de ${_config.label.toLowerCase()}.',
-                    style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                    style: TextStyle(fontStyle: FontStyle.italic, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                 )
@@ -239,6 +244,7 @@ class VitalSignScreen extends ConsumerWidget {
               Expanded(
                 child: ListView.builder(
                   itemCount: records.length,
+                  padding: kFabListPadding,
                   itemBuilder: (context, index) {
                     final record = records[index];
                     final bool isAbnormal = _config.isAbnormal(record.value);
@@ -246,10 +252,10 @@ class VitalSignScreen extends ConsumerWidget {
                       key: Key(record.id.toString()),
                       direction: DismissDirection.endToStart,
                       background: Container(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                       ),
                       confirmDismiss: (direction) async {
                         await _deleteRecord(context, ref, record);
@@ -257,7 +263,7 @@ class VitalSignScreen extends ConsumerWidget {
                       },
                       child: Card(
                         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        color: isAbnormal ? Colors.red[50] : null,
+                        color: isAbnormal ? Theme.of(context).colorScheme.errorContainer : null,
                         child: ListTile(
                           leading: Icon(_config.icon, color: _config.chartColor),
                           title: Text(
@@ -266,10 +272,10 @@ class VitalSignScreen extends ConsumerWidget {
                           ),
                           subtitle: Text(
                             'Fecha: ${DateFormat('dd/MM/yyyy').format(record.date)}',
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           trailing: isAbnormal
-                              ? const Icon(Icons.warning_amber_rounded, color: Colors.red)
+                              ? Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error)
                               : null,
                           onTap: () async {
                             await Navigator.push(

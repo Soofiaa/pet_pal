@@ -35,12 +35,14 @@ dependencies:
   csv: ^6.0.0
   url_launcher: ^6.3.1
   shared_preferences: ^2.5.5
+  local_auth: ^2.3.0
+  home_widget: ^0.10.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  flutter_launcher_icons: "^0.13.1"
+  flutter_launcher_icons: 0.14.4
   sqflite_common_ffi: ^2.3.4
   path_provider_platform_interface: ^2.1.1
   share_plus_platform_interface: ^3.4.0
@@ -48,10 +50,13 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/app_icon.png"
+  remove_alpha_ios: true
   min_sdk_android: 21
+  image_path: "assets/icon/petpal_icon_1024.png"
+  adaptive_icon_background: "assets/icon/petpal_background_1024.png"
+  adaptive_icon_foreground: "assets/icon/petpal_foreground_1024.png"
+  adaptive_icon_foreground_inset: 0
+  adaptive_icon_monochrome: "assets/icon/petpal_monochrome_1024.png"
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/app_icon.png

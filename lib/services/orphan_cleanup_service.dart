@@ -23,6 +23,14 @@ class JsonDecodeFailure {
   });
 }
 
+/// Cuánto ocupan las carpetas de cuarentena de archivos huérfanos.
+class QuarantineSummary {
+  final int fileCount;
+  final int totalBytes;
+
+  const QuarantineSummary({required this.fileCount, required this.totalBytes});
+}
+
 /// Limpieza única de archivos en petpal_files/ que ya no están referenciados
 /// por ninguna fila de la base de datos (heredado de cuando ON DELETE
 /// CASCADE aún no se aplicaba). Se apoya en la migración v17 de
@@ -53,12 +61,24 @@ class OrphanCleanupService {
       final (Set<String> usedPaths, List<JsonDecodeFailure> decodeFailures) =
           await _collectUsedFilePaths();
 
+      // Si alguna fila tiene JSON corrupto, no sabemos qué archivos usa.
+      // Mover a cuarentena con ese conjunto incompleto podría apartar un
+      // archivo que sí está en uso (una foto de una nota, por ejemplo). En
+      // ese caso no se mueve nada: los huérfanos se quedan hasta que la
+      // base esté limpia.
       List<String> quarantinedFiles = const [];
-      try {
-        quarantinedFiles = await _quarantineOrphanFiles(usedPaths);
-      } catch (e, stack) {
-        debugPrint('Limpieza de archivos huérfanos falló (no crítico): $e');
-        debugPrintStack(stackTrace: stack);
+      if (canQuarantine(decodeFailures)) {
+        try {
+          quarantinedFiles = await _quarantineOrphanFiles(usedPaths);
+        } catch (e, stack) {
+          debugPrint('Limpieza de archivos huérfanos falló (no crítico): $e');
+          debugPrintStack(stackTrace: stack);
+        }
+      } else {
+        debugPrint(
+          'Limpieza de archivos omitida: ${decodeFailures.length} fila(s) con '
+          'JSON no decodificable. No se mueve ningún archivo por seguridad.',
+        );
       }
 
       _printSummary(rowCounts, quarantinedFiles, decodeFailures);
@@ -66,6 +86,50 @@ class OrphanCleanupService {
       debugPrint('OrphanCleanupService.runOnce falló por completo (no crítico): $e');
       debugPrintStack(stackTrace: stack);
     }
+  }
+
+  /// Regla de seguridad: solo se puede mover a cuarentena si TODAS las filas
+  /// se pudieron leer. Con una fila corrupta el conjunto de archivos en uso
+  /// está incompleto, y cualquier movimiento podría apartar un archivo vigente.
+  static bool canQuarantine(List<JsonDecodeFailure> decodeFailures) =>
+      decodeFailures.isEmpty;
+
+  static Future<List<Directory>> _quarantineDirs() async {
+    final Directory appDir = await getApplicationDocumentsDirectory();
+    final Directory petpalFilesDir = Directory(p.join(appDir.path, 'petpal_files'));
+    if (!await petpalFilesDir.exists()) return const [];
+
+    final List<Directory> dirs = [];
+    await for (final entity in petpalFilesDir.list(followLinks: false)) {
+      if (entity is Directory && p.basename(entity.path).startsWith(_quarantinePrefix)) {
+        dirs.add(entity);
+      }
+    }
+    return dirs;
+  }
+
+  /// Cantidad de archivos y bytes que hay hoy en las carpetas de cuarentena.
+  static Future<QuarantineSummary> quarantineSummary() async {
+    int fileCount = 0;
+    int totalBytes = 0;
+    for (final dir in await _quarantineDirs()) {
+      await for (final entity in dir.list(recursive: true, followLinks: false)) {
+        if (entity is! File) continue;
+        fileCount++;
+        totalBytes += await entity.length();
+      }
+    }
+    return QuarantineSummary(fileCount: fileCount, totalBytes: totalBytes);
+  }
+
+  /// Borra definitivamente las carpetas de cuarentena (y solo ellas).
+  /// Devuelve cuántas carpetas eliminó.
+  static Future<int> deleteQuarantine() async {
+    final dirs = await _quarantineDirs();
+    for (final dir in dirs) {
+      await dir.delete(recursive: true);
+    }
+    return dirs.length;
   }
 
   static Future<List<String>> _quarantineOrphanFiles(Set<String> usedPaths) async {
