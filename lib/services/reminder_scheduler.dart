@@ -52,9 +52,6 @@ class ReminderScheduler {
     }
   }
 
-  static int _medicationBaseId(String medicationId) =>
-      stableNotificationId(medicationId) % 100000;
-
   /// Id determinístico por combinación única de medicación + horario + día,
   /// para el caso con endDate. Se usa una clave de texto hasheada en vez de
   /// aritmética con multiplicador fijo (baseId*1000+día) porque esa
@@ -117,7 +114,7 @@ class ReminderScheduler {
     if (medication.reminderTimes.isEmpty) {
       // Recordatorio único legado (9:00 AM, sin horarios definidos).
       await NotificationService().cancelMedicationForDays(
-        baseId: _medicationBaseId(id),
+        key: id,
         days: _medicationDayCount(medication.startDate, medication.endDate),
       );
       return;
@@ -157,7 +154,7 @@ class ReminderScheduler {
 
     if (medication.reminderTimes.isEmpty) {
       await NotificationService().scheduleMedicationForDays(
-        baseId: _medicationBaseId(id),
+        key: id,
         title: 'Medicación para $petName: ${medication.name}',
         body: _legacyBody(medication),
         firstDoseDateTime: _atReminderHour(medication.startDate),
