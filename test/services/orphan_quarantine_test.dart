@@ -62,6 +62,17 @@ void main() {
     expect(summary.totalBytes, 175);
   });
 
+  test('con alguna fila de JSON corrupto NO se mueve nada a cuarentena', () {
+    final corrupt = [
+      const JsonDecodeFailure(table: 'notes', rowId: 'n1', rawValue: '{roto'),
+    ];
+    expect(OrphanCleanupService.canQuarantine(corrupt), isFalse);
+  });
+
+  test('sin filas corruptas sí se puede mover a cuarentena', () {
+    expect(OrphanCleanupService.canQuarantine(const []), isTrue);
+  });
+
   test('borrar la cuarentena elimina solo _huerfanos_* y conserva lo demás', () async {
     write('_huerfanos_1/a.jpg', 100);
     write('_huerfanos_2/c.pdf', 25);

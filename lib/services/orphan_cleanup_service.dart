@@ -61,12 +61,24 @@ class OrphanCleanupService {
       final (Set<String> usedPaths, List<JsonDecodeFailure> decodeFailures) =
           await _collectUsedFilePaths();
 
+      // Si alguna fila tiene JSON corrupto, no sabemos qué archivos usa.
+      // Mover a cuarentena con ese conjunto incompleto podría apartar un
+      // archivo que sí está en uso (una foto de una nota, por ejemplo). En
+      // ese caso no se mueve nada: los huérfanos se quedan hasta que la
+      // base esté limpia.
       List<String> quarantinedFiles = const [];
-      try {
-        quarantinedFiles = await _quarantineOrphanFiles(usedPaths);
-      } catch (e, stack) {
-        debugPrint('Limpieza de archivos huérfanos falló (no crítico): $e');
-        debugPrintStack(stackTrace: stack);
+      if (canQuarantine(decodeFailures)) {
+        try {
+          quarantinedFiles = await _quarantineOrphanFiles(usedPaths);
+        } catch (e, stack) {
+          debugPrint('Limpieza de archivos huérfanos falló (no crítico): $e');
+          debugPrintStack(stackTrace: stack);
+        }
+      } else {
+        debugPrint(
+          'Limpieza de archivos omitida: ${decodeFailures.length} fila(s) con '
+          'JSON no decodificable. No se mueve ningún archivo por seguridad.',
+        );
       }
 
       _printSummary(rowCounts, quarantinedFiles, decodeFailures);
@@ -75,6 +87,12 @@ class OrphanCleanupService {
       debugPrintStack(stackTrace: stack);
     }
   }
+
+  /// Regla de seguridad: solo se puede mover a cuarentena si TODAS las filas
+  /// se pudieron leer. Con una fila corrupta el conjunto de archivos en uso
+  /// está incompleto, y cualquier movimiento podría apartar un archivo vigente.
+  static bool canQuarantine(List<JsonDecodeFailure> decodeFailures) =>
+      decodeFailures.isEmpty;
 
   static Future<List<Directory>> _quarantineDirs() async {
     final Directory appDir = await getApplicationDocumentsDirectory();
