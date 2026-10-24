@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
@@ -49,7 +51,12 @@ class DatabaseHelper {
   static const String documentsTable = 'documents';
   static const String vitalSignsTable = 'vital_signs';
 
-  Future<Database> get database async {
+  /// Devuelve la transacción activa si hay una abierta con [runInTransaction]
+  /// en esta zona; si no, la conexión normal. Así todos los métodos del helper
+  /// participan de la transacción sin cambiar sus firmas.
+  Future<DatabaseExecutor> get database async {
+    final Object? txn = Zone.current[_txnZoneKey];
+    if (txn is DatabaseExecutor) return txn;
     if (_database != null) {
       return _database!;
     }
@@ -704,6 +711,27 @@ class DatabaseHelper {
   }
 
   // --- MÉTODOS AÑADIDOS PARA EL RESPALDO DE DATOS ---
+
+  /// Ejecuta [action] dentro de una única transacción de SQLite. Si cualquier
+  /// paso lanza, todo se revierte: la base queda exactamente como estaba.
+  /// Imprescindible para restaurar backups, que borran y reinsertan muchos
+  /// registros; sin esto una falla a mitad de camino dejaba la base vacía.
+  Future<T> runInTransaction<T>(Future<T> Function() action) async {
+    // Siempre la conexión real: `database` podría devolver una transacción
+    // anidada, que no tiene transaction().
+    _database ??= await _initDatabase();
+    return _database!.transaction<T>((txn) {
+      // Dentro del bloque, cualquier llamada que pase por `database` recibe
+      // la transacción activa (vía zona), evitando el deadlock de usar la
+      // conexión base mientras la transacción está abierta.
+      return runZoned(
+        action,
+        zoneValues: {_txnZoneKey: txn},
+      );
+    });
+  }
+
+  static const Object _txnZoneKey = #petPalTxn;
 
   // Método para borrar todos los datos de la base de datos
   Future<void> deleteAllData() async {

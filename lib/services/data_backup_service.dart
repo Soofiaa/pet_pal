@@ -260,10 +260,24 @@ class DataBackupService {
   /// Reemplaza todos los datos actuales por los de [restoredData] -salida de
   /// [loadBackupForRestore]-. Paso destructivo e irreversible: la UI debe
   /// haber confirmado con el usuario antes de llamarlo.
+  /// Todo el reemplazo corre en UNA transacción: si cualquier inserción
+  /// falla, SQLite revierte el borrado completo y la base queda como estaba.
+  /// Antes, una falla a mitad de camino dejaba al usuario sin datos.
   Future<String> applyRestoredBackup(Map<String, dynamic> restoredData) async {
     try {
-      await _dbHelper.deleteAllData();
+      await _dbHelper.runInTransaction(
+        () => _replaceAllDataFrom(restoredData),
+      );
+      return 'Datos e imágenes importados con éxito.';
+    } catch (e) {
+      return 'Error al importar datos (no se modificó nada): $e';
+    }
+  }
 
+  Future<void> _replaceAllDataFrom(Map<String, dynamic> restoredData) async {
+    await _dbHelper.deleteAllData();
+
+    {
       final List<dynamic> petsJson = restoredData['pets'];
 
       for (final petData in petsJson) {
@@ -393,10 +407,6 @@ class DataBackupService {
           await _dbHelper.insertEmergencyContact(EmergencyContact.fromJson(data));
         }
       }
-
-      return 'Datos e imágenes importados con éxito.';
-    } catch (e) {
-      return 'Error al importar datos: $e';
     }
   }
 
