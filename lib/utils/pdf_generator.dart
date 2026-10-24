@@ -61,6 +61,10 @@ const double _kGridSpacing = 10;
 @visibleForTesting
 const double kMinSectionHeight = 200;
 
+/// Colores de identidad PetPal para la ficha clínica PDF.
+const PdfColor _primaryColor = PdfColor.fromInt(0xFF0F766E);
+const PdfColor _borderColor = PdfColor.fromInt(0xFFCBD5E1);
+
 Future<Uint8List> generateNotesPdf(Pet pet, List<Note> notes) async {
   final pdf = pw.Document();
 
@@ -167,20 +171,76 @@ Future<Uint8List> generateHealthSummaryPdf(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(kPageMargin),
       header: (pw.Context context) {
-        return pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              'Ficha Clínica de ${pet.name}',
-              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+        return pw.Container(
+          padding: const pw.EdgeInsets.only(bottom: 10),
+          margin: const pw.EdgeInsets.only(bottom: 8),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              bottom: pw.BorderSide(color: _primaryColor, width: 1.5),
             ),
-            pw.Text(
-              'Generado el: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
-              style: const pw.TextStyle(fontSize: 10),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'PETPAL • FICHA CLÍNICA',
+                    style: pw.TextStyle(
+                      fontSize: 8,
+                      fontWeight: pw.FontWeight.bold,
+                      color: _primaryColor,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    pet.name,
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey900,
+                    ),
+                  ),
+                ],
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    'Emisión: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+                    style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+      footer: (pw.Context context) {
+        return pw.Container(
+          padding: const pw.EdgeInsets.only(top: 6),
+          margin: const pw.EdgeInsets.only(top: 6),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              top: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
             ),
-            pw.Divider(),
-            pw.SizedBox(height: 10),
-          ],
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'PetPal • Ficha Clínica de ${pet.name}',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+              ),
+              pw.Text(
+                'Página ${context.pageNumber} de ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+              ),
+            ],
+          ),
         );
       },
       build: (pw.Context context) => buildHealthSummarySections(
@@ -427,58 +487,85 @@ List<pw.Widget> _buildVaccinationSection(List<Vaccination> vaccinations) {
 pw.Widget _buildVaccinationBox(Vaccination vaccination) {
   final List<MapEntry<String, String>> photos = [];
   if (ImageStorageService.isValidLocalFile(vaccination.stickerPhotoPath)) {
-    photos.add(MapEntry(vaccination.stickerPhotoPath!, 'Adhesivo'));
+    photos.add(MapEntry(vaccination.stickerPhotoPath!, 'Adhesivo / Sticker'));
   }
   if (ImageStorageService.isValidLocalFile(vaccination.extraPhotoPath)) {
-    photos.add(MapEntry(vaccination.extraPhotoPath!, 'Extra'));
+    photos.add(MapEntry(vaccination.extraPhotoPath!, 'Comprobante / Extra'));
   }
 
   return _buildPdfInfoBox([
     pw.Text(
       vaccination.vaccineName,
-      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13),
+      style: pw.TextStyle(
+        fontWeight: pw.FontWeight.bold,
+        fontSize: 13,
+        color: _primaryColor,
+      ),
     ),
     pw.SizedBox(height: 3),
     pw.Text(
       'Fecha aplicada: ${DateFormat('dd/MM/yyyy').format(vaccination.date)}',
-      style: const pw.TextStyle(fontSize: 11),
+      style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
     ),
     if (vaccination.nextDueDate != null) ...[
-      pw.SizedBox(height: 3),
+      pw.SizedBox(height: 2),
       pw.Text(
         'Próxima dosis: ${DateFormat('dd/MM/yyyy').format(vaccination.nextDueDate!)}',
-        style: const pw.TextStyle(fontSize: 11),
+        style: pw.TextStyle(
+          fontSize: 10,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.teal900,
+        ),
       ),
     ],
     if (photos.isNotEmpty) ...[
       pw.SizedBox(height: 8),
-      pw.Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final photo in photos)
-            pw.Column(
+      for (final photo in photos) ...[
+        () {
+          Uint8List? bytes;
+          try {
+            final f = File(photo.key);
+            if (f.existsSync()) {
+              bytes = f.readAsBytesSync();
+            }
+          } catch (_) {
+            bytes = null;
+          }
+          if (bytes == null) return pw.SizedBox();
+
+          return pw.Container(
+            width: double.infinity,
+            margin: const pw.EdgeInsets.only(top: 4),
+            padding: const pw.EdgeInsets.all(4),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey50,
+              border: pw.Border.all(color: _borderColor, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(6),
+            ),
+            child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
                 pw.ClipRRect(
-                  horizontalRadius: 6,
-                  verticalRadius: 6,
-                  child: pw.Image(
-                    pw.MemoryImage(File(photo.key).readAsBytesSync()),
-                    width: 60,
-                    height: 60,
-                    fit: pw.BoxFit.cover,
+                  horizontalRadius: 4,
+                  verticalRadius: 4,
+                  child: pw.ConstrainedBox(
+                    constraints: const pw.BoxConstraints(maxHeight: 180),
+                    child: pw.Image(
+                      pw.MemoryImage(bytes),
+                      fit: pw.BoxFit.contain,
+                    ),
                   ),
                 ),
-                pw.SizedBox(height: 2),
+                pw.SizedBox(height: 3),
                 pw.Text(
                   photo.value,
-                  style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                 ),
               ],
             ),
-        ],
-      ),
+          );
+        }(),
+      ],
     ],
   ]);
 }
@@ -527,10 +614,28 @@ List<pw.Widget> _section(
 
 pw.Widget _buildPdfSectionTitle(String title) {
   return pw.Padding(
-    padding: const pw.EdgeInsets.only(bottom: 6),
-    child: pw.Text(
-      title,
-      style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+    padding: const pw.EdgeInsets.only(top: 8, bottom: 6),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Container(
+          width: 3.5,
+          height: 14,
+          decoration: pw.BoxDecoration(
+            color: _primaryColor,
+            borderRadius: pw.BorderRadius.circular(2),
+          ),
+        ),
+        pw.SizedBox(width: 6),
+        pw.Text(
+          title,
+          style: pw.TextStyle(
+            fontSize: 13.5,
+            fontWeight: pw.FontWeight.bold,
+            color: _primaryColor,
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -561,8 +666,9 @@ pw.Widget _buildGrid(List<pw.Widget> boxes, {required int columns}) {
 pw.Widget _buildPdfInfoBox(List<pw.Widget> children) {
   return pw.Container(
     decoration: pw.BoxDecoration(
-      border: pw.Border.all(color: PdfColors.grey300),
-      borderRadius: pw.BorderRadius.circular(5),
+      color: PdfColors.white,
+      border: pw.Border.all(color: _borderColor, width: 0.6),
+      borderRadius: pw.BorderRadius.circular(6),
     ),
     padding: const pw.EdgeInsets.all(10),
     margin: const pw.EdgeInsets.only(bottom: 10),
@@ -744,12 +850,23 @@ pw.Widget _buildDocumentBox(Document document) {
       style: const pw.TextStyle(fontSize: 11),
     ),
     if (thumbnailBytes != null) ...[
-      pw.SizedBox(height: 8),
-      pw.Image(
-        pw.MemoryImage(thumbnailBytes),
-        width: 80,
-        height: 80,
-        fit: pw.BoxFit.cover,
+      pw.SizedBox(height: 6),
+      pw.Container(
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: _borderColor, width: 0.5),
+          borderRadius: pw.BorderRadius.circular(4),
+        ),
+        child: pw.ClipRRect(
+          horizontalRadius: 4,
+          verticalRadius: 4,
+          child: pw.ConstrainedBox(
+            constraints: const pw.BoxConstraints(maxHeight: 150),
+            child: pw.Image(
+              pw.MemoryImage(thumbnailBytes),
+              fit: pw.BoxFit.contain,
+            ),
+          ),
+        ),
       ),
     ],
   ]);
