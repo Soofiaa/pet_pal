@@ -12,6 +12,7 @@ import 'package:pet_pal/models/vaccination_product.dart';
 import 'package:pet_pal/providers/vaccination_providers.dart';
 import 'package:pet_pal/screens/vaccination_products_screen/vaccination_products_screen.dart';
 import 'package:pet_pal/services/image_storage_service.dart';
+import 'package:pet_pal/utils/vaccine_similarity.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
@@ -289,66 +290,41 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
     });
   }
 
-  /// Detecta vacunas similares que podrían ser reemplazadas por esta nueva
+  /// Vacunas ya registradas que podrían ser reemplazadas por esta nueva,
+  /// de la más reciente a la más antigua. Ver [VaccineSimilarity].
   List<Vaccination> _findSimilarVaccinations(List<Vaccination> allVaccinations) {
-    final currentName = _normalizeVaccineName(_vaccineNameController.text).toLowerCase();
-    if (currentName.isEmpty) return [];
-
-    final similar = <Vaccination>[];
-    final multipleKeywords = ['sextuple', 'octuple', 'polivalente', 'multiple', 'triple', 'cuádruple'];
-
-    for (final v in allVaccinations) {
-      if (v.id == widget.vaccination?.id) continue; // No comparar consigo misma en edición
-
-      final vName = _normalizeVaccineName(v.vaccineName).toLowerCase();
-
-      // Si tienen el mismo nombre normalizado
-      if (vName == currentName) {
-        similar.add(v);
-        continue;
-      }
-
-      // Si alguna contiene palabras clave de vacunas múltiples
-      final hasMultipleKeyword = multipleKeywords.any((keyword) =>
-          currentName.contains(keyword) || vName.contains(keyword));
-
-      if (hasMultipleKeyword) {
-        similar.add(v);
-      }
-    }
-
+    final newName = _vaccineNameController.text;
+    final similar = allVaccinations
+        .where((v) => v.id != widget.vaccination?.id) // No compararse consigo misma
+        .where((v) => VaccineSimilarity.isSimilar(newName, v.vaccineName))
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
     return similar;
   }
 
-  /// Muestra diálogo preguntando si la nueva vacuna reemplaza a una existente
-  Future<bool> _showReplacementDialog(Vaccination existingVaccination) async {
-    final result = await showDialog<bool>(
+  /// Pregunta cuál de las vacunas similares reemplaza la nueva. Devuelve la
+  /// elegida, o null si el usuario dice que son independientes o cierra el
+  /// diálogo (en ambos casos no se reemplaza nada).
+  Future<Vaccination?> _pickReplacedVaccination(List<Vaccination> similar) {
+    return showDialog<Vaccination>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Esta vacuna reemplaza a la anterior?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Aplicaste ${existingVaccination.vaccineName} el ${DateFormat('dd/MM/yyyy').format(existingVaccination.date)}.'),
-            const SizedBox(height: 8),
-            Text('¿Esta nueva vacuna la reemplaza?'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
+      builder: (context) => SimpleDialog(
+        title: const Text('¿Esta vacuna reemplaza a alguna anterior?'),
+        children: [
+          for (final v in similar)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, v),
+              child: Text(
+                '${v.vaccineName} · ${DateFormat('dd/MM/yyyy').format(v.date)}',
+              ),
+            ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context),
             child: const Text('No, son independientes'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
-            child: const Text('Sí, la reemplaza'),
           ),
         ],
       ),
     );
-    return result ?? false;
   }
 
   // Menú de catálogo: reemplaza al viejo dropdown + autocompletar de nombres
@@ -412,15 +388,8 @@ class _AddEditVaccinationScreenState extends ConsumerState<AddEditVaccinationScr
           final similar = _findSimilarVaccinations(allVaccinations);
 
           if (similar.isNotEmpty) {
-            // Por ahora, solo preguntamos por la más reciente
-            final mostRecent = similar.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
-            final shouldReplace = await _showReplacementDialog(mostRecent);
-
-            if (shouldReplace) {
-              _replacesVaccinationId = mostRecent.id;
-            } else {
-              _replacesVaccinationId = null;
-            }
+            final replaced = await _pickReplacedVaccination(similar);
+            _replacesVaccinationId = replaced?.id;
           }
         }
 
