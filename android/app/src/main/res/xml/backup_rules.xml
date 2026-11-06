@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Reglas explícitas para el respaldo automático de Google.
+     Solo copia la base de datos y los archivos de la app (fotos, PDFs).
+     Excluye caché, datos temporales y preferencias que no hace falta restaurar.
+     Referencia: https://developer.android.com/guide/topics/data/autobackup -->
+<full-backup-content>
+    <!-- Base de datos SQLite (principal) -->
+    <include domain="database" path="pet_pal_v2.db" />
+
+    <!-- Archivos de la app: fotos, documentos, respaldos temporales -->
+    <include domain="file" path="petpal_files/" />
+
+    <!-- Preferencias de la app (tema, etc.) -->
+    <include domain="sharedpref" path="flutter.FlutterSharedPreferences.xml" />
+
+    <!-- Excluir caché, que es regenerable -->
+    <exclude domain="cache" />
+
+    <!-- Excluir datos temporales -->
+    <exclude domain="file" path="petpal_restored_files/" />
+</full-backup-content>
