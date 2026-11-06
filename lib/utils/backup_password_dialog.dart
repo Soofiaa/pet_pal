@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+/// Largo mínimo de la contraseña al exportar un respaldo cifrado.
+const int minBackupPasswordLength = 10;
+
 /// Diálogo compartido para pedir la contraseña de cifrado/descifrado del
 /// backup ZIP. Usado desde home_screen.dart y backup_settings_screen.dart
 /// (los dos puntos de entrada a DataBackupService.exportAllData/
@@ -71,6 +74,8 @@ class _BackupPasswordDialogContentState extends State<_BackupPasswordDialogConte
   /// del AlertDialog, fuera de este widget.
   String? validateAndGetPassword() {
     if (formKey.currentState!.validate()) {
+      // Solo el export (requireConfirmation) pone el mínimo; el import acepta
+      // cualquier contraseña para no bloquear respaldos antiguos.
       return passwordController.text;
     }
     return null;
@@ -95,8 +100,11 @@ class _BackupPasswordDialogContentState extends State<_BackupPasswordDialogConte
             obscureText: true,
             autofocus: true,
             decoration: const InputDecoration(labelText: 'Contraseña'),
-            validator: (value) =>
-                (value == null || value.isEmpty) ? 'Ingresa una contraseña.' : null,
+            validator: (value) => (value == null || value.isEmpty)
+                ? 'Ingresa una contraseña.'
+                : (widget.requireConfirmation && value.length < minBackupPasswordLength)
+                    ? 'Usa al menos $minBackupPasswordLength caracteres.'
+                    : null,
           ),
           if (widget.requireConfirmation) ...[
             const SizedBox(height: 12),

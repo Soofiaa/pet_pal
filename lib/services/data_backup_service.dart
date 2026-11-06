@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -153,6 +153,14 @@ class DataBackupService {
       );
 
       final Directory tempDir = await getTemporaryDirectory();
+
+      // Quita copias cifradas de exportaciones anteriores que quedaron en caché.
+      await for (final entity in tempDir.list(followLinks: false)) {
+        if (entity is File && p.basename(entity.path).startsWith('pet_pal_backup_')) {
+          await entity.delete();
+        }
+      }
+
       final String fileName =
           'pet_pal_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.zip';
 
@@ -166,7 +174,8 @@ class DataBackupService {
 
       return 'Copia de seguridad completa exportada con éxito.';
     } catch (e) {
-      return 'Error al exportar datos: $e';
+      debugPrint('Error al exportar datos: $e');
+      return 'No se pudo crear la copia de seguridad. Intenta de nuevo.';
     }
   }
 
@@ -253,7 +262,8 @@ class DataBackupService {
         ),
       );
     } catch (e) {
-      return BackupLoadResult.failure('Error al leer el respaldo: $e');
+      debugPrint('Error al leer el respaldo: $e');
+      return const BackupLoadResult.failure('No se pudo leer el respaldo seleccionado.');
     }
   }
 
@@ -270,7 +280,8 @@ class DataBackupService {
       );
       return 'Datos e imágenes importados con éxito.';
     } catch (e) {
-      return 'Error al importar datos (no se modificó nada): $e';
+      debugPrint('Error al importar datos: $e');
+      return 'No se pudo importar el respaldo; no se modificó nada.';
     }
   }
 
