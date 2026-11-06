@@ -22,7 +22,8 @@
     <application
         android:label="pet_pal"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:allowBackup="false">
 
         <activity
             android:name=".MainActivity"
