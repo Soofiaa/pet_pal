@@ -11,6 +11,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Escanea todo el historial en busca de secretos commiteados.
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # sqflite_common_ffi (usado en test/data/database_helper_test.dart)
       # necesita una libsqlite3 real en la máquina que corre los tests.
