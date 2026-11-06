@@ -8,7 +8,7 @@ Esta página registra qué se revisó, qué se corrigió y qué quedó pendiente
 
 | Fase | Tema | Estado | Commit / nota |
 |---|---|---|---|
-| 1 | `allowBackup="false"` en el manifest Android | Hecho | `55091f0` |
+| 1 | `allowBackup` en el manifest Android | **Revertido y reemplazado por reglas explícitas** (ver nota) | `55091f0` → `44bc87b` |
 | 2 | Contraseña mínima de 10 caracteres al exportar backup | Hecho | `2895f71` |
 | 3 | Keystores fuera de OneDrive | Hecho | Ver sección "Firma de la app" |
 | 4 | Sin datos personales en `debugPrint` | Hecho | `78c1406` |
@@ -19,8 +19,10 @@ Esta página registra qué se revisó, qué se corrigió y qué quedó pendiente
 ## Hallazgos y correcciones
 
 ### 1. `allowBackup` sin declarar (media)
-- **Riesgo:** `adb backup` o el respaldo automático de Google podían extraer la base SQLite (historial médico) y `petpal_files/` (fotos, PDFs).
-- **Corrección:** `android:allowBackup="false"` en `<application>`.
+- **Riesgo:** `adb backup` o el respaldo automático de Google podían extraer la base SQLite (historial médico) y `petpal_files/` (fotos, PDFs) sin control sobre qué se copia.
+- **Primera corrección:** `android:allowBackup="false"`. Bloqueó también el respaldo de Google que la titular usaba, así que se revirtió.
+- **Corrección final:** `android:allowBackup="true"` con `android:fullBackupContent="@xml/backup_rules"`. El archivo `backup_rules.xml` incluye solo la base (`database/pet_pal_v2.db`), `app_flutter/petpal_files/` y `FlutterSharedPreferences.xml`, y excluye los restaurados temporales.
+- **Pendiente de verificar:** las rutas del XML son las esperadas en Android, pero no se probó una restauración real. Hay que comprobarlo con una desinstalación y reinstalación en el teléfono.
 - **Referencia:** CWE-530; MASVS-STORAGE-2.
 
 ### 2. Contraseña del backup sin largo mínimo (media)
