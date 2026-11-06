@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pet_pal/utils/layout_constants.dart';
 import 'package:pet_pal/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -166,6 +167,7 @@ class __AddEditContactDialogState extends ConsumerState<_AddEditContactDialog> {
               controller: _phoneController,
               decoration: const InputDecoration(labelText: 'Teléfono', border: OutlineInputBorder()),
               keyboardType: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s\-()]'))],
               enabled: !_isSaving,
             ),
             const SizedBox(height: 16),

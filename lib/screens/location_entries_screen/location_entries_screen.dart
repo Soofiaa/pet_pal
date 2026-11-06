@@ -128,7 +128,7 @@ class __AddEditLocationEntryDialogState extends ConsumerState<_AddEditLocationEn
   /// de ayuda discreto, nunca impide guardar.
   bool get _mapsUrlLooksValid {
     final String text = _mapsUrlController.text.trim();
-    return text.isEmpty || text.startsWith('http://') || text.startsWith('https://');
+    return text.isEmpty || text.startsWith('https://');
   }
 
   @override

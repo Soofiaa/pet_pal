@@ -123,7 +123,7 @@ class _AddEditAppointmentScreenState extends ConsumerState<AddEditAppointmentScr
   /// de todos modos nunca bloquea el guardado-.
   bool get _mapsUrlLooksValid {
     final String text = _locationMapsUrlController.text.trim();
-    return text.startsWith('http://') || text.startsWith('https://');
+    return text.startsWith('https://');
   }
 
   /// Abre el link de Maps pegado por la persona. Nunca lanza hacia la UI:
