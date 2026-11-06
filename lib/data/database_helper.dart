@@ -1005,7 +1005,7 @@ class DatabaseHelper {
       pet.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    debugPrint('Mascota "${pet.name}" insertada/actualizada');
+    debugPrint('Mascota ${pet.id} insertada/actualizada');
   }
 
   Future<List<Pet>> getPets() async {
@@ -1058,7 +1058,7 @@ class DatabaseHelper {
       note.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    debugPrint('Nota "${note.title}" para petId: ${note.petId} insertada/actualizada');
+    debugPrint('Nota ${note.id} para petId: ${note.petId} insertada/actualizada');
   }
 
   Future<List<Note>> getNotesForPet(String petId) async {
@@ -1103,7 +1103,7 @@ class DatabaseHelper {
       vaccination.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    debugPrint('Vacunación "${vaccination.vaccineName}" para petId: ${vaccination.petId} insertada/actualizada');
+    debugPrint('Vacunación ${vaccination.id} para petId: ${vaccination.petId} insertada/actualizada');
   }
 
   Future<List<Vaccination>> getVaccinationsForPet(String petId) async {
@@ -1148,7 +1148,7 @@ class DatabaseHelper {
       appointment.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    debugPrint('Cita "${appointment.title}" para petId: ${appointment.petId} insertada/actualizada');
+    debugPrint('Cita ${appointment.id} para petId: ${appointment.petId} insertada/actualizada');
   }
 
   Future<List<Appointment>> getAppointmentsForPet(String petId) async {
@@ -1372,7 +1372,7 @@ class DatabaseHelper {
       deworming.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    debugPrint('Desparasitación "${deworming.product}" para petId: ${deworming.petId} insertada/actualizada');
+    debugPrint('Desparasitación ${deworming.id} para petId: ${deworming.petId} insertada/actualizada');
   }
 
   Future<List<Deworming>> getDewormingsForPet(String petId) async {
@@ -1417,7 +1417,7 @@ class DatabaseHelper {
       medication.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    debugPrint('Medicación "${medication.name}" para petId: ${medication.petId} insertada/actualizada');
+    debugPrint('Medicación ${medication.id} para petId: ${medication.petId} insertada/actualizada');
   }
 
   Future<List<Medication>> getMedicationsForPet(String petId) async {
@@ -1462,7 +1462,7 @@ class DatabaseHelper {
       document.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    debugPrint('Documento "${document.titulo}" para petId: ${document.petId} insertado/actualizado');
+    debugPrint('Documento ${document.id} para petId: ${document.petId} insertado/actualizado');
   }
 
   Future<List<Document>> getDocumentsForPet(String petId) async {

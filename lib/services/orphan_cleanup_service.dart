@@ -207,7 +207,7 @@ class OrphanCleanupService {
           rowId: rowId,
           rawValue: photoPathsJson,
         ));
-        debugPrint('No se pudo decodificar photoPaths de la nota $rowId durante la limpieza de huérfanos: $e');
+        debugPrint('No se pudo decodificar photoPaths de la nota $rowId durante la limpieza de huérfanos (${e.runtimeType})');
       }
     }
 
@@ -251,9 +251,7 @@ class OrphanCleanupService {
       'por error): ${decodeFailures.length}',
     );
     for (final failure in decodeFailures) {
-      debugPrint(
-        '  tabla=${failure.table} id=${failure.rowId} valorCrudo=${failure.rawValue}',
-      );
+      debugPrint('  tabla=${failure.table} id=${failure.rowId}');
     }
     debugPrint('=========================================================');
   }
