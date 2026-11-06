@@ -67,18 +67,44 @@ Verificación realizada:
 
 - **Contraseñas del keystore sin rotar.** Aparecieron en la salida de herramientas durante la sesión del 2026-11-05. La titular decidió no rotarlas. Si cambia de opinión, basta con cambiar las contraseñas del almacén y de la clave en `key.properties` (la clave de firma no cambia). Antes de rotar, verificar que el build siga firmando con `ba2b856d…`.
 
+## Hallazgos adicionales (revisión de segunda fase)
+
+### 7. Enlaces de mapa sin restricción de esquema más allá de http/https (baja)
+- **Ubicación:** `lib/screens/add_edit_appointment_screen/add_edit_appointment_screen.dart:124-141`, `lib/screens/location_entries_screen/location_entries_screen.dart:131`.
+- **Qué pasa:** el usuario pega un enlace y la app lo abre con `launchUrl` solo si empieza con `http://` o `https://`.
+- **Riesgo:** bajo. El enlace lo escribe la propia usuaria y no viene de terceros. Aun así, `http://` permite contenido sin cifrar.
+- **Corrección sugerida:** aceptar solo `https://` (cambio de una línea en las dos validaciones).
+- **Referencia:** CWE-319 (menor).
+
+### 8. Teléfono de contactos de emergencia sin validación de formato (baja)
+- **Ubicación:** `lib/screens/emergency_contacts_screen/emergency_contacts_screen.dart:83-86`.
+- **Qué pasa:** se construye `Uri.parse('tel:$phone')` con el texto tal cual lo escribió la usuaria.
+- **Riesgo:** bajo. `tel:` solo abre el marcador. Un valor raro podría hacer que el sistema marque algo distinto de lo esperado, pero no ejecuta código en la app.
+- **Corrección sugerida:** limitar el campo a dígitos, `+`, espacios y guiones.
+
+### 9. Datos de recordatorios en el widget (por verificar)
+- **Ubicación:** `lib/services/widget_update_service.dart:15-18`, `lib/widgets/home_screen_widget.dart:28`.
+- **Qué pasa:** el widget guarda nombres de mascota y tipos de recordatorio como JSON mediante `home_widget`.
+- **Riesgo:** bajo. Con `allowBackup="false"` no sale por respaldo. Queda legible solo para la app y para un dispositivo con root. Falta confirmar en el paquete `home_widget` si usa preferencias privadas (`MODE_PRIVATE`); no lo verifiqué.
+- **Corrección:** si el dato es sensible para la usuaria, guardar solo un conteo y no los nombres.
+
+### 10. Dependencias desactualizadas (informativo)
+- `flutter pub outdated` muestra varias librerías con versión mayor disponible (`archive`, `file_picker`, `local_auth`, `share_plus`, `pro_image_editor`, entre otras).
+- **Limitación:** ese comando solo compara versiones. No consulta bases de vulnerabilidades. No se confirmó ninguna CVE, y no hay herramienta de vulnerabilidades configurada.
+- **Recomendación:** actualizar `archive`, `local_auth` y `share_plus` primero, porque tocan backup y autenticación. Cada actualización requiere revisar tests.
+
 ## Pendiente de la auditoría
 
-Revisado en esta fase:
-- Manifest Android, `build.gradle.kts`, widget de Android.
+Revisado:
+- Manifest Android, `build.gradle.kts`, widget de Android, permisos.
 - Servicios de backup, biometría, limpieza de archivos huérfanos, notificaciones.
 - Capa de base de datos (consultas parametrizadas, claves foráneas).
+- Enlaces externos (mapas, teléfono) y versiones de dependencias.
 
-Sin revisar todavía:
-- Pantallas que cargan URLs externas (`add_edit_appointment_screen.dart`, `emergency_contacts_screen.dart`).
-- Permisos de archivos en el widget (`home_screen_widget.dart` lee datos guardados por `widget_update_service.dart`).
-- Dependencias: no se ejecutó `flutter pub outdated` ni una herramienta de vulnerabilidades.
-- Escaneo real con `gitleaks` local.
+Sin revisar:
+- Escaneo real con `gitleaks` local (solo se configuró en CI).
+- Vulnerabilidades conocidas de dependencias (requiere una herramienta como `osv-scanner`).
+- Revisión manual de pantallas de la app que no manejan datos sensibles.
 
 ## Cómo verificar
 
