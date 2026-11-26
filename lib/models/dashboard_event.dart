@@ -115,7 +115,7 @@ class DashboardEvent {
       if (date is! DateTime) continue;
       if (type == 'next_deworming' &&
           date.isBefore(DateTime.now()) &&
-          _isSupersededDeworming(raw, rawEvents)) {
+          isSupersededDeworming(raw, rawEvents)) {
         continue;
       }
 
@@ -148,9 +148,10 @@ class DashboardEvent {
 
   /// Una desparasitación vencida deja de ser relevante si hay una aplicación
   /// posterior (de cualquier producto) que cubre lo mismo: 'ambas' cubre
-  /// todo, y un registro sin cobertura conocida (legado) lo supera cualquier
-  /// aplicación más nueva.
-  static bool _isSupersededDeworming(
+  /// todo, el mismo tipo cubre su tipo, y un registro sin cobertura conocida
+  /// (legado) queda superado por una 'ambas' posterior, o por la unión
+  /// de una 'interna' y una 'externa' posteriores.
+  static bool isSupersededDeworming(
     Map<String, dynamic> raw,
     List<Map<String, dynamic>> rawEvents,
   ) {
@@ -161,6 +162,18 @@ class DashboardEvent {
       orElse: () => const {},
     )['date'];
     if (applied is! DateTime) return false;
+
+    // Lógica unificada con Deworming._isLegadoSuperseded
+    if (coverage == null) {
+      final newer = rawEvents.where((o) =>
+          o['type'] == 'deworming' &&
+          o['date'] is DateTime &&
+          (o['date'] as DateTime).isAfter(applied));
+      if (newer.any((o) => o['coverage'] == 'ambas')) return true;
+      return newer.any((o) => o['coverage'] == 'interna') &&
+             newer.any((o) => o['coverage'] == 'externa');
+    }
+
     final knownCoverage =
         coverage == 'interna' || coverage == 'externa' || coverage == 'ambas';
 
