@@ -123,14 +123,12 @@ void main() {
       final scheduleCalls =
           calls.where((c) => c.method == 'zonedSchedule').toList();
       final ids = scheduleCalls.map((c) => c.arguments['id'] as int).toSet();
+      // El notifier llama a schedule + reconcile, por lo que puede haber
+      // duplicados del MISMO id (idempotencia); lo que no puede haber es
+      // colisión entre registros: para 2 registros, el set debe tener
+      // exactamente 2 ids únicos.
       expect(ids, hasLength(2),
           reason: 'debe haber exactamente un id único por registro (idempotente)');
-
-      final idList = scheduleCalls.map((c) => c.arguments['id'] as int).toList();
-      // Verificamos que no haya colisiones: para 2 registros, si los IDs son deterministas
-      // y distintos, el set debe tener tamaño 2. El notifier llama a schedule + reconcile,
-      // por lo que esperamos duplicados del MISMO id (idempotencia), pero no mezcla de ids.
-      expect(ids.length, 2, reason: 'ids colisionados o faltantes');
     });
 
     test(
