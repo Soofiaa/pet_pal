@@ -250,5 +250,68 @@ void main() {
       final titles = dashboardEvents.map((e) => e.title).toList();
       expect(titles, isNot(contains('Próxima desparasitación: LegadoViejo')));
     });
+
+    test('interna + legado posterior: getEventsFromList conserva el evento next_deworming de la interna y ambos son ganadores', () {
+      final now = DateTime.now();
+      final interna = Deworming(
+        id: 'int',
+        petId: 'p',
+        product: 'InternaVieja',
+        date: now.subtract(const Duration(days: 30)),
+        nextDate: now.add(const Duration(days: 60)),
+        type: 'interna',
+      );
+      final legado = Deworming(
+        id: 'leg',
+        petId: 'p',
+        product: 'LegadoNuevo',
+        date: now.subtract(const Duration(days: 5)),
+        nextDate: now.add(const Duration(days: 85)),
+        type: null,
+      );
+
+      final dewormings = [interna, legado];
+      
+      // 1. Ambos son ganadores (el legado no tapa a la interna)
+      final winners = Deworming.idsWithVisibleNextDose(dewormings);
+      expect(winners, contains('int'));
+      expect(winners, contains('leg'));
+
+      // 2. getEventsFromList genera ambos eventos next_deworming
+      final events = Deworming.getEventsFromList(dewormings);
+      final nextEvents = events.where((e) => e['type'] == 'next_deworming');
+      expect(nextEvents.length, 2);
+      final titles = nextEvents.map((e) => e['title']).toList();
+      expect(titles, contains('Próxima desparasitación (I): InternaVieja'));
+      expect(titles, contains('Próxima desparasitación: LegadoNuevo'));
+    });
+
+    test('interna + legado posterior: getEventsFromList conserva next_deworming de interna e idsWithVisibleNextDose mantiene a ambos ganadores', () {
+      final interna = Deworming(
+        id: 'int',
+        petId: 'p',
+        product: 'InternaPrevia',
+        date: DateTime(2026, 1, 1),
+        nextDate: DateTime(2026, 4, 1),
+        type: 'interna',
+      );
+      final legado = Deworming(
+        id: 'leg',
+        petId: 'p',
+        product: 'LegadoPosterior',
+        date: DateTime(2026, 2, 1),
+        nextDate: DateTime(2026, 5, 1),
+        type: null,
+      );
+
+      expect(Deworming.idsWithVisibleNextDose([interna, legado]), {'int', 'leg'});
+
+      final events = Deworming.getEventsFromList([interna, legado]);
+      final nextIds = events
+          .where((e) => e['type'] == 'next_deworming')
+          .map((e) => e['id'])
+          .toSet();
+      expect(nextIds, {'int', 'leg'});
+    });
   });
 }
