@@ -81,24 +81,21 @@ class Deworming {
     );
   }
 
-  /// Fecha efectiva de "próxima desparasitación". Si [isRecurring] está
-  /// activo y hay [frequencyMonths] configurado, avanza [nextDate] en
-  /// múltiplos de esa frecuencia hasta que sea igual o posterior a [now]
-  /// (por defecto `DateTime.now()`) -así el recordatorio nunca se ve
-  /// "vencido para siempre" solo porque no se creó un registro nuevo en el
-  /// ciclo anterior-. Si no es recurrente, devuelve [nextDate] tal cual
-  /// (comportamiento sin cambios). Es la única función que calcula este
-  /// avance: la usan ReminderScheduler, getEventsFromList (dashboard y
-  /// calendario) y las pantallas de desparasitación, para no duplicar la
-  /// lógica ni divergir entre ellas. Puro: nunca escribe en la base de datos.
+  /// Fecha pendiente de "próxima desparasitación" para UI / eventos / PDF.
+  /// Devuelve [nextDate] tal cual: una dosis recurrente vencida y no
+  /// reemplazada sigue vencida. El avance de ciclo lo dispara un registro
+  /// nuevo (_isSuperseded / idsWithVisibleNextDose), no el calendario.
+  /// [now] se ignora (compatibilidad de call sites). Para preprogramar
+  /// notificaciones de ciclos futuros, ver [schedulingCycleIndex].
   DateTime? effectiveNextDate({DateTime? now}) {
-    if (nextDate == null) return null;
-    return occurrenceForCycle(effectiveCycleIndex(now: now));
+    return nextDate;
   }
 
-  /// Índice del ciclo vigente: 0 es [nextDate] original; cada +1 avanza
-  /// [frequencyMonths]. Siempre 0 si el registro no es recurrente.
-  int effectiveCycleIndex({DateTime? now}) {
+  /// Índice desde el cual ReminderScheduler preprograma el horizonte de
+  /// ciclos. Avanza mientras la ocurrencia sea anterior a hoy, para no
+  /// intentar agendar pushes en el pasado. NO usar para la fecha pendiente
+  /// mostrada — eso es [effectiveNextDate].
+  int schedulingCycleIndex({DateTime? now}) {
     if (nextDate == null || !isRecurring || frequencyMonths == null || frequencyMonths! <= 0) {
       return 0;
     }

@@ -285,7 +285,7 @@ void main() {
     test(
       'un registro NO recurrente vencido no se programa (comportamiento sin '
       'cambios: NotificationService ya evita agendar en el pasado; sin '
-      'isRecurring, effectiveNextDate no avanza la fecha vieja)',
+      'isRecurring, schedulingCycleIndex queda en 0)',
       () async {
         await NotificationService().init();
         calls.clear();
@@ -560,9 +560,9 @@ void main() {
         final pet = makePet('Olivia');
         await dbHelper.insertPet(pet);
 
-        // Recurrente: effectiveNextDate() SIEMPRE da una fecha futura, sin
-        // importar cuánto tiempo pase -este es el caso "garantizado" del
-        // diagnóstico previo, no depende de timing como el de vacunas-.
+        // Recurrente vencido: schedulingCycleIndex sigue pudiendo preprogramar
+        // futuros, pero la UI lo deja vencido. La reconciliación cancela por
+        // cobertura (idsWithVisibleNextDose), no por fecha efectiva.
         final recurrenteVieja = Deworming(
           id: const Uuid().v4(),
           petId: pet.id,
@@ -584,10 +584,8 @@ void main() {
         await dbHelper.insertDeworming(recurrenteVieja);
         await dbHelper.insertDeworming(ambasReciente);
 
-        // Confirma la premisa: sin el fix, el recurrente SIEMPRE tiene
-        // effectiveNextDate futura -por eso el caso es "garantizado", nunca
-        // se resuelve solo con el paso del tiempo-.
-        expect(recurrenteVieja.effectiveNextDate()!.isAfter(DateTime.now()), isTrue);
+        expect(recurrenteVieja.effectiveNextDate()!.isBefore(DateTime.now()), isTrue);
+        expect(recurrenteVieja.schedulingCycleIndex() > 0, isTrue);
 
         await ReminderScheduler.rescheduleAllPending();
 

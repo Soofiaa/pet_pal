@@ -711,11 +711,8 @@ pw.Widget _buildDewormingBox(Deworming deworming, DateTime now) {
   final PdfColor statusColor;
   final bool isOverdue;
 
-  // effectiveNextDate(), no nextDate crudo: para desparasitaciones
-  // recurrentes, avanza la fecha en múltiplos de frequencyMonths hasta
-  // quedar vigente -si no, se mostraba "Vencida" para siempre en cuanto
-  // pasaba el primer ciclo, aunque el recordatorio ya se hubiera
-  // reprogramado solo-.
+  // effectiveNextDate() (= nextDate): una recurrente vencida se reporta
+  // vencida hasta que un registro nuevo la superseda.
   final DateTime? effectiveNextDate = deworming.effectiveNextDate(now: now);
 
   if (effectiveNextDate == null) {
