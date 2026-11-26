@@ -9,11 +9,121 @@ import '../vaccinations_screen/vaccinations_screen.dart' show isNextDoseOverdue;
 import '../add_edit_deworming_screen/add_edit_deworming_screen.dart';
 import '../deworming_products_screen/deworming_products_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 class DewormingScreen extends ConsumerWidget {
   final Pet pet;
 
   const DewormingScreen({super.key, required this.pet});
+
+  /// Registro rápido: crea un registro NUEVO (no edita ni borra el vencido)
+  /// copiando producto/tipo/frecuencia del registro vencido, con fecha de
+  /// aplicación elegida y nextDate recalculada si es recurrente.
+  Future<void> _registerQuickDeworming(
+    BuildContext context,
+    WidgetRef ref,
+    Deworming deworming,
+  ) async {
+    final DateTime today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    var applicationDate = today;
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          final DateTime? nextDate =
+              deworming.isRecurring &&
+                      deworming.frequencyMonths != null &&
+                      deworming.frequencyMonths! > 0
+                  ? Deworming.addMonths(applicationDate, deworming.frequencyMonths!)
+                  : null;
+
+          return AlertDialog(
+            title: const Text('Registrar aplicación'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Producto: ${deworming.product}'),
+                const SizedBox(height: 16),
+                ListTile(
+                  title: const Text('Fecha de aplicación'),
+                  subtitle: Text(DateFormat('dd/MM/yyyy').format(applicationDate)),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: applicationDate,
+                      firstDate: DateTime(2000),
+                      lastDate: today,
+                    );
+                    if (picked != null) {
+                      setState(() => applicationDate = picked);
+                    }
+                  },
+                ),
+                if (nextDate != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Próxima fecha: ${DateFormat('dd/MM/yyyy').format(nextDate)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Confirmar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final nextDate =
+        deworming.isRecurring &&
+                deworming.frequencyMonths != null &&
+                deworming.frequencyMonths! > 0
+            ? Deworming.addMonths(applicationDate, deworming.frequencyMonths!)
+            : null;
+
+    final newDeworming = Deworming(
+      id: const Uuid().v4(),
+      petId: deworming.petId,
+      product: deworming.product,
+      date: applicationDate,
+      nextDate: nextDate,
+      type: deworming.type,
+      frequencyMonths: deworming.frequencyMonths,
+      reminderDaysAhead: deworming.reminderDaysAhead,
+      isRecurring: deworming.isRecurring,
+    );
+
+    try {
+      await ref.read(dewormingsProvider(pet.id).notifier).addDeworming(newDeworming);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Desparasitación agregada con éxito.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error al registrar la desparasitación rápida: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al registrar la desparasitación: $e')),
+        );
+      }
+    }
+  }
 
   Future<void> _confirmDelete(
     BuildContext context,
@@ -207,20 +317,35 @@ class DewormingScreen extends ConsumerWidget {
                                 }),
                             ],
                           ),
-                          trailing: IconButton(
-                            icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
-                            tooltip: 'Editar',
-                            onPressed: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AddEditDewormingScreen(
-                                    pet: pet,
-                                      deworming: deworming,
-                                    ),
-                                  ),
-                                );
-                            },
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (showNextDose &&
+                                  deworming.effectiveNextDate() != null &&
+                                  isNextDoseOverdue(deworming.effectiveNextDate()!))
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  tooltip: 'Registrar aplicación',
+                                  onPressed: () async {
+                                    await _registerQuickDeworming(context, ref, deworming);
+                                  },
+                                ),
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                                tooltip: 'Editar',
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => AddEditDewormingScreen(
+                                        pet: pet,
+                                          deworming: deworming,
+                                        ),
+                                      ),
+                                    );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ),
