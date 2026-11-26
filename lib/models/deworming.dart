@@ -149,7 +149,9 @@ class Deworming {
     final winners = <String>{};
 
     // 1. Ganadores con tipo reconocido
-    final typed = dewormings.where((d) => d.hasKnownCoverage).toList();
+    final typed = dewormings
+        .where((d) => d.id != null && d.hasKnownCoverage)
+        .toList();
     if (typed.isNotEmpty) {
       Deworming mostRecentTyped = typed.first;
       for (final d in typed.skip(1)) {
@@ -175,7 +177,9 @@ class Deworming {
     }
 
     // 2. Ganadores legados (independientes)
-    final legacy = dewormings.where((d) => !d.hasKnownCoverage).toList();
+    final legacy = dewormings
+        .where((d) => d.id != null && !d.hasKnownCoverage)
+        .toList();
     if (legacy.isNotEmpty) {
       Deworming mostRecentLegacy = legacy.first;
       for (final d in legacy.skip(1)) {
@@ -221,9 +225,7 @@ class Deworming {
       if (identical(other, deworming) || !other.date.isAfter(deworming.date)) {
         return false;
       }
-      return !other.hasKnownCoverage ||
-          other.type == 'ambas' ||
-          other.type == deworming.type;
+      return other.type == 'ambas' || other.type == deworming.type;
     });
   }
 
