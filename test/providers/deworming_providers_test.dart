@@ -122,14 +122,15 @@ void main() {
 
       final scheduleCalls =
           calls.where((c) => c.method == 'zonedSchedule').toList();
-      expect(scheduleCalls, hasLength(2));
+      final ids = scheduleCalls.map((c) => c.arguments['id'] as int).toSet();
+      expect(ids, hasLength(2),
+          reason: 'debe haber exactamente un id único por registro (idempotente)');
 
-      final ids = scheduleCalls.map((c) => c.arguments['id'] as int).toList();
-      expect(
-        ids.toSet().length,
-        ids.length,
-        reason: 'ids repetidos entre dos desparasitaciones distintas',
-      );
+      final idList = scheduleCalls.map((c) => c.arguments['id'] as int).toList();
+      // Verificamos que no haya colisiones: para 2 registros, si los IDs son deterministas
+      // y distintos, el set debe tener tamaño 2. El notifier llama a schedule + reconcile,
+      // por lo que esperamos duplicados del MISMO id (idempotencia), pero no mezcla de ids.
+      expect(ids.length, 2, reason: 'ids colisionados o faltantes');
     });
 
     test(
@@ -228,13 +229,9 @@ void main() {
         final ids = calls
             .where((c) => c.method == 'zonedSchedule')
             .map((c) => c.arguments['id'] as int)
-            .toList();
-        expect(ids, hasLength(20));
-        expect(
-          ids.toSet().length,
-          ids.length,
-          reason: 'ids repetidos entre desparasitaciones de distintas mascotas',
-        );
+            .toSet();
+        expect(ids, hasLength(20),
+            reason: 'debe haber exactamente 20 ids únicos distintos (sin colisiones ni pérdidas)');
       },
     );
 

@@ -309,7 +309,9 @@ class ReminderScheduler {
         deworming.frequencyMonths != null &&
         deworming.frequencyMonths! > 0;
     final int horizon = recurring ? dewormingCycleHorizon : 1;
-    final int firstCycle = deworming.effectiveCycleIndex();
+    // schedulingCycleIndex (no effectiveNextDate): UI deja vencida la dosis
+    // pendiente; el scheduler sí salta ciclos pasados para preprogramar futuros.
+    final int firstCycle = deworming.schedulingCycleIndex();
 
     // No cancela acá: zonedSchedule reemplaza por id, y los ciclos viejos
     // ya se cancelan en el flujo de edición/borrado (DewormingsNotifier)
