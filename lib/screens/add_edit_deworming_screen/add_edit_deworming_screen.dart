@@ -60,13 +60,11 @@ class _AddEditDewormingScreenState extends ConsumerState<AddEditDewormingScreen>
           ? DateFormat('dd/MM/yyyy').format(_currentDeworming!.date)
           : DateFormat('dd/MM/yyyy').format(DateTime.now()),
     );
-    // effectiveNextDate() en vez de nextDate crudo: si el registro es
-    // recurrente y su ciclo original ya pasó, esto muestra la próxima
-    // fecha realmente vigente (la misma que ya está usando el recordatorio
-    // programado), no una fecha vencida hace meses.
+    // nextDate crudo (no effectiveNextDate): editar un vencido no debe
+    // reescribir la fecha base por un ciclo futuro calculado.
     _nextDateController = TextEditingController(
-      text: _currentDeworming?.effectiveNextDate() != null
-          ? DateFormat('dd/MM/yyyy').format(_currentDeworming!.effectiveNextDate()!)
+      text: _currentDeworming?.nextDate != null
+          ? DateFormat('dd/MM/yyyy').format(_currentDeworming!.nextDate!)
           : '',
     );
 
