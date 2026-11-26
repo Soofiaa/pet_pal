@@ -217,7 +217,7 @@ void main() {
       expect(winners, {'d-interna-nueva', 'd-ambas-vieja'});
     });
 
-    test('sin registros con type reconocido: no hay ganadores', () {
+    test('legado: es ganador', () {
       final legado = Deworming(
         id: 'd-legado',
         petId: 'pet-1',
@@ -227,7 +227,7 @@ void main() {
         type: null,
       );
 
-      expect(Deworming.idsWithVisibleNextDose([legado]), isEmpty);
+      expect(Deworming.idsWithVisibleNextDose([legado]), {'d-legado'});
     });
   });
 

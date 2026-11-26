@@ -132,44 +132,60 @@ class Deworming {
 
   static const Set<String> _coverageTypes = {'interna', 'externa', 'ambas'};
 
+  /// Si el registro es legado (null) o tiene tipo conocido.
+  bool get hasKnownCoverage => type != null && _coverageTypes.contains(type);
+
   /// Ids de los registros que deben mostrar "Próxima dosis" en la pantalla
   /// de desparasitaciones, según cobertura por tipo (interna/externa/ambas)
   /// en vez de solo por producto: cada tipo de parásito tiene su propio
   /// reloj de vigencia, salvo que el registro más reciente de todos cubra
   /// AMBOS -en cuyo caso resetea la cobertura completa y manda solo él-.
-  /// Registros sin [type] reconocido (legado, previo a que el campo se
-  /// hiciera obligatorio en el formulario) quedan fuera del cálculo: no
-  /// hay forma de saber qué cobertura dan, así que nunca son ganadores.
   ///
-  /// Puramente de presentación -qué línea verde se muestra-: no tiene
-  /// relación con qué recordatorio real programa ReminderScheduler.
+  /// Los registros sin [type] reconocido (legado) compiten como un grupo
+  /// independiente (tipo "desconocido").
   static Set<String> idsWithVisibleNextDose(List<Deworming> dewormings) {
-    final List<Deworming> typed = dewormings
-        .where((d) => d.id != null && _coverageTypes.contains(d.type))
-        .toList();
-    if (typed.isEmpty) return {};
+    if (dewormings.isEmpty) return {};
 
-    Deworming mostRecentOverall = typed.first;
-    for (final d in typed.skip(1)) {
-      if (d.date.isAfter(mostRecentOverall.date)) mostRecentOverall = d;
-    }
+    final winners = <String>{};
 
-    if (mostRecentOverall.type == 'ambas') {
-      return {mostRecentOverall.id!};
-    }
-
-    final winners = <String>{mostRecentOverall.id!};
-
-    final String otherType =
-        mostRecentOverall.type == 'interna' ? 'externa' : 'interna';
-    final matchingOther =
-        typed.where((d) => d.type == otherType || d.type == 'ambas');
-    if (matchingOther.isNotEmpty) {
-      Deworming mostRecentOther = matchingOther.first;
-      for (final d in matchingOther.skip(1)) {
-        if (d.date.isAfter(mostRecentOther.date)) mostRecentOther = d;
+    // 1. Ganadores con tipo reconocido
+    final typed = dewormings.where((d) => d.hasKnownCoverage).toList();
+    if (typed.isNotEmpty) {
+      Deworming mostRecentTyped = typed.first;
+      for (final d in typed.skip(1)) {
+        if (d.date.isAfter(mostRecentTyped.date)) mostRecentTyped = d;
       }
-      winners.add(mostRecentOther.id!);
+
+      if (mostRecentTyped.type == 'ambas') {
+        winners.add(mostRecentTyped.id!);
+      } else {
+        winners.add(mostRecentTyped.id!);
+        final String otherType =
+            mostRecentTyped.type == 'interna' ? 'externa' : 'interna';
+        final matchingOther =
+            typed.where((d) => d.type == otherType || d.type == 'ambas');
+        if (matchingOther.isNotEmpty) {
+          Deworming mostRecentOther = matchingOther.first;
+          for (final d in matchingOther.skip(1)) {
+            if (d.date.isAfter(mostRecentOther.date)) mostRecentOther = d;
+          }
+          winners.add(mostRecentOther.id!);
+        }
+      }
+    }
+
+    // 2. Ganadores legados (independientes)
+    final legacy = dewormings.where((d) => !d.hasKnownCoverage).toList();
+    if (legacy.isNotEmpty) {
+      Deworming mostRecentLegacy = legacy.first;
+      for (final d in legacy.skip(1)) {
+        if (d.date.isAfter(mostRecentLegacy.date)) mostRecentLegacy = d;
+      }
+      
+      // El legado es ganador si no está superado por cobertura completa
+      if (!_isLegadoSuperseded(mostRecentLegacy, dewormings)) {
+        winners.add(mostRecentLegacy.id!);
+      }
     }
 
     return winners;
@@ -177,9 +193,11 @@ class Deworming {
 
   /// Tipos de cobertura ('interna'/'externa') que NUNCA tuvieron ni un solo
   /// registro -ni exclusivo ni combinado en 'ambas'- en todo el historial
-  /// de la mascota. Distinto de "está vencida": esto es un vacío
-  /// estructural (nunca se hizo), no un problema temporal.
+  /// de la mascota. Los registros legados indican que hubo actividad,
+  /// por lo que la cobertura es "desconocida", no ausente.
   static Set<String> neverRecordedCoverageTypes(List<Deworming> dewormings) {
+    if (dewormings.any((d) => !d.hasKnownCoverage)) return {};
+
     final bool hasInterna =
         dewormings.any((d) => d.type == 'interna' || d.type == 'ambas');
     final bool hasExterna =
@@ -196,12 +214,30 @@ class Deworming {
   /// sin cobertura conocida (legado) lo supera cualquier aplicación más
   /// nueva. Mismo criterio que DashboardEvent._isSupersededDeworming.
   static bool _isSuperseded(Deworming deworming, List<Deworming> all) {
-    final bool knownCoverage = _coverageTypes.contains(deworming.type);
+    if (!deworming.hasKnownCoverage) {
+      return _isLegadoSuperseded(deworming, all);
+    }
     return all.any((other) {
       if (identical(other, deworming) || !other.date.isAfter(deworming.date)) {
         return false;
       }
-      return !knownCoverage || other.type == 'ambas' || other.type == deworming.type;
+      return !other.hasKnownCoverage ||
+          other.type == 'ambas' ||
+          other.type == deworming.type;
+    });
+  }
+
+  static bool _isLegadoSuperseded(Deworming deworming, List<Deworming> all) {
+    return all.any((other) {
+      if (identical(other, deworming) || !other.date.isAfter(deworming.date)) {
+        return false;
+      }
+      if (other.type == 'ambas') return true;
+      
+      // ¿Lo supera la unión interna+externa posterior?
+      final newer = all.where((o) => o.date.isAfter(deworming.date));
+      return newer.any((o) => o.type == 'interna') &&
+             newer.any((o) => o.type == 'externa');
     });
   }
 
